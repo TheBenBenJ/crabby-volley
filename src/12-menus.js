@@ -25,7 +25,7 @@ function handleMenuKeys(code, key) {
   } else if (state === "aiDifficulty") {
     // Étape 2 (Solo vs IA) : la difficulté choisie amorce pendingMode, complété
     // ensuite par le mode de jeu dans "gameModeSelect".
-    const lvl = { Digit1: 0, Digit2: 1, Digit3: 2 }[code];
+    const lvl = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 }[code];
     if (lvl !== undefined) { pendingMode = { vsAI: true, aiLevel: lvl }; state = "gameModeSelect"; }
     if (code === "Escape") state = "menu";
 
@@ -237,9 +237,10 @@ function drawAiDifficulty() {
   const items = [
     ["1  —  Facile", "#7ed957"],
     ["2  —  Normale", "#ffd93d"],
-    ["3  —  Difficile", "#ff6b6b"]
+    ["3  —  Difficile", "#ff6b6b"],
+    ["4  —  Impitoyable  ☠", "#c48cff"]
   ];
-  drawOptionList(items, 215, 52);
+  drawOptionList(items, 200, 46);
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   ctx.font = "17px 'Trebuchet MS', sans-serif";
   ctx.fillText("Échap : retour", W / 2, 430);

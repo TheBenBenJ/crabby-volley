@@ -100,9 +100,11 @@ const AI_LEVELS = [
   // rush : propension à foncer au filet pour provoquer un Smash Battle
   // attack : décalage derrière la balle pour viser franchement le camp adverse
   // react : anticipation (0=lent, 1=parfait) · dbl : utilise le double saut
-  { name: "Facile",    speedMul: 0.82, err: 40, jumpDist: 100, rush: 0.25, attack: 8,  react: 0.55, dbl: false },
-  { name: "Normale",   speedMul: 1.0,  err: 15, jumpDist: 118, rush: 0.5,  attack: 15, react: 0.8,  dbl: true },
-  { name: "Difficile", speedMul: 1.22, err: 3,  jumpDist: 138, rush: 0.9,  attack: 24, react: 1.0,  dbl: true }
+  // aim : 1 = place ses frappes LOIN de l'adversaire (drive profond / amorti court)
+  { name: "Facile",      speedMul: 0.82, err: 40, jumpDist: 100, rush: 0.25, attack: 8,  react: 0.55, dbl: false, aim: 0 },
+  { name: "Normale",     speedMul: 1.0,  err: 15, jumpDist: 118, rush: 0.5,  attack: 15, react: 0.8,  dbl: true,  aim: 0 },
+  { name: "Difficile",   speedMul: 1.22, err: 3,  jumpDist: 138, rush: 0.85, attack: 24, react: 1.0,  dbl: true,  aim: 1 },
+  { name: "Impitoyable", speedMul: 1.5,  err: 0,  jumpDist: 160, rush: 0.6,  attack: 28, react: 1.0,  dbl: true,  aim: 1 }
 ];
 let aiLevel = 1;
 let aiErr = 0, aiErrTimer = 0;  // erreur de placement volontaire de l'IA

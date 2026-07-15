@@ -3,14 +3,25 @@
 
 // ---------- IA ----------
 function predictLandingX() {
-  // simulation simple de la trajectoire jusqu'à la hauteur de frappe
+  // simulation de la trajectoire jusqu'à la hauteur de frappe, en tenant compte
+  // des murs ET du rebond sur le sommet du filet (l'IA ne se fait plus surprendre
+  // par une balle qui accroche la bande).
   let x = ball.x, y = ball.y, vx = ball.vx, vy = ball.vy;
   const hitY = GROUND_Y - 75;
-  for (let i = 0; i < 300; i++) {
+  const minN = BALL_R + NET_W / 2 + 3;
+  for (let i = 0; i < 400; i++) {
     vy += GRAV_BALL;
     x += vx; y += vy;
     if (x - BALL_R < 0) { x = BALL_R; vx = Math.abs(vx) * 0.9; }
     if (x + BALL_R > W) { x = W - BALL_R; vx = -Math.abs(vx) * 0.9; }
+    // rebond sur le sommet du filet (cercle), miroir de updateBall
+    const dxn = x - NET_X, dyn = y - NET_TOP, dn = Math.hypot(dxn, dyn);
+    if (dn < minN && dn > 0) {
+      const nx = dxn / dn, ny = dyn / dn;
+      x = NET_X + nx * minN; y = NET_TOP + ny * minN;
+      const dot = vx * nx + vy * ny;
+      vx = (vx - 2 * dot * nx) * 0.75; vy = (vy - 2 * dot * ny) * 0.75;
+    }
     if (y >= hitY && vy > 0) return x;
   }
   return x;
@@ -22,7 +33,7 @@ function aiInput() {
   // Smash Battle : l'IA martèle à une cadence liée à sa difficulté
   // (~3,3 / 5 / 7,5 appuis par seconde — un humain motivé tape 6-10/s)
   if (battle.active) {
-    const period = [8, 5, 3][aiLevel]; // difficile = martèlement quasi increvable
+    const period = [8, 5, 3, 2][aiLevel]; // impitoyable = martèlement quasi increvable
     input.jump = Math.floor(tick / period) % 2 === 0;
     return input;
   }
@@ -71,7 +82,9 @@ function aiInput() {
     return input;
   }
 
-  const ballComing = ball.x > NET_X - 80 || (ball.vx > 1.0 && !ball.frozen);
+  // anticipation : dès que la balle repart vers son camp (ou l'a franchi), l'IA
+  // se met en route vers le point de chute prévu — elle n'attend pas la balle.
+  const ballComing = ball.x > NET_X - 120 || (ball.vx > 0.3 && !ball.frozen && ball.x > NET_X - 220);
   let targetX;
 
   if (ball.frozen && servingSide === 1) {
@@ -79,32 +92,57 @@ function aiInput() {
     targetX = ball.x + 8;
   } else if (ballComing) {
     const land = predictLandingX();
-    // ATTAQUE : se poster derrière la balle (côté filet) pour la renvoyer
-    // fort vers le camp adverse. Plus le niveau est élevé, plus on se poste
-    // franchement derrière → frappe plate et offensive plutôt que cloche molle.
-    targetX = land > NET_X ? land + lvl.attack + aiErr : me.homeX;
+    if (land <= NET_X) {
+      targetX = me.homeX;
+    } else if (land < NET_X + 90) {
+      // BALLE COURTE (retombe près du filet) : priorité à la fiabilité, on se
+      // met quasi dessous pour la remonter — surtout PAS l'offset de placement,
+      // qui écarterait l'IA du filet et la ferait rater la balle.
+      targetX = land + 8;
+    } else if (lvl.aim) {
+      // PLACEMENT INTENTIONNEL : viser LOIN de l'adversaire.
+      // L'IA est à droite ; se poster à droite de la balle (offset>0) la renvoie
+      // vers la gauche. CRUCIAL : l'offset doit rester DANS le rayon de frappe
+      // (≈ BALL_R + rayon corps ≈ 40 px) sinon l'IA se poste à côté de la balle
+      // et la rate complètement. On module donc l'angle dans une plage sûre :
+      // adverse au filet → offset un peu plus grand (drive plus profond) ;
+      // adverse au fond → offset plus petit (renvoi plus court, plus vertical).
+      const oppNearNet = blobL.x > NET_X - 150;
+      const place = oppNearNet ? 26 : 15;
+      targetX = land + place + aiErr;
+    } else {
+      // niveaux bas : simple renvoi offensif, décalage fixe (borné au rayon utile)
+      targetX = land + Math.min(lvl.attack, 22) + aiErr;
+    }
   } else {
     targetX = me.homeX;
   }
-  // rester dans son camp, sans coller au filet ni au mur
-  targetX = Math.max(NET_X + 42, Math.min(W - 40, targetX));
+  // rester dans son camp ; on autorise à s'approcher au plus près du filet
+  // (≈ limite physique du joueur) pour aller chercher les amortis courts
+  targetX = Math.max(NET_X + 36, Math.min(W - 40, targetX));
 
   const dx = targetX - me.x;
-  const dead = 6 - lvl.react * 3; // les bons niveaux se recalent plus finement
+  // zone morte proportionnelle à la vitesse : un pas de déplacement rapide
+  // dépasse une petite zone morte → l'IA oscillerait autour de sa cible. On
+  // la cale sur ~un pas pour qu'elle se pose net (positionnement précis).
+  const step = BLOB_SPEED * lvl.speedMul * animOf(me).speed;
+  const dead = Math.max(6 - lvl.react * 3, step * 0.9);
   if (dx < -dead) input.left = true;
   else if (dx > dead) input.right = true;
 
-  // SAUT offensif : balle de son côté, à portée horizontale, en approche/descente
+  // SAUT : on ne saute QUE pour les balles trop hautes pour un contact debout,
+  // et bien centrées horizontalement (fenêtre serrée = contact sûr, fini les
+  // whiffs). Les balles basses se jouent debout : le contact tête/corps est
+  // automatique dès que la balle descend dans le joueur → beaucoup plus fiable.
   const overMySide = ball.x > NET_X + BALL_R;
-  const closeX = Math.abs(ball.x - me.x) < 42 + lvl.attack;
-  const descending = ball.vy > -2;
-  const strikeZone = ball.y < me.y - 34 && ball.y > me.y - 205;
-  if (!ball.frozen && overMySide && closeX && descending && strikeZone) {
+  const reachX = Math.abs(ball.x - me.x) < 30;
+  const descending = ball.vy > -1;
+  const highBall = ball.y < me.y - 92 && ball.y > me.y - 210; // au-dessus de la tête
+  if (!ball.frozen && overMySide && reachX && descending && highBall) {
     if (me.onGround) {
       input.jump = true;
-    } else if (lvl.dbl && me.jumpsUsed === 1 && me.vy > -1.5 && ball.y < me.y - 130) {
-      // double saut pour rattraper une balle un peu trop haute (sans abuser)
-      input.jump = true;
+    } else if (lvl.dbl && me.jumpsUsed === 1 && me.vy > -1.5 && ball.y < me.y - 150) {
+      input.jump = true; // double saut pour une balle encore plus haute
     }
   }
   // service : sauter pour toucher la balle gelée
@@ -160,7 +198,8 @@ function aiInput2v2(me) {
   targetX = Math.max(minX + 6, Math.min(maxX - 6, targetX));
 
   const dx = targetX - me.x;
-  const dead = 6 - lvl.react * 3;
+  const step2v2 = BLOB_SPEED * lvl.speedMul * animOf(me).speed;
+  const dead = Math.max(6 - lvl.react * 3, step2v2 * 0.9);
   if (dx < -dead) input.left = true;
   else if (dx > dead) input.right = true;
 

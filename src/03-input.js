@@ -66,7 +66,7 @@ function padGameInput(i) {
 function navOptions() {
   switch (state) {
     case "menu":          return ["Digit1", "Digit2", "Digit3", "KeyR"];
-    case "aiDifficulty":  return ["Digit1", "Digit2", "Digit3"];
+    case "aiDifficulty":  return ["Digit1", "Digit2", "Digit3", "Digit4"];
     // le nombre d'options dépend du contexte (Solo IA : 3 ; local : 2, pas de 2v2)
     case "gameModeSelect": return pendingMode && pendingMode.vsAI
       ? ["Digit1", "Digit2", "Digit3"] : ["Digit1", "Digit2"];
