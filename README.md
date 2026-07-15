@@ -86,6 +86,27 @@ npm test
 Le jeu est un site statique : n'importe quel serveur web suffit. Copier
 `index.html` + le dossier `src/` (et servir en HTTPS pour le multijoueur en ligne).
 
+### Déploiement continu (push sur `main` → prod)
+
+Le workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml)
+lance les tests puis, s'ils passent, synchronise `index.html` + `src/` vers la
+racine web du serveur en SSH (`rsync` via `sudo`). Il se déclenche à chaque push
+sur `main` (ou manuellement via *Run workflow*).
+
+Il faut renseigner 4 *secrets* du dépôt (**Settings → Secrets and variables →
+Actions → New repository secret**) :
+
+| Secret | Valeur |
+|--------|--------|
+| `DEPLOY_HOST` | l'adresse du serveur (IP ou nom d'hôte) |
+| `DEPLOY_USER` | l'utilisateur SSH (ex. `ubuntu`) |
+| `DEPLOY_WEB_ROOT` | la racine web (ex. `/var/www/blobby-volley`) |
+| `DEPLOY_SSH_KEY` | la **clé privée** de déploiement (une clé dédiée, pas ta clé perso) |
+
+La clé publique correspondante doit être ajoutée à `~/.ssh/authorized_keys` de
+l'utilisateur SSH sur le serveur, et cet utilisateur doit pouvoir écrire dans la
+racine web (ici via `sudo` sans mot de passe).
+
 ## 📄 Licence
 
 [MIT](LICENSE) © Benjamin Mille

@@ -1,0 +1,69 @@
+name: Deploy
+
+# Déploiement continu : à chaque push sur main, on lance les tests puis, s'ils
+# passent, on synchronise index.html + src/ vers la racine web du serveur.
+# Le déploiement peut aussi être déclenché à la main (workflow_dispatch).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# un seul déploiement à la fois ; on annule un déploiement en cours si un
+# nouveau push arrive (on ne veut que la dernière version en prod).
+concurrency:
+  group: deploy-prod
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Tests (filet de sécurité)
+        run: npm test
+
+  deploy:
+    needs: test            # pas de déploiement si les tests échouent
+    runs-on: ubuntu-latest
+    # secrets/paramètres du serveur (voir README → Déploiement continu)
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      WEB_ROOT: ${{ secrets.DEPLOY_WEB_ROOT }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurer la clé SSH de déploiement
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Envoyer les fichiers (staging)
+        run: |
+          rsync -az --delete \
+            -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
+            index.html src \
+            "$DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/crabby-deploy/"
+
+      - name: Publier dans la racine web
+        run: |
+          ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
+            "$DEPLOY_USER@$DEPLOY_HOST" \
+            "set -e; \
+             sudo mkdir -p '$WEB_ROOT/src'; \
+             sudo cp /home/$DEPLOY_USER/crabby-deploy/index.html '$WEB_ROOT/index.html'; \
+             sudo rsync -a --delete /home/$DEPLOY_USER/crabby-deploy/src/ '$WEB_ROOT/src/'; \
+             sudo chown -R www-data:www-data '$WEB_ROOT/index.html' '$WEB_ROOT/src'"
+
+      - name: Vérifier que le site répond
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://${DEPLOY_HOST_NAME:-ns3104412.ip-37-187-139.eu}/")
+          echo "HTTP $code"
+          test "$code" = "200"
