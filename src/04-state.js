@@ -46,6 +46,13 @@ const ANIMALS = [
     slip: true,
     trait: "Ultra-rapide, mais dérape à l'arrêt : placement difficile.",
     superName: "Turbo-bond", superDesc: "Vitesse décuplée et sauts illimités pendant un instant."
+  },
+  {
+    key: "chibre", name: "Monsieur Chibre",
+    stats: { vitesse: 3, detente: 5, puissance: 5, controle: 1 },
+    speed: 0.95, jump: 1.3, power: 1.2, control: 0.58,
+    trait: "Ressort sur pattes : saute haut et cogne fort, mais part dans tous les sens.",
+    superName: "Coup de boutoir", superDesc: "Se raidit : la frappe suivante part comme un boulet rasant."
   }
 ];
 function animOf(b) { return ANIMALS[b.animal]; }
@@ -109,10 +116,11 @@ const battle = {
 //   Madame Slurp → "Langue-grappin" : la langue va chercher la balle trop loin et la renvoie
 //   Général Frigo → "Canon des glaces" : la frappe suivante est un boulet de canon glacé
 //   Turbo-Jeannot → "Turbo-bond" : vitesse décuplée + sauts illimités pendant ~1,6 s
+//   Monsieur Chibre → "Coup de boutoir" : la frappe suivante part en boulet rasant
 const SUPER_NEED = 3;
 const streak = [0, 0];        // points d'affilée par camp
 const superCharge = [0, 0];   // 0 = vide, 1 = super prête
-const SUPER_DUR = { oiseau: 40, grenouille: 24, manchot: 60, lapin: 100 };
+const SUPER_DUR = { oiseau: 40, grenouille: 24, manchot: 60, lapin: 100, chibre: 55 };
 let superFlash = "";          // libellé "SUPER !" affiché brièvement
 let superFlashT = 0;
 

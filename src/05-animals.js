@@ -14,6 +14,7 @@ function drawAnimal(b) {
   if (key === "oiseau") drawOiseau(b);
   else if (key === "grenouille") drawGrenouille(b);
   else if (key === "manchot") drawManchot(b);
+  else if (key === "chibre") drawChibre(b);
   else drawLapin(b);
   drawSuperOverlay(b, key);                 // langue-grappin, charge de smash…
   drawEmote(b);                             // bulle d'émotion
@@ -290,6 +291,70 @@ function drawLegs(b, dir, s, legColor, footStyle) {
       ctx.fill();
     }
   }
+}
+
+// Monsieur Chibre : mascotte-ressort tout en hauteur (gag cartoon assumé).
+// Fût vertical couleur de l'équipe, dôme au sommet avec les yeux + sourire,
+// deux bosses à la base, petits pieds. S'étire quand il saute (côté ressort).
+function drawChibre(b) {
+  const s = Math.max(0, b.squash);
+  const bx = b.x, by = b.y;
+  const dir = b.side === 0 ? 1 : -1;
+  const stretch = b.onGround ? 0 : 7;      // s'allonge en l'air (effet ressort)
+  const topY = by - 72 - stretch + s * 1.2; // centre du dôme
+  const shaftW = 19;
+  ctx.save();
+  drawShadow(b);
+  drawLegs(b, dir, s, b.darkColor, "paws");
+
+  // deux bosses à la base
+  ctx.fillStyle = b.darkColor;
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(bx + side * 15, by - 12 + s, 15, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // le fût (capsule verticale) : rect coiffé/chaussé par le dôme et les bosses
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.moveTo(bx - shaftW / 2, by - 16 + s);
+  ctx.lineTo(bx - shaftW / 2, topY);
+  ctx.lineTo(bx + shaftW / 2, topY);
+  ctx.lineTo(bx + shaftW / 2, by - 16 + s);
+  ctx.closePath();
+  ctx.fill();
+  outline();
+
+  // dôme au sommet
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.ellipse(bx, topY, 26, 24, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline();
+
+  // reflet clair sur le dôme (volume)
+  ctx.fillStyle = "rgba(255,255,255,0.28)";
+  ctx.beginPath();
+  ctx.ellipse(bx - 9, topY - 9, 8, 6, -0.5, 0, Math.PI * 2);
+  ctx.fill();
+
+  // veine stylisée sur le fût (petit détail comique discret)
+  ctx.strokeStyle = "rgba(0,0,0,0.10)";
+  ctx.lineWidth = 2; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(bx - dir * 5, by - 20 + s);
+  ctx.quadraticCurveTo(bx - dir * 9, by - 42 + s, bx - dir * 4, topY + 14);
+  ctx.stroke();
+
+  // yeux (regard partagé depuis le centre du dôme → pas de strabisme) + sourire
+  drawTrackingEye(bx + dir * 4, topY - 3, 5.5, 2.7, bx, topY);
+  drawTrackingEye(bx + dir * 13, topY - 3, 5.5, 2.7, bx, topY);
+  ctx.strokeStyle = "#8a2f2f"; ctx.lineWidth = 2; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(bx + dir * 7, topY + 9, 5, 0.08 * Math.PI, 0.92 * Math.PI);
+  ctx.stroke();
+  ctx.restore();
 }
 
 function drawOiseau(b) {

@@ -76,6 +76,11 @@ function animalHitSound(a) {
       beep(360, 0.16, "square", 0.17, 0.05, 300);
       beep(240, 0.12, "sawtooth", 0.1, 0.05, 220);
       break;
+    case "chibre":     // "SPROïNG" de ressort qui se détend + petite claque
+      beep(120, 0.05, "sine", 0.2, 0, 900);
+      beep(900, 0.16, "sine", 0.18, 0.05, 380);
+      beep(500, 0.06, "triangle", 0.12, 0.02, 700);
+      break;
     default:           // lapin : gros "BOI-OING" élastique (monte puis redescend)
       beep(240, 0.14, "sine", 0.24, 0, 760);
       beep(760, 0.18, "sine", 0.2, 0.09, 240);

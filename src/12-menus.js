@@ -77,7 +77,7 @@ function handleMenuKeys(code, key) {
     if (code === "Escape" || code === "Enter" || code === "Space") state = "menu";
 
   } else if (state === "selectAnimal") {
-    const n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 }[code];
+    const n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4 }[code];
     if (n !== undefined) {
       (selPlayer === 0 ? blobL : blobR).animal = n;
       if (pendingMode.online) {
@@ -313,11 +313,15 @@ function drawRules() {
   ctx.fillText("V=Vitesse  D=Détente  P=Puissance  C=Contrôle", rx, 96);
 
   const cellW = (W / 2 - 60) / 2;
+  // 5 animaux → 3 rangées : on resserre l'espacement pour ne pas déborder
+  const compact = ANIMALS.length > 4;
+  const rowH = compact ? 120 : 168;
+  const ay0 = compact ? 104 : 118;
   for (let i = 0; i < ANIMALS.length; i++) {
     const a = ANIMALS[i];
     const col = i % 2, row = Math.floor(i / 2);
     const ax = rx + col * (cellW + 20);
-    const ay = 118 + row * 168;
+    const ay = ay0 + row * rowH;
 
     // aperçu de l'animal
     drawAnimal({ x: ax + 28, y: ay + 70, groundY: ay + 70, side: 0,
@@ -346,7 +350,7 @@ function drawRules() {
     // trait
     ctx.fillStyle = "rgba(255,204,0,0.9)";
     ctx.font = "11px 'Trebuchet MS', sans-serif";
-    wrapText2(a.trait, ax, ay + 116, cellW - 4, 14);
+    wrapText2(a.trait, ax, ay + (compact ? 106 : 116), cellW - 4, 13);
   }
 
   ctx.textAlign = "center";
@@ -392,15 +396,15 @@ function drawSelectAnimal() {
   ctx.font = "bold 30px 'Trebuchet MS', sans-serif";
   ctx.fillText("Choisis ton animal — Joueur " + (selPlayer === 0 ? "Rouge" : "Vert"), W / 2, 52);
 
+  const cw = W / ANIMALS.length; // largeur de carte adaptative (4 ou 5 animaux…)
   for (let i = 0; i < ANIMALS.length; i++) {
-    const cw = W / 4;
     const cx = cw * i + cw / 2;
     const a = ANIMALS[i];
     if (padConnected && navIdx === i) {
       // carte surlignée à la manette
       ctx.strokeStyle = "#ffcc00";
       ctx.lineWidth = 3;
-      ctx.strokeRect(cw * i + 10, 72, cw - 20, 336);
+      ctx.strokeRect(cw * i + 8, 72, cw - 16, 336);
     }
     const preview = {
       x: cx, y: 168, groundY: 168,
@@ -410,7 +414,7 @@ function drawSelectAnimal() {
     drawAnimal(preview);
     ctx.textAlign = "center";
     ctx.fillStyle = "#fff";
-    ctx.font = "bold 20px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 17px 'Trebuchet MS', sans-serif";
     ctx.fillText((i + 1) + " — " + a.name, cx, 205);
 
     // jauges de stats
@@ -439,7 +443,7 @@ function drawSelectAnimal() {
   ctx.font = "16px 'Trebuchet MS', sans-serif";
   ctx.textAlign = "center";
   ctx.fillText("Technique : 3 points d'affilée chargent le SUPER (S / ↓)", W / 2, 452);
-  ctx.fillText("Appuie sur 1 – 4      •      Échap : retour", W / 2, 474);
+  ctx.fillText("Appuie sur 1 – " + ANIMALS.length + "      •      Échap : retour", W / 2, 474);
 }
 
 // utilitaire : texte multi-lignes centré
