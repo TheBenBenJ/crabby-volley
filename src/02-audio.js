@@ -81,6 +81,10 @@ function animalHitSound(a) {
       beep(900, 0.16, "sine", 0.18, 0.05, 380);
       beep(500, 0.06, "triangle", 0.12, 0.02, 700);
       break;
+    case "chneck":     // "miaou !" : deux notes qui montent puis retombent
+      beep(620, 0.09, "sawtooth", 0.13, 0, 880);
+      beep(840, 0.14, "sawtooth", 0.12, 0.08, 520);
+      break;
     default:           // lapin : gros "BOI-OING" élastique (monte puis redescend)
       beep(240, 0.14, "sine", 0.24, 0, 760);
       beep(760, 0.18, "sine", 0.2, 0.09, 240);

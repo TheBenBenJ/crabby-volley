@@ -15,6 +15,7 @@ function drawAnimal(b) {
   else if (key === "grenouille") drawGrenouille(b);
   else if (key === "manchot") drawManchot(b);
   else if (key === "chibre") drawChibre(b);
+  else if (key === "chneck") drawChneck(b);
   else drawLapin(b);
   drawSuperOverlay(b, key);                 // langue-grappin, charge de smash…
   drawEmote(b);                             // bulle d'émotion
@@ -354,6 +355,127 @@ function drawChibre(b) {
   ctx.beginPath();
   ctx.arc(bx + dir * 7, topY + 9, 5, 0.08 * Math.PI, 0.92 * Math.PI);
   ctx.stroke();
+  ctx.restore();
+}
+
+// Madame Chneck : chatte agile — corps rond couleur d'équipe, oreilles pointues,
+// museau à moustaches, queue qui ondule. Pendant "Retombée de chat" (superT),
+// de petites étincelles d'apesanteur pétillent autour d'elle.
+function drawChneck(b) {
+  const s = Math.max(0, b.squash);
+  const bx = b.x, by = b.y;
+  const dir = b.side === 0 ? 1 : -1;
+  const headY = by - 62 + s * 1.5;
+  const t = performance.now() / 1000;
+  ctx.save();
+  drawShadow(b);
+
+  // queue qui ondule derrière (dressée façon point d'interrogation)
+  ctx.strokeStyle = b.color; ctx.lineWidth = 8; ctx.lineCap = "round";
+  const tailWag = Math.sin(t * 4 + (b.onGround ? 0 : 3)) * 0.5;
+  ctx.save();
+  ctx.translate(bx - dir * 24, by - 24 + s);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.quadraticCurveTo(-dir * 20, -6, -dir * 22 + Math.sin(tailWag) * 4, -30 + tailWag * 8);
+  ctx.stroke();
+  // bout de queue plus clair
+  ctx.strokeStyle = b.darkColor; ctx.lineWidth = 8;
+  ctx.beginPath();
+  ctx.moveTo(-dir * 22 + Math.sin(tailWag) * 4, -30 + tailWag * 8);
+  ctx.lineTo(-dir * 20 + Math.sin(tailWag) * 4, -38 + tailWag * 8);
+  ctx.stroke();
+  ctx.restore();
+
+  drawLegs(b, dir, s, b.darkColor, "paws");
+
+  // corps rond
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.ellipse(bx, by - 28 + s, 29, 26 - s * 0.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline();
+
+  // poitrail clair
+  ctx.fillStyle = "rgba(255,255,255,0.5)";
+  ctx.beginPath();
+  ctx.ellipse(bx + dir * 4, by - 22 + s, 13, 15, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // oreilles pointues
+  for (const side of [-1, 1]) {
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.moveTo(bx + side * 15, headY - 14);
+    ctx.lineTo(bx + side * 21, headY - 34);
+    ctx.lineTo(bx + side * 3, headY - 20);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "#f5b7c5"; // intérieur rose
+    ctx.beginPath();
+    ctx.moveTo(bx + side * 14, headY - 17);
+    ctx.lineTo(bx + side * 18, headY - 29);
+    ctx.lineTo(bx + side * 8, headY - 20);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // tête
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.arc(bx, headY, 21, 0, Math.PI * 2);
+  ctx.fill();
+  outline();
+
+  // museau clair
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.beginPath();
+  ctx.ellipse(bx + dir * 4, headY + 6, 12, 8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // truffe rose + bouche
+  ctx.fillStyle = "#f06292";
+  ctx.beginPath();
+  ctx.moveTo(bx + dir * 4 - 3, headY + 2);
+  ctx.lineTo(bx + dir * 4 + 3, headY + 2);
+  ctx.lineTo(bx + dir * 4, headY + 5);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "#8a2f2f"; ctx.lineWidth = 1.4; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(bx + dir * 4, headY + 5);
+  ctx.lineTo(bx + dir * 4, headY + 9);
+  ctx.moveTo(bx + dir * 4, headY + 9);
+  ctx.quadraticCurveTo(bx + dir * 9, headY + 11, bx + dir * 11, headY + 8);
+  ctx.moveTo(bx + dir * 4, headY + 9);
+  ctx.quadraticCurveTo(bx - dir * 1, headY + 11, bx - dir * 3, headY + 8);
+  ctx.stroke();
+
+  // moustaches
+  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 1;
+  for (const sgn of [1, -1]) {
+    for (const wy of [-1, 3]) {
+      ctx.beginPath();
+      ctx.moveTo(bx + dir * 6, headY + 6);
+      ctx.lineTo(bx + dir * 6 + sgn * 18, headY + 6 + wy * sgn);
+      ctx.stroke();
+    }
+  }
+
+  // yeux (regard partagé depuis le centre de la tête)
+  drawTrackingEye(bx + dir * 3, headY - 5, 5.5, 2.6, bx, headY);
+  drawTrackingEye(bx + dir * 13, headY - 5, 5.5, 2.6, bx, headY);
+
+  // étincelles d'apesanteur pendant la Retombée de chat
+  if (isLiveBlob(b) && b.superT > 0) {
+    ctx.fillStyle = "rgba(255,255,180,0.9)";
+    for (let i = 0; i < 5; i++) {
+      const a2 = t * 6 + i * 1.4;
+      const r = 30 + Math.sin(t * 10 + i) * 5;
+      const sx = bx + Math.cos(a2) * r, sy = by - 34 + Math.sin(a2) * r;
+      ctx.beginPath(); ctx.arc(sx, sy, 1.8, 0, Math.PI * 2); ctx.fill();
+    }
+  }
   ctx.restore();
 }
 

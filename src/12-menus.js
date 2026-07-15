@@ -77,7 +77,7 @@ function handleMenuKeys(code, key) {
     if (code === "Escape" || code === "Enter" || code === "Space") state = "menu";
 
   } else if (state === "selectAnimal") {
-    const n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4 }[code];
+    const n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4, Digit6: 5 }[code];
     if (n !== undefined) {
       (selPlayer === 0 ? blobL : blobR).animal = n;
       if (pendingMode.online) {
@@ -414,7 +414,8 @@ function drawSelectAnimal() {
     drawAnimal(preview);
     ctx.textAlign = "center";
     ctx.fillStyle = "#fff";
-    ctx.font = "bold 17px 'Trebuchet MS', sans-serif";
+    // police du nom adaptée au nombre de cartes (plus serré à 5-6 animaux)
+    ctx.font = "bold " + (ANIMALS.length >= 6 ? 14 : ANIMALS.length === 5 ? 16 : 20) + "px 'Trebuchet MS', sans-serif";
     ctx.fillText((i + 1) + " — " + a.name, cx, 205);
 
     // jauges de stats
