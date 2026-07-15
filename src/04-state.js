@@ -67,7 +67,7 @@ const ANIMALS = [
   },
   {
     key: "chneck", name: "Madame Chneck",
-    color: "#e8913b", darkColor: "#c56f22",   // chatte rousse
+    color: "#e7a48c", darkColor: "#b76a62",   // teinte chair rosée
     stats: { vitesse: 4, detente: 3, puissance: 2, controle: 5 },
     speed: 1.12, jump: 1.05, power: 0.85, control: 0.98,
     trait: "Chatte agile et précise : contrôle parfait, mais frappe tout en finesse.",
