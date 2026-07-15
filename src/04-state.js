@@ -26,7 +26,7 @@ const ANIMALS = [
     stats: { vitesse: 4, detente: 4, puissance: 2, controle: 3 },
     speed: 1.12, jump: 1.12, power: 0.82, control: 0.9,
     beak: true, molt: true,
-    trait: "Bec fragile : peut crever la balle. Se déplume au fil des touches (8 coups), à nu d'un coup en cas de point perdu.",
+    trait: "Bec fragile : peut crever la balle. Se déplume à la perte du point.",
     superName: "Piqué éclair", superDesc: "Bond fulgurant : la frappe suivante est un smash aérien."
   },
   {
@@ -42,7 +42,7 @@ const ANIMALS = [
     stats: { vitesse: 2, detente: 2, puissance: 5, controle: 4 },
     speed: 0.82, jump: 0.82, power: 1.28, control: 0.97,
     beak: true, angry: true,
-    trait: "Frappe très puissante et précise. Lent. Bec (crevaison rare). Devient de plus en plus furieux au fil des touches (purement visuel).",
+    trait: "Frappe très puissante et précise. Lent. Bec (crevaison rare).",
     superName: "Canon des glaces", superDesc: "La frappe suivante devient un boulet de canon plongeant."
   },
   {
@@ -50,7 +50,7 @@ const ANIMALS = [
     stats: { vitesse: 5, detente: 3, puissance: 2, controle: 3 },
     speed: 1.3, jump: 1.0, power: 0.85, control: 0.9,
     slip: true, tired: true,
-    trait: "Ultra-rapide, mais dérape à l'arrêt : placement difficile. Se fatigue au fil des touches (purement visuel).",
+    trait: "Ultra-rapide, mais dérape à l'arrêt : placement difficile.",
     superName: "Turbo-bond", superDesc: "Vitesse décuplée et sauts illimités pendant un instant."
   },
   {
