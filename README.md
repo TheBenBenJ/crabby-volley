@@ -101,7 +101,11 @@ Actions → New repository secret**) :
 | `DEPLOY_HOST` | l'adresse du serveur (IP ou nom d'hôte) |
 | `DEPLOY_USER` | l'utilisateur SSH (ex. `ubuntu`) |
 | `DEPLOY_WEB_ROOT` | la racine web (ex. `/var/www/blobby-volley`) |
-| `DEPLOY_SSH_KEY` | la **clé privée** de déploiement (une clé dédiée, pas ta clé perso) |
+| `DEPLOY_SSH_KEY` | la **clé privée** de déploiement, **encodée en base64** (voir ci-dessous) |
+
+> La clé privée est encodée en base64 pour éviter que les retours à la ligne
+> soient altérés au copier-coller. Sur macOS :
+> `base64 -i ~/.ssh/crabby_deploy | pbcopy` puis colle dans le secret.
 
 La clé publique correspondante doit être ajoutée à `~/.ssh/authorized_keys` de
 l'utilisateur SSH sur le serveur, et cet utilisateur doit pouvoir écrire dans la

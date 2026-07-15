@@ -38,11 +38,15 @@ jobs:
 
       - name: Configurer la clé SSH de déploiement
         env:
+          # clé PRIVÉE encodée en base64 (évite tout problème de retours à la
+          # ligne au copier-coller). Voir README → Déploiement continu.
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          echo "$DEPLOY_SSH_KEY" | base64 --decode > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
+          # validation : message clair si le secret est mal collé/encodé
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null || { echo "::error::DEPLOY_SSH_KEY invalide (clé privée en base64 attendue)"; exit 1; }
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Envoyer les fichiers (staging)
