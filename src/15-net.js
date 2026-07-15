@@ -708,8 +708,8 @@ function drawNetHUD() {
   }
   ctx.textAlign = "right";
   ctx.font = "13px 'Trebuchet MS', sans-serif";
-  ctx.fillStyle = netRole === "host" ? "rgba(232,69,69,0.9)" : "rgba(76,175,80,0.9)";
-  ctx.fillText(netRole === "host" ? "Tu es Rouge" : "Tu es Vert", W - 14, 44);
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.fillText(netRole === "host" ? "Tu joues à gauche" : "Tu joues à droite", W - 14, 44);
 
   // pause automatique si l'autre ne donne plus signe de vie
   const stale = netRole === "host"
@@ -749,7 +749,7 @@ function drawOnlineMenu() {
 }
 
 function drawHostWait() {
-  netScreenBase("Partie en ligne — tu es Rouge");
+  netScreenBase("Partie en ligne — tu joues à gauche");
   ctx.fillStyle = "#fff";
   ctx.font = "20px 'Trebuchet MS', sans-serif";
   ctx.fillText("Code de la partie :", W / 2, 180);

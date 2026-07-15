@@ -7,7 +7,11 @@
 // et éventuellement groundY (pour les aperçus hors du sol de jeu).
 
 function drawAnimal(b) {
-  const key = ANIMALS[b.animal].key;
+  const A = ANIMALS[b.animal];
+  // couleurs NATURELLES du personnage (fini les équipes rouge/verte). On les
+  // applique au blob au moment du dessin : purement visuel, hors simulation.
+  if (A.color) { b.color = A.color; b.darkColor = A.darkColor; }
+  const key = A.key;
   drawSuperAura(b);                         // halo derrière l'animal
   // pendant le Turbo-bond du lapin : traînée d'images fantômes
   if (b.superT > 0 && key === "lapin") drawTurboGhosts(b, key);

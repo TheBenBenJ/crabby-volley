@@ -223,7 +223,7 @@ function drawMenu() {
 
   ctx.font = "17px 'Trebuchet MS', sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.fillText("Rouge : Q/D + Z/Espace, S = SUPER   •   Vert : ← → + ↑, ↓ = SUPER", W / 2, 412);
+  ctx.fillText("Gauche : Q/D + Z/Espace, S = SUPER   •   Droite : ← → + ↑, ↓ = SUPER", W / 2, 412);
   ctx.fillText("Premier à " + WIN_SCORE + " (2 pts d'écart) — " + MAX_TOUCHES + " touches max   •   P : pause   •   M : son   •   N : musique", W / 2, 438);
   if (padConnected) {
     ctx.fillStyle = "#7ed957";
@@ -288,10 +288,10 @@ function drawRules() {
   p("Maximum " + MAX_TOUCHES + " touches par camp avant de renvoyer.");
   y += 8;
   h("Commandes");
-  p("Rouge : Q/D bouger, Z ou Espace sauter.");
-  p("Vert : ← → bouger, ↑ sauter. (en ligne : les deux)");
+  p("Gauche : Q/D bouger, Z ou Espace sauter.");
+  p("Droite : ← → bouger, ↑ sauter. (en ligne : les deux)");
   p("Manette : stick bouger, A sauter, B/gâchette SUPER.");
-  p("SUPER : Rouge = S, Vert = ↓. Double saut : réappuie en l'air.");
+  p("SUPER : Gauche = S, Droite = ↓. Double saut : réappuie en l'air.");
   p("P : pause  •  M : son  •  N : musique  •  Échap : menu");
   y += 8;
   h("★ Techniques SUPER", "#ffd93d");
@@ -390,12 +390,14 @@ function drawSelectAnimal() {
   ctx.fillStyle = "rgba(20,20,40,0.72)";
   ctx.fillRect(0, 0, W, H);
 
-  const pcolor = selPlayer === 0 ? "#e84545" : "#4caf50";
-  const pdark  = selPlayer === 0 ? "#b32e2e" : "#357a38";
+  // couleurs indicatives (le vrai rendu de l'aperçu prend la couleur naturelle
+  // de l'animal via drawAnimal) : on garde juste un ton neutre pour l'en-tête.
+  const pcolor = "#ffd36b";
+  const pdark  = "#d99e18";
   ctx.textAlign = "center";
   ctx.fillStyle = pcolor;
   ctx.font = "bold 30px 'Trebuchet MS', sans-serif";
-  ctx.fillText("Choisis ton animal — Joueur " + (selPlayer === 0 ? "Rouge" : "Vert"), W / 2, 52);
+  ctx.fillText("Choisis ton animal — Joueur " + sideName(selPlayer), W / 2, 52);
 
   const cw = W / ANIMALS.length; // largeur de carte adaptative (4 ou 5 animaux…)
   for (let i = 0; i < ANIMALS.length; i++) {

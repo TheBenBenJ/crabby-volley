@@ -7,7 +7,7 @@ function drawBattleFx() {
   ctx.save();
   ctx.lineWidth = 2.5;
   for (const b of [blobL, blobR]) {
-    ctx.strokeStyle = b.side === 0 ? "rgba(232,69,69,0.8)" : "rgba(76,175,80,0.8)";
+    ctx.strokeStyle = sideColor(b.side);
     ctx.beginPath();
     const x0 = b.x, y0 = b.y - 64;
     ctx.moveTo(x0, y0);
@@ -53,7 +53,7 @@ function drawBattleHUD() {
   const maxC = Math.max(10, battle.count[0], battle.count[1]);
   for (const s of [0, 1]) {
     const w = 250 * (battle.count[s] / maxC);
-    ctx.fillStyle = s === 0 ? "#e84545" : "#4caf50";
+    ctx.fillStyle = sideColor(s);
     ctx.fillRect(s === 0 ? W / 2 - 20 - w : W / 2 + 20, 202, w, 18);
     ctx.font = "bold 16px 'Trebuchet MS', sans-serif";
     ctx.fillText(battle.count[s], s === 0 ? W / 2 - 295 : W / 2 + 295, 216);
@@ -99,7 +99,7 @@ function render() {
   if (state === "hostWait") { drawHostWait(); return; }
   if (state === "hostLobby") { drawHostLobby(); return; }
   if (state === "connecting") { drawNetScreen("Connexion", "Recherche de la partie"); return; }
-  if (state === "netWait") { drawNetScreen("Tu es Vert (à droite)", "En attente du lancement par l'hôte"); return; }
+  if (state === "netWait") { drawNetScreen("Tu joues à droite", "En attente du lancement par l'hôte"); return; }
   if (state === "netError") { drawNetError(); return; }
 
   // invité : le monde affiché vient de l'interpolation des instantanés
