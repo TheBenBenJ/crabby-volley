@@ -226,10 +226,15 @@ function updateBall() {
     ball.touches[sideNow] = 0;
   }
 
-  // sol → point (avec explosion si c'était un smash destructeur)
+  // sol → point (avec explosion si c'était un smash destructeur, ou la bombe)
   if (ball.y + BALL_R >= GROUND_Y) {
-    if (ball.smash > 0) { spawnBoom(ball.x, GROUND_Y); shake = 12; }
-    awardPoint(ball.x < NET_X ? 1 : 0, ball.smash > 0 ? "SMASH !" : "");
+    if (bombMode) {
+      bombBlast(ball.x, GROUND_Y);
+      awardPoint(ball.x < NET_X ? 1 : 0, "💥 BOUM !");
+    } else {
+      if (ball.smash > 0) { spawnBoom(ball.x, GROUND_Y); shake = 12; }
+      awardPoint(ball.x < NET_X ? 1 : 0, ball.smash > 0 ? "SMASH !" : "");
+    }
   }
 
   for (const b of activeBlobs) ballBlobCollision(b);

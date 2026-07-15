@@ -237,6 +237,14 @@ const blob2R = new Blob(1, "#3d8bff", "#245fd1"); // équipe droite, bleu
 // se TRAVERSENT (aucune collision entre coéquipiers, demandé par le joueur).
 let mode = "1v1";                 // "1v1" | "2v2"
 let activeBlobs = [blobL, blobR];
+
+// ---------- Mode Bombe (variante 1v1) ----------
+// La balle devient une bombe : elle explose au bout de BOMB_TIME ticks OU si
+// elle touche le sol. Dans les deux cas, le camp où se trouve la bombe perd le
+// point. bombTimer est décompté en TICKS (déterministe → compatible en ligne).
+let bombMode = false;             // règle « patate chaude » activée ?
+let bombTimer = 0;                // ticks restants avant explosion
+let bombFlash = 0;                // éclair d'explosion plein écran (visuel, 1→0)
 function setMode(m) {
   mode = m;
   if (m === "2v2") {

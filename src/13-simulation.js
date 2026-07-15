@@ -3,7 +3,8 @@
 
 // ---------- Smash Battle : logique ----------
 function canStartBattle() {
-  return state === "play" && !ball.frozen && !ball.popped && battle.cooldown === 0 &&
+  return !bombMode && // pas de duel au filet en mode bombe (la mèche tourne !)
+         state === "play" && !ball.frozen && !ball.popped && battle.cooldown === 0 &&
          !blobL.onGround && !blobR.onGround &&
          Math.abs(blobL.x - NET_X) < BATTLE_NET_DIST &&
          Math.abs(blobR.x - NET_X) < BATTLE_NET_DIST &&
@@ -131,6 +132,35 @@ function superSound(key) {
   if (key === "grenouille") beep(240, 0.16, "sawtooth", 0.15, 0.1, 130);
 }
 
+// ---------- Mode Bombe : logique ----------
+// L'explosion (mèche à zéro OU balle au sol) : le camp où se trouve la bombe
+// perd le point → l'adversaire marque. Même formule que la chute classique :
+// ball.x < NET_X ? 1 : 0  = le camp qui GAGNE le point.
+function bombBlast(x, y) {
+  spawnBoom(x, y);
+  spawnBoom(x, y - 8);   // gerbe plus dense qu'un simple smash
+  shake = Math.max(shake, 18);
+  bombFlash = 1;         // éclair plein écran (visuel, se résorbe au rendu)
+  beep(70, 0.5, "sawtooth", 0.3, 0, 30);
+  beep(130, 0.4, "square", 0.22, 0.02, 40);
+}
+
+// décompte de la mèche + explosion en fin de compte. Appelé en fin de stepGame,
+// donc uniquement quand la balle est réellement en jeu et déterministe.
+function tickBomb() {
+  if (state !== "play" || ball.frozen || ball.popped) return;
+  if (bombTimer > 0) {
+    bombTimer--;
+    // bips d'alerte : une fois par seconde, puis plus serrés dans les 3 dernières
+    if (bombTimer > 180) { if (bombTimer % 60 === 0) beep(660, 0.05, "square", 0.09); }
+    else if (bombTimer % 20 === 0) beep(880, 0.05, "square", 0.12, 0, 1200);
+  }
+  if (bombTimer <= 0) {
+    bombBlast(ball.x, ball.y);
+    awardPoint(ball.x < NET_X ? 1 : 0, "💥 BOUM !");
+  }
+}
+
 // stepGame(inL, inR)        → 1v1 / online (chemin d'origine, inchangé)
 // stepGame(null, null, ins) → 2v2 : `ins` = entrées alignées sur activeBlobs
 function stepGame(inL, inR, ins) {
@@ -170,6 +200,7 @@ function stepGame(inL, inR, ins) {
     tickSuper(blobL);
     tickSuper(blobR);
   }
+  if (bombMode) tickBomb();
   if (state === "serve" && !ball.frozen) state = "play";
 }
 

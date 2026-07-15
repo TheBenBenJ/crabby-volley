@@ -65,7 +65,7 @@ function padGameInput(i) {
 // options navigables à la manette, par état (mêmes codes que le clavier)
 function navOptions() {
   switch (state) {
-    case "menu":          return ["Digit1", "Digit2", "Digit3", "Digit4", "Digit6", "Digit5", "KeyR"];
+    case "menu":          return ["Digit1", "Digit2", "Digit3", "Digit4", "Digit6", "Digit7", "Digit5", "KeyR"];
     case "onlineMenu":    return ["Digit1", "Digit3", "Digit2"];
     case "selectAnimal":  return ["Digit1", "Digit2", "Digit3", "Digit4"];
     case "selectTerrain": return ["Digit1", "Digit2", "Digit3"];

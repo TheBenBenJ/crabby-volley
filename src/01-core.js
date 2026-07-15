@@ -28,6 +28,9 @@ const BATTLE_NET_DIST = 95;  // distance max des joueurs au filet pour déclench
 const BATTLE_BALL_DIST = 90; // distance max de la balle au filet
 const SMASH_VX = 14, SMASH_VY = 12; // vitesse du smash destructeur
 
+// --- Mode Bombe ---
+const BOMB_TIME = 600;      // 10 s à 60 Hz : durée de la mèche avant explosion
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 

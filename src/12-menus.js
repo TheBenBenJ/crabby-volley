@@ -13,6 +13,7 @@ function handleMenuKeys(code, key) {
     if (code === "Digit3") { pendingMode = { vsAI: true, aiLevel: 2 }; startAnimalSelect(); }
     if (code === "Digit4") { pendingMode = { vsAI: false }; startAnimalSelect(); }
     if (code === "Digit6") { pendingMode = { vsAI: true, aiLevel: 1, mode2v2: true }; startAnimalSelect(); }
+    if (code === "Digit7") { pendingMode = { vsAI: true, aiLevel: 1, bomb: true }; startAnimalSelect(); }
     if (code === "Digit5") {
       if (typeof Peer === "undefined") {
         netErrorMsg = "PeerJS n'a pas pu être chargé — le mode en ligne nécessite Internet.";
@@ -85,11 +86,13 @@ function handleMenuKeys(code, key) {
     if (n !== undefined) {
       terrain = n;
       if (pendingMode.online) {
+        bombMode = false; // le mode bombe reste hors-ligne pour l'instant
         if (pendingMode.o2v2) { state = "hostLobby"; initHostPeer2v2(); }
         else { state = "hostWait"; initHostPeer(); }
       } else {
         vsAI = pendingMode.vsAI;
         if (pendingMode.vsAI) aiLevel = pendingMode.aiLevel;
+        bombMode = !!pendingMode.bomb;
         setMode(pendingMode.mode2v2 ? "2v2" : "1v1");
         newGame();
       }
@@ -170,14 +173,15 @@ function drawMenu() {
     ["3  —  IA difficile", "#fff"],
     ["4  —  Deux joueurs (même clavier ou 2 manettes)", "#fff"],
     ["6  —  2v2 : toi + IA  vs  2 IA", "#ffb26b"],
+    ["7  —  💣 Bombe : renvoie-la avant qu'elle explose !", "#ff7043"],
     ["5  —  Jouer en ligne (avec un ami)", "#7ed957"],
     ["R  —  Règles du jeu & animaux", "#ffcc00"]
   ];
-  ctx.font = "bold 21px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 20px 'Trebuchet MS', sans-serif";
   items.forEach(([txt, col], i) => {
     const sel = padConnected && navIdx === i;
     ctx.fillStyle = sel ? "#ffcc00" : col;
-    ctx.fillText((sel ? "▶  " : "") + txt + (sel ? "  ◀" : ""), W / 2, 190 + i * 31);
+    ctx.fillText((sel ? "▶  " : "") + txt + (sel ? "  ◀" : ""), W / 2, 186 + i * 28);
   });
 
   ctx.font = "17px 'Trebuchet MS', sans-serif";

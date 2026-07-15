@@ -433,6 +433,77 @@ function drawNet() {
   ctx.beginPath(); ctx.arc(NET_X, NET_TOP, NET_W / 2 + 3, 0, Math.PI * 2); ctx.fill();
 }
 
+// ---------- Mode Bombe : dessin de la bombe ----------
+function drawBomb() {
+  const frac = Math.max(0, bombTimer) / BOMB_TIME; // 1 (pleine) → 0 (explosion)
+  const danger = 1 - frac;
+  const now = performance.now();
+
+  // fumée de la mèche (réutilise la traînée de la balle)
+  for (let i = 0; i < ball.trail.length; i++) {
+    const t = ball.trail[i];
+    const f = (i + 1) / ball.trail.length;
+    ctx.fillStyle = "rgba(120,120,130," + (f * 0.18).toFixed(3) + ")";
+    ctx.beginPath(); ctx.arc(t.x, t.y - BALL_R, BALL_R * (0.4 + f * 0.5), 0, Math.PI * 2); ctx.fill();
+  }
+
+  // ombre au sol
+  const shScale = Math.max(0.3, 1 - (GROUND_Y - ball.y) / 400);
+  ctx.fillStyle = "rgba(0,0,0," + (0.3 * shScale) + ")";
+  ctx.beginPath();
+  ctx.ellipse(ball.x, GROUND_Y + 6, BALL_R * shScale + 5, 5 * shScale + 2, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // halo de danger rouge pulsé : de plus en plus rapide et large
+  const pulse = 0.5 + 0.5 * Math.sin(now / (90 - danger * 66));
+  const haloR = BALL_R + 6 + pulse * (4 + danger * 12);
+  ctx.fillStyle = "rgba(255,50,40," + (0.12 + danger * 0.3 * pulse).toFixed(3) + ")";
+  ctx.beginPath(); ctx.arc(ball.x, ball.y, haloR, 0, Math.PI * 2); ctx.fill();
+
+  ctx.save();
+  ctx.translate(ball.x, ball.y);
+  ctx.rotate(ball.angle * 0.4);
+  // corps : sphère métallique sombre. Vire au rouge et clignote en fin de mèche.
+  const flashRed = frac < 0.25 && Math.floor(now / 120) % 2 === 0;
+  const bgrad = ctx.createRadialGradient(-4, -5, 2, 0, 0, BALL_R + 2);
+  bgrad.addColorStop(0, flashRed ? "#ff6a5a" : "#5a5f6b");
+  bgrad.addColorStop(0.6, flashRed ? "#c62a1c" : "#2b2f38");
+  bgrad.addColorStop(1, flashRed ? "#7d160c" : "#15171c");
+  ctx.fillStyle = bgrad;
+  ctx.beginPath(); ctx.arc(0, 0, BALL_R + 1, 0, Math.PI * 2); ctx.fill();
+  // reflet
+  ctx.fillStyle = "rgba(255,255,255,0.45)";
+  ctx.beginPath(); ctx.ellipse(-5, -6, 3.5, 2.2, -0.6, 0, Math.PI * 2); ctx.fill();
+
+  // embout (col) au sommet
+  ctx.fillStyle = "#3a3d45";
+  ctx.fillRect(-4, -BALL_R - 5, 8, 6);
+  ctx.restore();
+
+  // mèche + étincelle (repère fixe au sommet de la bombe)
+  const capX = ball.x, capY = ball.y - BALL_R - 5;
+  ctx.strokeStyle = "#8a6b3a";
+  ctx.lineWidth = 2.4; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(capX, capY);
+  ctx.quadraticCurveTo(capX + 8, capY - 10, capX + 3, capY - 18);
+  ctx.stroke();
+  // étincelle : scintille et grossit à mesure que la mèche se consume
+  const sx = capX + 3, sy = capY - 18;
+  const spark = 3 + danger * 3 + Math.random() * 2;
+  ctx.fillStyle = "#fff3b0";
+  ctx.beginPath(); ctx.arc(sx, sy, spark * 0.5, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "rgba(255,150,0," + (0.6 + Math.random() * 0.4).toFixed(2) + ")";
+  ctx.beginPath(); ctx.arc(sx, sy, spark, 0, Math.PI * 2); ctx.fill();
+  // petites braises
+  for (let i = 0; i < 3; i++) {
+    ctx.fillStyle = "rgba(255," + (120 + ((Math.random() * 120) | 0)) + ",0,0.9)";
+    ctx.beginPath();
+    ctx.arc(sx + (Math.random() - 0.5) * 10, sy - Math.random() * 8, 1 + Math.random() * 1.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
 function drawBall() {
   // balle crevée : galette flasque dégonflée, sans traînée
   if (ball.popped) {
@@ -453,6 +524,8 @@ function drawBall() {
     ctx.restore();
     return;
   }
+  // mode bombe : la balle est une bombe à mèche
+  if (bombMode) { drawBomb(); return; }
   // traînée (enflammée pendant un smash destructeur)
   const fiery = ball.smash > 0;
   for (let i = 0; i < ball.trail.length; i++) {
@@ -519,7 +592,46 @@ function drawBall() {
   ctx.restore();
 }
 
+// bandeau du mode bombe : compte à rebours central + camp en danger
+function drawBombHUD() {
+  // voile rouge pulsé sur la moitié de terrain où se trouve la bombe
+  if (state === "play" && !ball.frozen && !ball.popped) {
+    const low = bombTimer <= 180;
+    const p = 0.10 + 0.10 * (0.5 + 0.5 * Math.sin(performance.now() / (low ? 80 : 220)));
+    const gx = ball.x < NET_X ? 0 : NET_X;
+    const g = ctx.createLinearGradient(0, GROUND_Y, 0, GROUND_Y - 160);
+    g.addColorStop(0, "rgba(255,40,40," + p.toFixed(3) + ")");
+    g.addColorStop(1, "rgba(255,40,40,0)");
+    ctx.fillStyle = g;
+    ctx.fillRect(gx, GROUND_Y - 160, NET_X, 160);
+  }
+  const secs = Math.max(0, Math.ceil(bombTimer / 60));
+  const frac = Math.max(0, bombTimer) / BOMB_TIME;
+  const low = bombTimer <= 180;
+  const col = frac > 0.5 ? "#7ed957" : frac > 0.25 ? "#ffcc00" : "#ff4030";
+  const blink = low && Math.floor(performance.now() / 140) % 2 === 0;
+  ctx.save();
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(20,20,40,0.62)";
+  ctx.fillRect(NET_X - 62, 24, 124, 42);
+  ctx.strokeStyle = blink ? "#fff" : col;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(NET_X - 62, 24, 124, 42);
+  ctx.font = "bold 26px 'Trebuchet MS', sans-serif";
+  ctx.fillStyle = blink ? "#fff" : col;
+  ctx.fillText("💣 " + secs + "s", NET_X, 55);
+  ctx.restore();
+}
+
 function drawHUD() {
+  // mode bombe : éclair d'explosion plein écran (visuel, se résorbe au rendu)
+  if (bombFlash > 0) {
+    ctx.fillStyle = "rgba(255,240,205," + (bombFlash * 0.6).toFixed(3) + ")";
+    ctx.fillRect(0, 0, W, H);
+    bombFlash *= 0.8;
+    if (bombFlash < 0.02) bombFlash = 0;
+  }
+  if (bombMode && (state === "play" || state === "serve")) drawBombHUD();
   // scores (avec effet "pop" quand un point est marqué)
   ctx.textAlign = "center";
   ctx.lineWidth = 5;

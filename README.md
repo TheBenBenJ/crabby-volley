@@ -29,7 +29,14 @@ connexion Internet (CDN PeerJS) et, entre machines distantes, un accès en **HTT
 | 1 / 2 / 3 | Solo contre l'IA (facile / normale / difficile) |
 | 4 | Deux joueurs (même clavier ou 2 manettes) |
 | 6 | **2v2** hors-ligne : toi + IA contre 2 IA |
+| 7 | **💣 Bombe** : la balle est une bombe — renvoie-la avant qu'elle explose ! |
 | 5 | **En ligne** : créer/rejoindre une partie 1v1 ou 2v2 |
+
+> **Mode Bombe** — La balle devient une bombe à mèche. Elle explose au bout de
+> **10 secondes** *ou* dès qu'elle touche le sol. Dans les deux cas, **le camp
+> où se trouve la bombe au moment de l'explosion perd le point**. Un compte à
+> rebours central et un voile rouge indiquent le camp en danger. (Le Smash
+> Battle est désactivé dans ce mode : la mèche, elle, ne s'arrête jamais.)
 
 ### Commandes
 
@@ -75,7 +82,8 @@ pour l'architecture réseau (hôte autoritaire, prédiction/réconciliation).
 
 Une petite suite sans dépendance sert de **filet de sécurité**. Elle charge les
 modules `src/` exactement comme le navigateur (concaténation dans l'ordre) puis
-vérifie déterminisme, physique, score, round-trip de snapshot et simulation 2v2.
+vérifie déterminisme, physique, score, round-trip de snapshot, simulation 2v2
+et mode Bombe (explosion en fin de mèche et à la chute).
 
 ```bash
 npm test

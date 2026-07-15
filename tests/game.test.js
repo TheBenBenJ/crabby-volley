@@ -102,5 +102,40 @@ test("2v2 : setMode('2v2') active 4 joueurs et la simulation tourne", () => {
   assert.ok(Number.isFinite(g.scores[0]) && Number.isFinite(g.scores[1]));
 });
 
+test("bombe : la mèche à zéro fait perdre le camp qui détient la bombe", () => {
+  const g = loadGame();
+  g.setVsAI(true); g.setAiLevel(1);
+  g.setBombMode(true);
+  g.newGame(5);
+  g.setState("play"); g.setServeCountdown(0);
+  // bombe immobile côté GAUCHE, mèche presque terminée
+  g.ball.frozen = false; g.ball.x = 200; g.ball.y = 150; g.ball.vx = 0; g.ball.vy = 0;
+  g.setBombTimer(5);
+  const neutral = { left:false, right:false, jump:false, super:false };
+  for (let i = 0; i < 12; i++) g.stepGame(neutral, neutral);
+  assert.strictEqual(g.scores[0] + g.scores[1], 1, "un point doit tomber à l'explosion");
+  assert.strictEqual(g.scores[1], 1, "bombe à gauche → le camp droit marque");
+  assert.ok(g.getBombTimer() <= 0, "la mèche doit être à zéro");
+});
+
+test("bombe : touche le sol → explosion et point à l'adversaire", () => {
+  const g = loadGame();
+  g.setVsAI(true); g.setAiLevel(1);
+  g.setBombMode(true);
+  g.newGame(9);
+  g.setState("play"); g.setServeCountdown(0);
+  g.setBombTimer(600); // mèche pleine : c'est la CHUTE qui doit déclencher
+  // bombe qui plonge côté DROIT, loin des joueurs (pas de renvoi possible)
+  g.ball.frozen = false; g.ball.x = 850; g.ball.y = 430; g.ball.vx = 0; g.ball.vy = 6;
+  const neutral = { left:false, right:false, jump:false, super:false };
+  let scored = false;
+  for (let i = 0; i < 30 && !scored; i++) {
+    g.stepGame(neutral, neutral);
+    if (g.scores[0] + g.scores[1] > 0) scored = true;
+  }
+  assert.ok(scored, "la bombe au sol doit marquer un point");
+  assert.strictEqual(g.scores[0], 1, "bombe à droite → le camp gauche marque");
+});
+
 console.log("\n" + pass + " réussis, " + fail + " échoués");
 process.exit(fail ? 1 : 0);

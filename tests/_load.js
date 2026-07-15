@@ -42,7 +42,9 @@ const EPILOGUE = `
   getMode: () => mode, getTick: () => tick,
   setVsAI: v => { vsAI = v; }, setAiLevel: v => { aiLevel = v; },
   setServeCountdown: v => { serveCountdown = v; },
-  setServingSide: v => { servingSide = v; }
+  setServingSide: v => { servingSide = v; },
+  setBombMode: v => { bombMode = v; }, getBombMode: () => bombMode,
+  getBombTimer: () => bombTimer, setBombTimer: v => { bombTimer = v; }
 };`;
 
 function srcConcat() {
