@@ -1,4 +1,4 @@
-# 🏐 Crabby Volley — Volley des Animaux
+# 🏐 Crabby Volley — Volley des Animaux - Jeu du volley avec des animaux
 
 Un jeu de volley 2D où des animaux rigolos s'affrontent sur la plage, la banquise
 ou sous les étoiles. Techniques signature, météo dynamique, public en délire… et
