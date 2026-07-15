@@ -90,12 +90,15 @@ function maybeActivateSuper(blob, input) {
     blob.vy = BLOB_JUMP * a.jump * 1.3; // Piqué éclair : bond fulgurant
     blob.onGround = false; blob.jumpsUsed = 1;
     blob.superSmash = true;
-  } else if (a.key === "manchot") {
-    blob.superSmash = true;             // Canon des glaces : prochaine frappe
+  } else if (a.key === "manchot" || a.key === "chibre") {
+    blob.superSmash = true;             // Canon des glaces / Coup de boutoir : prochaine frappe
   } else if (a.key === "grenouille") {
     frogTongueGrab(blob);               // Langue-grappin : rattrape l'irrattrapable
+  } else if (a.key === "chneck" && blob.onGround) {
+    blob.vy = BLOB_JUMP * a.jump * 0.9; // Retombée de chat : bond félin d'entrée
+    blob.onGround = false; blob.jumpsUsed = 1;
   }
-  // lapin : le Turbo-bond agit pendant superT (vitesse + sauts illimités)
+  // lapin/chatte : l'effet agit pendant superT (voir Blob.update : turbo / cat)
 }
 
 function frogTongueGrab(blob) {
@@ -130,6 +133,8 @@ function superSound(key) {
   if (key === "oiseau")  beep(1500, 0.12, "square", 0.1, 0.14, 2100);
   if (key === "lapin")   beep(300, 0.22, "sine", 0.14, 0.05, 950);
   if (key === "grenouille") beep(240, 0.16, "sawtooth", 0.15, 0.1, 130);
+  if (key === "chibre")  beep(110, 0.26, "sine", 0.16, 0.05, 700);
+  if (key === "chneck")  { beep(700, 0.14, "sine", 0.12, 0.04, 1050); beep(520, 0.16, "triangle", 0.1, 0.12, 380); }
 }
 
 // ---------- Mode Bombe : logique ----------

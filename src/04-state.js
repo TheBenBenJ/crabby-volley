@@ -20,7 +20,7 @@ const ANIMALS = [
   // stick : langue collante (grosse déviation)
   // molt : se déplume au fil des touches (8 coups), à nu d'un coup si le point est perdu
   // tired : se fatigue au fil des touches (oreilles qui tombent, sueur) — purement visuel
-  // cracks : plastron qui se fissure au fil des touches, en éclats d'un coup à la perte du point
+  // angry : de plus en plus furieux au fil des touches, au max d'un coup si le point est perdu
   {
     key: "oiseau", name: "Piou-Piou",
     stats: { vitesse: 4, detente: 4, puissance: 2, controle: 3 },
@@ -52,14 +52,31 @@ const ANIMALS = [
     slip: true, tired: true,
     trait: "Ultra-rapide, mais dérape à l'arrêt : placement difficile. Se fatigue au fil des touches (purement visuel).",
     superName: "Turbo-bond", superDesc: "Vitesse décuplée et sauts illimités pendant un instant."
+  },
+  {
+    key: "chibre", name: "Monsieur Chibre",
+    stats: { vitesse: 3, detente: 5, puissance: 5, controle: 1 },
+    speed: 0.95, jump: 1.3, power: 1.2, control: 0.58,
+    trait: "Ressort sur pattes : saute haut et cogne fort, mais part dans tous les sens.",
+    superName: "Coup de boutoir", superDesc: "Se raidit : la frappe suivante part comme un boulet rasant."
+  },
+  {
+    key: "chneck", name: "Madame Chneck",
+    stats: { vitesse: 4, detente: 3, puissance: 2, controle: 5 },
+    speed: 1.12, jump: 1.05, power: 0.85, control: 0.98,
+    trait: "Chatte agile et précise : contrôle parfait, mais frappe tout en finesse.",
+    superName: "Retombée de chat", superDesc: "Défie la gravité : sauts illimités et vol plané un court instant."
   }
 ];
 function animOf(b) { return ANIMALS[b.animal]; }
 
 // ---------- État du jeu ----------
-// state: "menu" | "selectAnimal" | "selectTerrain" | "serve" | "play" | "point" | "gameover"
+// state: "menu" | "aiDifficulty" | "gameModeSelect"
+//        | "selectAnimal" | "selectTerrain" | "serve" | "play" | "point" | "gameover"
 //        | états du mode en ligne : "onlineMenu" | "joinEntry" | "hostWait"
 //          | "connecting" | "netWait" | "netError"
+// Flux du menu : menu → (Solo IA : aiDifficulty → gameModeSelect) | (Local : gameModeSelect direct)
+//                     → selectAnimal → selectTerrain → partie
 let state = "menu";
 let vsAI = true;
 let pointTimer = 0;
@@ -112,10 +129,12 @@ const battle = {
 //   Madame Slurp → "Langue-grappin" : la langue va chercher la balle trop loin et la renvoie
 //   Général Frigo → "Canon des glaces" : la frappe suivante est un boulet de canon glacé
 //   Turbo-Jeannot → "Turbo-bond" : vitesse décuplée + sauts illimités pendant ~1,6 s
+//   Monsieur Chibre → "Coup de boutoir" : la frappe suivante part en boulet rasant
+//   Madame Chneck → "Retombée de chat" : sauts illimités + vol plané (gravité réduite)
 const SUPER_NEED = 3;
 const streak = [0, 0];        // points d'affilée par camp
 const superCharge = [0, 0];   // 0 = vide, 1 = super prête
-const SUPER_DUR = { oiseau: 40, grenouille: 24, manchot: 60, lapin: 100 };
+const SUPER_DUR = { oiseau: 40, grenouille: 24, manchot: 60, lapin: 100, chibre: 55, chneck: 110 };
 let superFlash = "";          // libellé "SUPER !" affiché brièvement
 let superFlashT = 0;
 
@@ -168,6 +187,7 @@ class Blob {
 
     const grip = groundGrip(); // 1 par temps sec, <1 sur sol détrempé
     const turbo = a.key === "lapin" && this.superT > 0; // Turbo-bond
+    const cat = a.key === "chneck" && this.superT > 0;  // Retombée de chat : vol plané
     this.vx = 0;
     const sp = BLOB_SPEED * this.speedMul * a.speed * grip * (turbo ? 1.7 : 1);
     if (input.left)  this.vx = -sp;
@@ -202,14 +222,15 @@ class Blob {
       this.onGround = false;
       this.jumpsUsed = 1;
       beep(220, 0.05, "sine", 0.06);
-    } else if (jumpPressed && !this.onGround && (turbo || this.jumpsUsed < 2)) {
-      // double saut (ou sauts illimités pendant le Turbo-bond du lapin)
-      this.vy = BLOB_JUMP * a.jump * (turbo ? 0.8 : DOUBLE_JUMP_MUL);
-      if (!turbo) this.jumpsUsed = 2;
+    } else if (jumpPressed && !this.onGround && (turbo || cat || this.jumpsUsed < 2)) {
+      // double saut (ou sauts illimités pendant Turbo-bond / Retombée de chat)
+      this.vy = BLOB_JUMP * a.jump * (turbo ? 0.8 : cat ? 0.7 : DOUBLE_JUMP_MUL);
+      if (!turbo && !cat) this.jumpsUsed = 2;
       spawnAirPuff(this.x, this.y - 6);
-      beep(turbo ? 500 : 330, 0.07, "sine", 0.09, 0, turbo ? 760 : 520);
+      beep(turbo ? 500 : cat ? 620 : 330, 0.07, "sine", 0.09, 0, turbo ? 760 : cat ? 900 : 520);
     }
-    if (!this.onGround) this.vy += GRAV_BLOB;
+    // vol plané de la chatte : gravité fortement réduite tant que le super dure
+    if (!this.onGround) this.vy += GRAV_BLOB * (cat ? 0.55 : 1);
 
     this.x += moveVx;
     this.y += this.vy;

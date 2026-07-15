@@ -45,7 +45,7 @@ function aiInput() {
     const nearHit = Math.abs(ball.x - me.x) < 72 && ball.y > me.y - 210 && ball.vy > -1;
     if (key === "grenouille") {
       if (onMySide && ball.vy > 0 && (ball.y > me.y - 70 || Math.abs(ball.x - me.x) > 110)) input.super = true;
-    } else if (key === "oiseau" || key === "manchot") {
+    } else if (key === "oiseau" || key === "manchot" || key === "chibre") {
       if (onMySide && nearHit) input.super = true;
     } else if (onMySide && ball.vx > 0) { // lapin : turbo dès que la balle arrive
       input.super = true;
@@ -183,7 +183,7 @@ function aiInput2v2(me) {
     const nearHit = Math.abs(ball.x - me.x) < 72 && ball.y > me.y - 210 && ball.vy > -1;
     if (key === "grenouille") {
       if (onMySide && ball.vy > 0 && (ball.y > me.y - 70 || Math.abs(ball.x - me.x) > 110)) input.super = true;
-    } else if (key === "oiseau" || key === "manchot") {
+    } else if (key === "oiseau" || key === "manchot" || key === "chibre") {
       if (onMySide && nearHit) input.super = true;
     } else if (onMySide && (side === 0 ? ball.vx < 0 : ball.vx > 0)) {
       input.super = true; // lapin : turbo dès que la balle arrive vers soi

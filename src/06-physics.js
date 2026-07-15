@@ -138,9 +138,10 @@ function ballBlobCollision(blob) {
     // technique offensive : Piqué éclair (oiseau) / Canon des glaces (manchot)
     if (blob.superSmash && blob.superT > 0) {
       const dir = blob.side === 0 ? 1 : -1;
-      const pw = a.key === "manchot" ? 1.18 : 1.0;
+      const pw = a.key === "manchot" ? 1.18 : a.key === "chibre" ? 1.28 : 1.0;
       ball.vx = dir * SMASH_VX * pw;
-      ball.vy = a.key === "manchot" ? 5.5 : 2.5; // manchot : boulet plongeant
+      // manchot : boulet plongeant · chibre : boulet rasant (quasi horizontal) · oiseau : piqué
+      ball.vy = a.key === "manchot" ? 5.5 : a.key === "chibre" ? -0.5 : 2.5;
       ball.smash = 60; ball.spin = dir * 0.3;
       clampBallSpeed();
       blob.superSmash = false; blob.superT = 0; blob.superKind = "";
