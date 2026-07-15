@@ -43,10 +43,16 @@ jobs:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "$DEPLOY_SSH_KEY" | base64 --decode > ~/.ssh/deploy_key
+          # Le secret peut être collé en base64 (recommandé) OU en clé brute.
+          # 1) on tente le base64 en retirant tout espace/retour (GNU base64 est
+          #    strict) ; 2) sinon on retombe sur le contenu brut.
+          printf '%s' "$DEPLOY_SSH_KEY" | tr -d '[:space:]' | base64 --decode > ~/.ssh/deploy_key 2>/dev/null || true
+          if ! ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null 2>&1; then
+            printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          fi
           chmod 600 ~/.ssh/deploy_key
-          # validation : message clair si le secret est mal collé/encodé
-          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null || { echo "::error::DEPLOY_SSH_KEY invalide (clé privée en base64 attendue)"; exit 1; }
+          # validation finale : message clair si le secret est inutilisable
+          ssh-keygen -y -f ~/.ssh/deploy_key > /dev/null 2>&1 || { echo "::error::DEPLOY_SSH_KEY invalide (colle la clé privée, en base64 ou brute)"; exit 1; }
           ssh-keyscan -H "$DEPLOY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
       - name: Envoyer les fichiers (staging)
