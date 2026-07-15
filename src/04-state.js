@@ -23,6 +23,7 @@ const ANIMALS = [
   // angry : de plus en plus furieux au fil des touches, au max d'un coup si le point est perdu
   {
     key: "oiseau", name: "Piou-Piou",
+    color: "#f4c531", darkColor: "#d69e18",   // canari jaune
     stats: { vitesse: 4, detente: 4, puissance: 2, controle: 3 },
     speed: 1.12, jump: 1.12, power: 0.82, control: 0.9,
     beak: true, molt: true,
@@ -31,6 +32,7 @@ const ANIMALS = [
   },
   {
     key: "grenouille", name: "Madame Slurp",
+    color: "#6fbf4b", darkColor: "#4e9331",   // grenouille verte
     stats: { vitesse: 2, detente: 5, puissance: 3, controle: 1 },
     speed: 0.9, jump: 1.32, power: 1.0, control: 0.62,
     stick: true,
@@ -39,6 +41,7 @@ const ANIMALS = [
   },
   {
     key: "manchot", name: "Général Frigo",
+    color: "#5a6b78", darkColor: "#2b3742",   // manchot ardoise (plastron blanc)
     stats: { vitesse: 2, detente: 2, puissance: 5, controle: 4 },
     speed: 0.82, jump: 0.82, power: 1.28, control: 0.97,
     beak: true, angry: true,
@@ -47,6 +50,7 @@ const ANIMALS = [
   },
   {
     key: "lapin", name: "Turbo-Jeannot",
+    color: "#c4c9d1", darkColor: "#9aa1ab",   // lapin gris
     stats: { vitesse: 5, detente: 3, puissance: 2, controle: 3 },
     speed: 1.3, jump: 1.0, power: 0.85, control: 0.9,
     slip: true, tired: true,
@@ -55,6 +59,7 @@ const ANIMALS = [
   },
   {
     key: "chibre", name: "Monsieur Chibre",
+    color: "#e7b28d", darkColor: "#cd8f68",   // teinte chair
     stats: { vitesse: 3, detente: 5, puissance: 5, controle: 1 },
     speed: 0.95, jump: 1.3, power: 1.2, control: 0.58,
     trait: "Ressort sur pattes : saute haut et cogne fort, mais part dans tous les sens.",
@@ -62,6 +67,7 @@ const ANIMALS = [
   },
   {
     key: "chneck", name: "Madame Chneck",
+    color: "#e7a48c", darkColor: "#b76a62",   // teinte chair rosée
     stats: { vitesse: 4, detente: 3, puissance: 2, controle: 5 },
     speed: 1.12, jump: 1.05, power: 0.85, control: 0.98,
     trait: "Chatte agile et précise : contrôle parfait, mais frappe tout en finesse.",
@@ -69,6 +75,17 @@ const ANIMALS = [
   }
 ];
 function animOf(b) { return ANIMALS[b.animal]; }
+
+// ---------- Identité des camps ----------
+// Les couleurs d'équipe rouge/verte ont disparu : chaque animal a sa couleur
+// naturelle. Un camp est désormais identifié par sa position (Gauche/Droite)
+// et affiché avec la couleur de l'animal qui y joue.
+function sideName(side) { return side === 0 ? "Gauche" : "Droite"; }
+function sideColor(side) {
+  const b = side === 0 ? blobL : blobR;
+  const a = ANIMALS[b.animal];
+  return (a && a.color) || (side === 0 ? "#e8913b" : "#4db3ff");
+}
 
 // ---------- État du jeu ----------
 // state: "menu" | "aiDifficulty" | "gameModeSelect"

@@ -7,7 +7,11 @@
 // et éventuellement groundY (pour les aperçus hors du sol de jeu).
 
 function drawAnimal(b) {
-  const key = ANIMALS[b.animal].key;
+  const A = ANIMALS[b.animal];
+  // couleurs NATURELLES du personnage (fini les équipes rouge/verte). On les
+  // applique au blob au moment du dessin : purement visuel, hors simulation.
+  if (A.color) { b.color = A.color; b.darkColor = A.darkColor; }
+  const key = A.key;
   drawSuperAura(b);                         // halo derrière l'animal
   // pendant le Turbo-bond du lapin : traînée d'images fantômes
   if (b.superT > 0 && key === "lapin") drawTurboGhosts(b, key);
@@ -324,6 +328,68 @@ function drawLegs(b, dir, s, legColor, footStyle) {
   }
 }
 
+// --- effets "adultes" purement visuels (aucune incidence sur la simulation) ---
+// Jet de Monsieur Chibre : gerbe de gouttes blanches qui jaillit par à-coups
+// du sommet, décrit un arc balistique puis retombe. Piloté par l'horloge murale.
+function drawChibreSpray(tipX, tipY, dir) {
+  const T = 1500;                              // période d'un jet (ms)
+  const ph = (performance.now() % T) / T;      // 0 → 1
+  if (ph > 0.72) return;                       // gicle sur la 1re partie du cycle
+  const life = ph / 0.72;                      // 0 → 1 sur la phase active
+  ctx.save();
+  ctx.fillStyle = "rgba(247,250,255,0.97)";
+  // jet principal : grosses gouttes lancées vers le haut/avant, arc balistique
+  const n = 9;
+  for (let i = 0; i < n; i++) {
+    const dist = life * (30 + i * 2.4);        // les gouttes s'étalent en éventail
+    const vx = 0.75 + (i - (n - 1) / 2) * 0.14;
+    const vy = -2.5 - (i % 3) * 0.3;           // lancer franc vers le haut
+    const gx = tipX + dir * vx * dist;
+    const gy = tipY + vy * dist + 0.06 * dist * dist; // gravité
+    const r = 4.6 * (1 - life * 0.4);
+    ctx.globalAlpha = 0.95 * (1 - life * 0.35);
+    ctx.beginPath(); ctx.arc(gx, gy, Math.max(1.4, r), 0, Math.PI * 2); ctx.fill();
+  }
+  // filet continu au départ (le jet qui sort)
+  if (life < 0.5) {
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = "rgba(247,250,255,0.95)";
+    ctx.lineWidth = 5 * (1 - life); ctx.lineCap = "round";
+    const d2 = life * 30;
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.quadraticCurveTo(tipX + dir * 8, tipY - 22, tipX + dir * 0.75 * d2, tipY - 2.5 * d2 + 0.06 * d2 * d2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// Madame Chneck : effet « mouillé » — une goutte perle au bas puis tombe,
+// avec un filet humide au départ. Reflets brillants ajoutés dans le tracé.
+function drawChneckWet(bx, botY) {
+  const T = 1400;
+  const ph = (performance.now() % T) / T;      // 0 → 1
+  ctx.save();
+  // perle qui grossit puis se détache et tombe
+  const dropY = botY + ph * 40;
+  const rr = 4.6 * (0.6 + ph * 0.5) * (1 - ph * 0.35);
+  ctx.fillStyle = "rgba(208,234,255,0.92)";
+  if (ph < 0.4) {                              // filet humide reliant au départ
+    ctx.strokeStyle = "rgba(208,234,255,0.7)"; ctx.lineWidth = 2.6; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(bx, botY - 8); ctx.lineTo(bx, dropY); ctx.stroke();
+  }
+  // goutte en larme
+  ctx.beginPath();
+  ctx.moveTo(bx, dropY - rr * 1.8);
+  ctx.quadraticCurveTo(bx + rr, dropY, bx, dropY + rr);
+  ctx.quadraticCurveTo(bx - rr, dropY, bx, dropY - rr * 1.8);
+  ctx.fill();
+  // petit reflet sur la goutte
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.beginPath(); ctx.arc(bx - rr * 0.35, dropY - rr * 0.2, rr * 0.3, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
 // Monsieur Chibre : mascotte-ressort tout en hauteur (gag cartoon assumé).
 // Fût vertical couleur de l'équipe, dôme au sommet avec les yeux + sourire,
 // deux bosses à la base, petits pieds. S'étire quand il saute (côté ressort).
@@ -338,13 +404,14 @@ function drawChibre(b) {
   drawShadow(b);
   drawLegs(b, dir, s, b.darkColor, "paws");
 
-  // deux bosses à la base
+  // deux bourses à la base (plus grosses et un peu pendantes)
   ctx.fillStyle = b.darkColor;
   for (const side of [-1, 1]) {
     ctx.beginPath();
-    ctx.ellipse(bx + side * 15, by - 12 + s, 15, 13, 0, 0, Math.PI * 2);
+    ctx.ellipse(bx + side * 16, by - 8 + s, 18, 16, side * 0.12, 0, Math.PI * 2);
     ctx.fill();
   }
+  outline(0.12);
 
   // le fût (capsule verticale) : rect coiffé/chaussé par le dôme et les bosses
   ctx.fillStyle = b.color;
@@ -357,14 +424,27 @@ function drawChibre(b) {
   ctx.fill();
   outline();
 
-  // dôme au sommet
+  // gland : dôme bulbeux au sommet (un peu plus large que le fût)
   ctx.fillStyle = b.color;
   ctx.beginPath();
-  ctx.ellipse(bx, topY, 26, 24, 0, 0, Math.PI * 2);
+  ctx.ellipse(bx, topY, 28, 25, 0, 0, Math.PI * 2);
   ctx.fill();
   outline();
 
-  // reflet clair sur le dôme (volume)
+  // couronne : sillon marqué sous le gland
+  ctx.strokeStyle = "rgba(0,0,0,0.14)"; ctx.lineWidth = 3.5; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.arc(bx, topY + 4, 26, 0.12 * Math.PI, 0.88 * Math.PI);
+  ctx.stroke();
+
+  // méat au sommet (petite fente verticale)
+  ctx.strokeStyle = "rgba(120,60,60,0.55)"; ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(bx + dir * 2, topY - 22);
+  ctx.lineTo(bx + dir * 2, topY - 15);
+  ctx.stroke();
+
+  // reflet clair sur le gland (volume)
   ctx.fillStyle = "rgba(255,255,255,0.28)";
   ctx.beginPath();
   ctx.ellipse(bx - 9, topY - 9, 8, 6, -0.5, 0, Math.PI * 2);
@@ -385,6 +465,7 @@ function drawChibre(b) {
   ctx.beginPath();
   ctx.arc(bx + dir * 7, topY + 9, 5, 0.08 * Math.PI, 0.92 * Math.PI);
   ctx.stroke();
+  drawChibreSpray(bx + dir * 2, topY - 20, dir); // ça crache
   ctx.restore();
 }
 
@@ -400,101 +481,66 @@ function drawChneck(b) {
   ctx.save();
   drawShadow(b);
 
-  // queue qui ondule derrière (dressée façon point d'interrogation)
-  ctx.strokeStyle = b.color; ctx.lineWidth = 8; ctx.lineCap = "round";
-  const tailWag = Math.sin(t * 4 + (b.onGround ? 0 : 3)) * 0.5;
-  ctx.save();
-  ctx.translate(bx - dir * 24, by - 24 + s);
-  ctx.beginPath();
-  ctx.moveTo(0, 0);
-  ctx.quadraticCurveTo(-dir * 20, -6, -dir * 22 + Math.sin(tailWag) * 4, -30 + tailWag * 8);
-  ctx.stroke();
-  // bout de queue plus clair
-  ctx.strokeStyle = b.darkColor; ctx.lineWidth = 8;
-  ctx.beginPath();
-  ctx.moveTo(-dir * 22 + Math.sin(tailWag) * 4, -30 + tailWag * 8);
-  ctx.lineTo(-dir * 20 + Math.sin(tailWag) * 4, -38 + tailWag * 8);
-  ctx.stroke();
-  ctx.restore();
+  // ---- corps en amande : caricature de vulve (le gag de « Madame Chneck ») ----
+  const cy = by - 38 + s;              // centre du corps
+  const HH = 48 - s * 0.7;             // demi-hauteur de l'amande
+  const WW = 30;                       // demi-largeur (lèvres externes)
 
-  drawLegs(b, dir, s, b.darkColor, "paws");
-
-  // corps rond
+  // lèvres externes : grande amande pleine, pointe en haut et en bas
   ctx.fillStyle = b.color;
   ctx.beginPath();
-  ctx.ellipse(bx, by - 28 + s, 29, 26 - s * 0.8, 0, 0, Math.PI * 2);
-  ctx.fill();
-  outline();
-
-  // poitrail clair
-  ctx.fillStyle = "rgba(255,255,255,0.5)";
-  ctx.beginPath();
-  ctx.ellipse(bx + dir * 4, by - 22 + s, 13, 15, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // oreilles pointues
-  for (const side of [-1, 1]) {
-    ctx.fillStyle = b.color;
-    ctx.beginPath();
-    ctx.moveTo(bx + side * 15, headY - 14);
-    ctx.lineTo(bx + side * 21, headY - 34);
-    ctx.lineTo(bx + side * 3, headY - 20);
-    ctx.closePath();
-    ctx.fill();
-    ctx.fillStyle = "#f5b7c5"; // intérieur rose
-    ctx.beginPath();
-    ctx.moveTo(bx + side * 14, headY - 17);
-    ctx.lineTo(bx + side * 18, headY - 29);
-    ctx.lineTo(bx + side * 8, headY - 20);
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  // tête
-  ctx.fillStyle = b.color;
-  ctx.beginPath();
-  ctx.arc(bx, headY, 21, 0, Math.PI * 2);
-  ctx.fill();
-  outline();
-
-  // museau clair
-  ctx.fillStyle = "rgba(255,255,255,0.45)";
-  ctx.beginPath();
-  ctx.ellipse(bx + dir * 4, headY + 6, 12, 8, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // truffe rose + bouche
-  ctx.fillStyle = "#f06292";
-  ctx.beginPath();
-  ctx.moveTo(bx + dir * 4 - 3, headY + 2);
-  ctx.lineTo(bx + dir * 4 + 3, headY + 2);
-  ctx.lineTo(bx + dir * 4, headY + 5);
+  ctx.moveTo(bx, cy - HH);
+  ctx.bezierCurveTo(bx + WW * 1.25, cy - HH * 0.45, bx + WW, cy + HH * 0.55, bx, cy + HH);
+  ctx.bezierCurveTo(bx - WW, cy + HH * 0.55, bx - WW * 1.25, cy - HH * 0.45, bx, cy - HH);
   ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = "#8a2f2f"; ctx.lineWidth = 1.4; ctx.lineCap = "round";
+  outline();
+
+  // reflet doux (volume des lèvres)
+  ctx.fillStyle = "rgba(255,255,255,0.20)";
   ctx.beginPath();
-  ctx.moveTo(bx + dir * 4, headY + 5);
-  ctx.lineTo(bx + dir * 4, headY + 9);
-  ctx.moveTo(bx + dir * 4, headY + 9);
-  ctx.quadraticCurveTo(bx + dir * 9, headY + 11, bx + dir * 11, headY + 8);
-  ctx.moveTo(bx + dir * 4, headY + 9);
-  ctx.quadraticCurveTo(bx - dir * 1, headY + 11, bx - dir * 3, headY + 8);
+  ctx.ellipse(bx - WW * 0.42, cy - 2, WW * 0.34, HH * 0.66, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // sillon central (creux sombre)
+  ctx.fillStyle = b.darkColor;
+  ctx.beginPath();
+  ctx.ellipse(bx, cy + 3, WW * 0.44, HH * 0.82, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // lèvres internes (rose plus vif)
+  ctx.fillStyle = "#e07a99";
+  ctx.beginPath();
+  ctx.ellipse(bx, cy + 5, WW * 0.22, HH * 0.66, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // brillance humide (reflets spéculaires sur les lèvres internes)
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.beginPath(); ctx.ellipse(bx - 2, cy - HH * 0.1, 2.4, HH * 0.22, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(bx + 3, cy + HH * 0.28, 1.8, HH * 0.16, 0, 0, Math.PI * 2); ctx.fill();
+
+  // fente
+  ctx.strokeStyle = "rgba(80,25,45,0.55)"; ctx.lineWidth = 2.4; ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(bx, cy - HH * 0.46);
+  ctx.lineTo(bx, cy + HH * 0.74);
   ctx.stroke();
 
-  // moustaches
-  ctx.strokeStyle = "rgba(255,255,255,0.75)"; ctx.lineWidth = 1;
-  for (const sgn of [1, -1]) {
-    for (const wy of [-1, 3]) {
-      ctx.beginPath();
-      ctx.moveTo(bx + dir * 6, headY + 6);
-      ctx.lineTo(bx + dir * 6 + sgn * 18, headY + 6 + wy * sgn);
-      ctx.stroke();
-    }
-  }
+  // capuchon en haut (petit dôme) + bouton
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.ellipse(bx, cy - HH * 0.72, 10, 9, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline(0.12);
+  ctx.fillStyle = "#e07a99";
+  ctx.beginPath();
+  ctx.arc(bx, cy - HH * 0.46, 2.8, 0, Math.PI * 2);
+  ctx.fill();
 
-  // yeux (regard partagé depuis le centre de la tête)
-  drawTrackingEye(bx + dir * 3, headY - 5, 5.5, 2.6, bx, headY);
-  drawTrackingEye(bx + dir * 13, headY - 5, 5.5, 2.6, bx, headY);
+  // visage minimal : deux petits yeux qui suivent la balle (garde le perso vivant)
+  const eyeY = cy - HH * 0.72;
+  drawTrackingEye(bx - 5, eyeY, 3.6, 1.8, bx, eyeY);
+  drawTrackingEye(bx + 5, eyeY, 3.6, 1.8, bx, eyeY);
 
   // étincelles d'apesanteur pendant la Retombée de chat
   if (isLiveBlob(b) && b.superT > 0) {
@@ -506,6 +552,7 @@ function drawChneck(b) {
       ctx.beginPath(); ctx.arc(sx, sy, 1.8, 0, Math.PI * 2); ctx.fill();
     }
   }
+  drawChneckWet(bx, cy + HH * 0.94); // ça mouille
   ctx.restore();
 }
 

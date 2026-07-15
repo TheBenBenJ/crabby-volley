@@ -803,11 +803,11 @@ function drawHUD() {
   ctx.strokeStyle = "rgba(255,255,255,0.85)";
   ctx.font = "bold " + (42 + scorePop[0] * 1.2) + "px 'Trebuchet MS', sans-serif";
   ctx.strokeText(scores[0], W * 0.25, 55);
-  ctx.fillStyle = "#e84545";
+  ctx.fillStyle = sideColor(0);
   ctx.fillText(scores[0], W * 0.25, 55);
   ctx.font = "bold " + (42 + scorePop[1] * 1.2) + "px 'Trebuchet MS', sans-serif";
   ctx.strokeText(scores[1], W * 0.75, 55);
-  ctx.fillStyle = "#4caf50";
+  ctx.fillStyle = sideColor(1);
   ctx.fillText(scores[1], W * 0.75, 55);
   if (scorePop[0] > 0) scorePop[0]--;
   if (scorePop[1] > 0) scorePop[1]--;
@@ -821,7 +821,7 @@ function drawHUD() {
     for (let i = 0; i < MAX_TOUCHES; i++) {
       ctx.beginPath();
       ctx.arc(baseX + i * 24, 78, 6, 0, Math.PI * 2);
-      ctx.fillStyle = i < ball.touches[side] ? (side === 0 ? "#e84545" : "#4caf50") : "rgba(255,255,255,0.45)";
+      ctx.fillStyle = i < ball.touches[side] ? sideColor(side) : "rgba(255,255,255,0.45)";
       ctx.fill();
     }
   }
@@ -829,7 +829,7 @@ function drawHUD() {
   // jauges de SUPER (combo) sous chaque score
   for (const s of [0, 1]) {
     const cx = s === 0 ? W * 0.25 : W * 0.75;
-    const col = s === 0 ? "#e84545" : "#4caf50";
+    const col = sideColor(s);
     const bw = 120, bx = cx - bw / 2, by = 92;
     const ready = superCharge[s] === 1;
     const frac = ready ? 1 : (streak[s] % SUPER_NEED) / SUPER_NEED;
@@ -872,10 +872,10 @@ function drawHUD() {
   if (state === "play" || state === "serve") {
     for (const s of [0, 1]) {
       if (scores[s] >= WIN_SCORE - 1 && scores[s] - scores[1 - s] >= 1) {
-        ctx.fillStyle = s === 0 ? "#e84545" : "#4caf50";
+        ctx.fillStyle = sideColor(s);
         ctx.font = "bold 16px 'Trebuchet MS', sans-serif";
         ctx.textAlign = "center";
-        ctx.fillText("★ Balle de match — " + (s === 0 ? "Rouge" : "Vert") + " ★", NET_X, 128);
+        ctx.fillText("★ Balle de match — " + sideName(s) + " ★", NET_X, 128);
       }
     }
   }
@@ -894,7 +894,7 @@ function drawHUD() {
     ctx.fillStyle = terrain === 2 ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.55)";
     ctx.font = "18px 'Trebuchet MS', sans-serif";
     ctx.textAlign = "center";
-    ctx.fillText("Service : " + (servingSide === 0 ? "Rouge" : "Vert") + " — touchez la balle !", NET_X, 105);
+    ctx.fillText("Service : " + sideName(servingSide) + " — touchez la balle !", NET_X, 105);
   }
 
   if (paused) {
