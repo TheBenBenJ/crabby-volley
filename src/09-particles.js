@@ -4,7 +4,8 @@
 // ---------- Particules (plumes, sable) ----------
 function spawnSand(x, y, n) {
   if (noFx) return;
-  const col = TERRAINS[terrain].key === "neige" ? "#eef4fa" : "#c9a24f";
+  const tkey = TERRAINS[terrain].key;
+  const col = tkey === "neige" ? "#eef4fa" : tkey === "prairie" ? "#8fbf4a" : "#c9a24f";
   for (let i = 0; i < n; i++) particles.push({
     type: "sand",
     x: x + (Math.random() - 0.5) * 14, y: y - Math.random() * 4,

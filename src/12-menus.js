@@ -82,7 +82,7 @@ function handleMenuKeys(code, key) {
     }
 
   } else if (state === "selectTerrain") {
-    const n = { Digit1: 0, Digit2: 1, Digit3: 2 }[code];
+    const n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 }[code];
     if (n !== undefined) {
       terrain = n;
       if (pendingMode.online) {
@@ -396,9 +396,12 @@ function drawSelectTerrain() {
   ctx.font = "bold 34px 'Trebuchet MS', sans-serif";
   ctx.fillText("Choisis le terrain", W / 2, 75);
 
-  const pw = 250, ph = 170, py = 130;
-  for (let i = 0; i < TERRAINS.length; i++) {
-    const px = W / 2 + (i - 1) * (pw + 30) - pw / 2;
+  // largeur de vignette adaptée au nombre de terrains (tient sur 900px de large)
+  const n = TERRAINS.length, gap = 20;
+  const pw = Math.min(250, Math.floor((W - 40 - (n - 1) * gap) / n)), ph = 170, py = 130;
+  const rowW = n * pw + (n - 1) * gap, startX = (W - rowW) / 2;
+  for (let i = 0; i < n; i++) {
+    const px = startX + i * (pw + gap);
     // aperçu réduit du terrain (le vrai rendu, animé)
     ctx.save();
     ctx.beginPath();
@@ -419,12 +422,12 @@ function drawSelectTerrain() {
     ctx.strokeRect(px, py, pw, ph);
 
     ctx.fillStyle = "#fff";
-    ctx.font = "bold 20px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold " + (n > 3 ? 16 : 20) + "px 'Trebuchet MS', sans-serif";
     ctx.fillText((i + 1) + "  —  " + TERRAINS[i].name, px + pw / 2, py + ph + 35);
   }
 
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   ctx.font = "18px 'Trebuchet MS', sans-serif";
-  ctx.fillText("Appuie sur 1 – 3      •      Échap : retour", W / 2, 460);
+  ctx.fillText("Appuie sur 1 – " + n + "      •      Échap : retour", W / 2, 460);
 }
 

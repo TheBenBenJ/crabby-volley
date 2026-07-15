@@ -44,7 +44,8 @@ const EPILOGUE = `
   setServeCountdown: v => { serveCountdown = v; },
   setServingSide: v => { servingSide = v; },
   setBombMode: v => { bombMode = v; }, getBombMode: () => bombMode,
-  getBombTimer: () => bombTimer, setBombTimer: v => { bombTimer = v; }
+  getBombTimer: () => bombTimer, setBombTimer: v => { bombTimer = v; },
+  consts: { W, H, NET_X, NET_W, NET_TOP, GROUND_Y, BALL_R, MAX_BALL_SPEED }
 };`;
 
 function srcConcat() {

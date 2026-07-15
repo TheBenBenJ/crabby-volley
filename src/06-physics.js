@@ -150,11 +150,20 @@ function ballBlobCollision(blob) {
     }
     noiseBurst(0.05, 0.15, 1300);  // "pock" d'impact
     animalHitSound(a);             // cri de l'animal
-    // seul l'oiseau lâche des plumes (et se déplume) ; les autres : rien
+    // l'oiseau se déplume progressivement au fil des touches (8 coups pour
+    // être totalement nu) ET se retrouve instantanément à nu s'il perd le
+    // point avant d'y arriver (voir awardPoint dans 07-scoring.js) — les deux
+    // logiques coexistent, remises à zéro au repos.
     if (a.molt) {
       if (blob.molt < MOLT_MAX) blob.molt++;
       spawnFeathers(ball.x, ball.y - BALL_R, blob.color, 6);
     }
+    // le lapin se fatigue au fil des touches (purement visuel : oreilles qui
+    // tombent, gouttes de sueur) — remis à zéro au repos, comme le plumage.
+    if (a.tired && blob.fatigue < FATIGUE_MAX) blob.fatigue++;
+    // le manchot devient de plus en plus furieux au fil des touches — même
+    // logique (progressif + instantané au max en cas de point perdu).
+    if (a.angry && blob.anger < ANGER_MAX) blob.anger++;
     if (Math.hypot(ball.vx, ball.vy) > 12) shake = Math.min(shake + 4, 9);
     if (ball.touches[blob.side] > MAX_TOUCHES) {
       awardPoint(1 - blob.side, `Plus de ${MAX_TOUCHES} touches !`);
@@ -197,13 +206,23 @@ function updateBall() {
   if (ball.x - BALL_R < 0)   { ball.x = BALL_R;     ball.vx = Math.abs(ball.vx) * 0.9;  beep(300, 0.04); }
   if (ball.x + BALL_R > W)   { ball.x = W - BALL_R; ball.vx = -Math.abs(ball.vx) * 0.9; beep(300, 0.04); }
 
-  // filet : côtés
+  // filet : côtés — détection CONTINUE (anti-tunnel). Une balle rapide
+  // (jusqu'à 15 px/tick pour un poteau de 10 px) pouvait franchir le filet en
+  // un seul tick sans jamais chevaucher sa position finale. On teste donc le
+  // FRANCHISSEMENT du poteau entre l'ancienne et la nouvelle position.
   const nl = NET_X - NET_W / 2, nr = NET_X + NET_W / 2;
   if (ball.y + BALL_R > NET_TOP + BALL_R) {
-    if (ball.x + BALL_R > nl && ball.x < NET_X && ball.vx > 0) {
-      ball.x = nl - BALL_R; ball.vx = -Math.abs(ball.vx) * 0.8; beep(200, 0.05);
-    } else if (ball.x - BALL_R < nr && ball.x >= NET_X && ball.vx < 0) {
-      ball.x = nr + BALL_R; ball.vx = Math.abs(ball.vx) * 0.8; beep(200, 0.05);
+    const prevX = ball.x - ball.vx;            // position avant ce déplacement
+    const leftC = nl - BALL_R, rightC = nr + BALL_R; // contacts gauche/droite
+    if (ball.vx > 0 && prevX <= leftC && ball.x > leftC) {
+      ball.x = leftC; ball.vx = -Math.abs(ball.vx) * 0.8; beep(200, 0.05);
+    } else if (ball.vx < 0 && prevX >= rightC && ball.x < rightC) {
+      ball.x = rightC; ball.vx = Math.abs(ball.vx) * 0.8; beep(200, 0.05);
+    } else if (ball.x > leftC && ball.x < rightC) {
+      // chevauchement résiduel : repousse la balle du côté d'où elle vient
+      if (ball.x < NET_X) { ball.x = leftC; ball.vx = -Math.abs(ball.vx) * 0.8; }
+      else { ball.x = rightC; ball.vx = Math.abs(ball.vx) * 0.8; }
+      beep(200, 0.05);
     }
   }
   // filet : sommet (cercle)

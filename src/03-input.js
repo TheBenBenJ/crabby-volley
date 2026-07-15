@@ -68,7 +68,7 @@ function navOptions() {
     case "menu":          return ["Digit1", "Digit2", "Digit3", "Digit4", "Digit6", "Digit7", "Digit5", "KeyR"];
     case "onlineMenu":    return ["Digit1", "Digit3", "Digit2"];
     case "selectAnimal":  return ["Digit1", "Digit2", "Digit3", "Digit4"];
-    case "selectTerrain": return ["Digit1", "Digit2", "Digit3"];
+    case "selectTerrain": return ["Digit1", "Digit2", "Digit3", "Digit4"];
     default: return null;
   }
 }

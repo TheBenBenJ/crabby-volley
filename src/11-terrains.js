@@ -362,8 +362,8 @@ function drawBgNuit() {
   // tribunes (guirlandes lumineuses dans la nuit)
   drawCrowd();
 
-  // mer sombre + reflet de lune (sous l'astre)
-  ctx.fillStyle = "#142a4d";
+  // eau stagnante du marais + reflet de lune (sous l'astre)
+  ctx.fillStyle = "#0f2a22";
   ctx.fillRect(0, GROUND_Y - 55, W, 18);
   ctx.fillStyle = "rgba(240,234,214,0.2)";
   for (let i = 0; i < 5; i++) {
@@ -371,14 +371,43 @@ function drawBgNuit() {
     ctx.fillRect(mnx - rw / 2 + Math.sin(t * 2 + i) * 6, GROUND_Y - 54 + i * 3.4, rw, 2);
   }
 
-  // sable de nuit
+  // berge boueuse du marais
   const sand = ctx.createLinearGradient(0, GROUND_Y - 38, 0, H);
-  sand.addColorStop(0, "#8a7754");
-  sand.addColorStop(1, "#62523a");
+  sand.addColorStop(0, "#6e6b42");
+  sand.addColorStop(1, "#4a4a2e");
   ctx.fillStyle = sand;
   ctx.fillRect(0, GROUND_Y - 37, W, H - GROUND_Y + 37);
   ctx.fillStyle = "rgba(0,0,0,0.12)";
   ctx.fillRect(0, GROUND_Y, W, 2);
+
+  // nénuphars flottant sur l'eau sombre, près de la berge
+  ctx.fillStyle = "#0f3322";
+  for (const [lx, ly, lr] of [[108, GROUND_Y - 47, 9], [176, GROUND_Y - 44, 6],
+                              [758, GROUND_Y - 46, 8], [822, GROUND_Y - 43, 6]]) {
+    ctx.beginPath();
+    ctx.arc(lx, ly, lr, 0.25 * Math.PI, 1.9 * Math.PI);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // roseaux du marais : silhouettes de tiges qui se balancent, ancrées sur
+  // la berge (deux touffes de chaque côté, hors de la zone de jeu)
+  ctx.strokeStyle = "#0d2a1c";
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  for (const [rx, cnt, rh] of [[36, 4, 46], [138, 3, 34], [786, 5, 50], [858, 3, 36]]) {
+    for (let k = 0; k < cnt; k++) {
+      const sway = Math.sin(t * 1.2 + rx + k) * 4;
+      const bx2 = rx + k * 7;
+      const topY = GROUND_Y - 38 - rh + Math.sin(t + k) * 2;
+      ctx.beginPath();
+      ctx.moveTo(bx2, GROUND_Y - 34);
+      ctx.quadraticCurveTo(bx2 + sway * 0.5, GROUND_Y - 34 - rh * 0.6, bx2 + sway, topY);
+      ctx.stroke();
+      ctx.fillStyle = "#1a3d28";
+      ctx.beginPath(); ctx.ellipse(bx2 + sway, topY, 2.4, 7, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
 
   // lucioles (sorties seulement par temps clair) — sinon, il pleut
   if (!rainy) {
@@ -397,6 +426,141 @@ function drawBgNuit() {
   } else {
     drawRain(stormy ? 1 : 0.55);
   }
+}
+
+function drawBgPrairie() {
+  const t = performance.now() / 1000;
+  const storm = weather === "storm";
+  const raining = weather === "rain" || storm;
+
+  // ciel : bleu vif par beau temps, verdâtre plombé à l'orage
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  if (storm) {
+    sky.addColorStop(0, "#4a5245");
+    sky.addColorStop(1, "#7c8a6f");
+  } else if (raining) {
+    sky.addColorStop(0, "#7d9a7a");
+    sky.addColorStop(1, "#b8d0a8");
+  } else {
+    sky.addColorStop(0, "#57b8ea");
+    sky.addColorStop(1, "#c9ecff");
+  }
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, GROUND_Y);
+
+  // collines verdoyantes en parallaxe (lointaine puis intermédiaire)
+  drawHillLayer(GROUND_Y - 100, storm ? "#5c6b4a" : raining ? "#8fa876" : "#a8d67e", 0.12,
+    [[100, GROUND_Y - 148], [290, GROUND_Y - 116], [480, GROUND_Y - 160], [670, GROUND_Y - 120], [830, GROUND_Y - 150]]);
+  drawHillLayer(GROUND_Y - 90, storm ? "#4a5c3a" : raining ? "#7d9a62" : "#7ec654", 0.3,
+    [[170, GROUND_Y - 122], [370, GROUND_Y - 100], [550, GROUND_Y - 130], [770, GROUND_Y - 104]]);
+
+  // arc-en-ciel : quand il pleut mais que le soleil reste visible
+  if (raining && sunVisible() && !storm) drawRainbow();
+
+  // soleil (dérive lente) — voilé sous la pluie, masqué à l'orage
+  if (!storm) {
+    const sun = celestialPos();
+    const halo = raining ? 0.18 : 0.35;
+    ctx.fillStyle = "rgba(255,250,180," + halo + ")";
+    ctx.beginPath(); ctx.arc(sun.x, sun.y, 50, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = raining ? "rgba(255,250,210,0.75)" : "#fff2a0";
+    ctx.beginPath(); ctx.arc(sun.x, sun.y, 36, 0, Math.PI * 2); ctx.fill();
+  }
+
+  drawClouds(storm ? "rgba(90,100,90,0.9)" : raining ? "rgba(220,225,210,0.85)" : "rgba(255,255,255,0.9)");
+
+  // tribunes
+  drawCrowd();
+
+  // clôture en bois au loin (remplace la mer/le lac des autres terrains)
+  ctx.strokeStyle = storm ? "#5a4530" : "#7a5c3c";
+  ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(0, GROUND_Y - 46); ctx.lineTo(W, GROUND_Y - 46); ctx.stroke();
+  ctx.lineWidth = 3;
+  for (let px = 20; px < W; px += 70) {
+    ctx.beginPath(); ctx.moveTo(px, GROUND_Y - 58); ctx.lineTo(px, GROUND_Y - 36); ctx.stroke();
+  }
+
+  // herbe : vive par beau temps, sombre et terne sous la pluie
+  const grass = ctx.createLinearGradient(0, GROUND_Y - 38, 0, H);
+  if (raining) { grass.addColorStop(0, "#5a7a3e"); grass.addColorStop(1, "#425c2c"); }
+  else { grass.addColorStop(0, "#7ed957"); grass.addColorStop(1, "#5aab3c"); }
+  ctx.fillStyle = grass;
+  ctx.fillRect(0, GROUND_Y - 37, W, H - GROUND_Y + 37);
+  if (raining) {
+    // flaques luisantes sur l'herbe détrempée
+    ctx.fillStyle = "rgba(255,255,255,0.10)";
+    ctx.fillRect(0, GROUND_Y, W, 6);
+  }
+  ctx.fillStyle = "rgba(0,0,0,0.08)";
+  ctx.fillRect(0, GROUND_Y, W, 2);
+
+  // brins d'herbe (positions fixes, purement décoratif) qui se penchent
+  ctx.strokeStyle = raining ? "rgba(30,50,15,0.5)" : "rgba(40,90,20,0.45)";
+  ctx.lineWidth = 1.5;
+  for (let i = 0; i < 50; i++) {
+    const gx = (i * 173.3) % W;
+    const gy = GROUND_Y + 3 + (i * 31.1) % (H - GROUND_Y - 8);
+    const lean = Math.sin(t * 2 + i) * 2;
+    ctx.beginPath(); ctx.moveTo(gx, gy + 5); ctx.lineTo(gx + lean, gy - 3); ctx.stroke();
+  }
+
+  // trèfles à trois feuilles, éparpillés dans l'herbe
+  ctx.fillStyle = raining ? "#4a6a34" : "#5fae3f";
+  for (let i = 0; i < 10; i++) {
+    const cx2 = (i * 251.7) % W;
+    const cy2 = GROUND_Y + 8 + (i * 47.3) % (H - GROUND_Y - 14);
+    for (const [ox, oy] of [[-2.5, 0], [2.5, 0], [0, -2.5]]) {
+      ctx.beginPath(); ctx.ellipse(cx2 + ox, cy2 + oy, 2.2, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+
+  drawCarrotPatch(60, storm);
+  drawHayBale(W - 60);
+  drawButterflies();
+  if (raining) drawRain(storm ? 1 : 0.55);
+}
+
+// touffe de carottes plantées dans l'herbe — clin d'œil à Turbo-Jeannot
+function drawCarrotPatch(px, storm) {
+  const t = performance.now() / 1000;
+  const sway = Math.sin(t * (storm ? 3 : 1)) * (storm ? 4 : 1.5);
+  for (const [ox, h] of [[-14, 26], [-4, 32], [8, 24], [16, 30]]) {
+    const topX = px + ox + sway, topY = GROUND_Y - 34 - h;
+    ctx.strokeStyle = "#2e7d32";
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = "round";
+    for (const spread of [-4, 0, 4]) {
+      ctx.beginPath();
+      ctx.moveTo(px + ox, GROUND_Y - 34);
+      ctx.quadraticCurveTo(px + ox + spread * 0.5 + sway * 0.5, topY + 8, topX + spread, topY);
+      ctx.stroke();
+    }
+    // petit sommet de carotte affleurant (orange)
+    ctx.fillStyle = "#ff9800";
+    ctx.beginPath();
+    ctx.moveTo(px + ox - 4, GROUND_Y - 34);
+    ctx.lineTo(px + ox + 4, GROUND_Y - 34);
+    ctx.lineTo(px + ox, GROUND_Y - 26);
+    ctx.closePath();
+    ctx.fill();
+  }
+}
+
+// botte de foin ronde, décorative
+function drawHayBale(px) {
+  const py = GROUND_Y - 24;
+  ctx.fillStyle = "#d4a843";
+  ctx.beginPath(); ctx.arc(px, py, 26, 0, Math.PI * 2); ctx.fill();
+  ctx.strokeStyle = "rgba(120,85,20,0.5)";
+  ctx.lineWidth = 2;
+  for (const a of [-0.6, 0, 0.6]) {
+    ctx.beginPath();
+    ctx.arc(px, py, 26, Math.PI * 0.5 + a - 0.25, Math.PI * 0.5 + a + 0.25);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = "rgba(120,85,20,0.7)";
+  ctx.beginPath(); ctx.moveTo(px - 26, py); ctx.lineTo(px + 26, py); ctx.stroke();
 }
 
 function drawNet() {

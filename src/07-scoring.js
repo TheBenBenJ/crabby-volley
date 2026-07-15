@@ -9,6 +9,24 @@ function awardPoint(side, reason) {
   shake = 8;
   servingSide = side;
   beep(side === 0 ? 660 : 550, 0.25, "sine", 0.2);
+
+  // le camp qui perd le point subit sa "punition" visuelle au maximum d'un
+  // coup (oiseau déplumé, lapin épuisé, manchot fou de rage), en plus de la
+  // montée progressive au fil des touches — remis à zéro au prochain
+  // service via Blob.reset() dans startRally().
+  for (const b of activeBlobs) {
+    if (b.side !== 1 - side) continue;
+    const key = animOf(b).key;
+    if (key === "oiseau" && b.molt < MOLT_MAX) {
+      b.molt = MOLT_MAX;
+      if (!noFx) spawnFeathers(b.x, b.y - 55, b.color, 22);
+    } else if (key === "lapin") {
+      b.fatigue = FATIGUE_MAX;
+    } else if (key === "manchot") {
+      b.anger = ANGER_MAX;
+    }
+  }
+
   // combo : points d'affilée → charge le SUPER de l'animal
   streak[side]++; streak[1 - side] = 0;
   if (streak[side] % SUPER_NEED === 0 && superCharge[side] === 0) {

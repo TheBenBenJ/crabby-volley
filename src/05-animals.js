@@ -27,6 +27,17 @@ function isLiveBlob(b) { return b === blobL || b === blobR; }
 // super chargée/active, saut) : aucune donnée nouvelle → rien à synchroniser,
 // l'invité affiche la même chose (il reçoit émotes/super via les événements).
 function faceMood(b) {
+  // chaque animal a une expression de caractère FIXE, en permanence :
+  // le lapin a toujours l'air d'une victime (comme quand il perd le point),
+  // le manchot a toujours l'air fâché (comme quand il frappe la balle),
+  // l'oiseau est perpétuellement sur le qui-vive (son bec fragile peut
+  // crever à tout instant), la grenouille reste une diva décontractée
+  // (sa détente énorme la rend toujours sûre d'elle).
+  const key = animOf(b).key;
+  if (key === "lapin") return "sad";
+  if (key === "manchot") return "fierce";
+  if (key === "oiseau") return "shock";
+  if (key === "grenouille") return "happy";
   const side = b === blobL ? 0 : b === blobR ? 1 : -1;
   if (side >= 0) {
     const e = emotes[side];
@@ -46,7 +57,11 @@ function faceMood(b) {
 function drawBrows(ex1, ex2, eyeY, r, mood) {
   const cx = (ex1 + ex2) / 2;
   let inner, outer, lift;
-  switch (mood) {
+  // mood peut être un objet {inner,outer,lift} calculé dynamiquement (ex.
+  // fureur croissante du manchot) au lieu d'un des préréglages ci-dessous.
+  if (mood && typeof mood === "object") {
+    ({ inner, outer, lift } = mood);
+  } else switch (mood) {
     case "fierce": inner = 4;  outer = -3; lift = 0;  break; // froncés (déterminé)
     case "focus":  inner = 3;  outer = -1; lift = 1;  break; // concentré
     case "happy":  inner = -3; outer = -4; lift = -3; break; // haussés, joyeux
@@ -231,9 +246,15 @@ function drawShadow(b) {
 // œil blanc dont la pupille suit la balle.
 // (gx,gy) optionnel : origine commune du regard → les deux yeux pointent
 // PARALLÈLEMENT (fini le strabisme quand la balle est proche entre les yeux).
-function drawTrackingEye(ex, ey, r, pr, gx, gy) {
+// redTint (0..1) optionnel : injecte du rouge dans le blanc de l'œil (colère
+// croissante du manchot), appliqué avant la pupille pour ne pas la recouvrir.
+function drawTrackingEye(ex, ey, r, pr, gx, gy, redTint) {
   ctx.fillStyle = "#fff";
   ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
+  if (redTint) {
+    ctx.fillStyle = "rgba(220,25,20," + Math.min(0.7, redTint * 0.6).toFixed(2) + ")";
+    ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
+  }
   const ox = gx !== undefined ? gx : ex, oy = gy !== undefined ? gy : ey;
   const dx = ball.x - ox, dy = ball.y - oy;
   const d = Math.hypot(dx, dy) || 1;
@@ -251,9 +272,10 @@ function drawTrackingEye(ex, ey, r, pr, gx, gy) {
 }
 
 // pattes fines animées (oiseau, lapin) — renvoie les positions des pieds
+// Liseré sombre systématique sous les pattes/pieds : sans lui, des pattes
+// claires (blanches sur le lapin) se fondent presque totalement dans un
+// terrain clair (neige de la banquise notamment).
 function drawLegs(b, dir, s, legColor, footStyle) {
-  ctx.strokeStyle = legColor;
-  ctx.lineWidth = 3.5;
   ctx.lineCap = "round";
   for (let i = 0; i < 2; i++) {
     const hipX = b.x + (i === 0 ? -9 : 9);
@@ -272,6 +294,11 @@ function drawLegs(b, dir, s, legColor, footStyle) {
       footX = hipX;
       footY = b.y;
     }
+    ctx.strokeStyle = "rgba(0,0,0,0.22)";
+    ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(footX, footY); ctx.stroke();
+    ctx.strokeStyle = legColor;
+    ctx.lineWidth = 3.5;
     ctx.beginPath();
     ctx.moveTo(hipX, hipY);
     ctx.lineTo(footX, footY);
@@ -288,6 +315,9 @@ function drawLegs(b, dir, s, legColor, footStyle) {
       ctx.beginPath();
       ctx.ellipse(footX + dir * 5, footY + 1, 9, 4, 0, 0, Math.PI * 2);
       ctx.fill();
+      ctx.strokeStyle = "rgba(0,0,0,0.22)";
+      ctx.lineWidth = 1.3;
+      ctx.stroke();
     }
   }
 }
@@ -455,12 +485,15 @@ function drawGrenouille(b) {
   const s = Math.max(0, b.squash);
   const bx = b.x, by = b.y;
   const dir = b.side === 0 ? 1 : -1;
+  // pattes d'une teinte fixe, différente du corps (qui, lui, prend la couleur
+  // du joueur) — comme les pattes de l'oiseau ou du lapin
+  const LEG = "#7a4a24";
   ctx.save();
   drawShadow(b);
 
   // pattes arrière : cuisses repliées au sol (qui se dandinent en marchant),
   // détendues et pédalantes en l'air
-  ctx.fillStyle = b.darkColor;
+  ctx.fillStyle = LEG;
   if (b.onGround) {
     for (const side of [-1, 1]) {
       // en marche, les cuisses montent/descendent en alternance
@@ -470,7 +503,7 @@ function drawGrenouille(b) {
       ctx.fill();
     }
   } else {
-    ctx.strokeStyle = b.darkColor;
+    ctx.strokeStyle = LEG;
     ctx.lineWidth = 6;
     ctx.lineCap = "round";
     for (const side of [-1, 1]) {
@@ -495,9 +528,9 @@ function drawGrenouille(b) {
   ctx.ellipse(bx + dir * 4, by - 22 + s, 20, 14, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // pattes avant qui marchent (balancier en alternance)
-  ctx.strokeStyle = b.darkColor;
-  ctx.lineWidth = 4;
+  // pattes avant qui marchent (balancier en alternance). Liseré sombre
+  // systématique : sans lui, elles se confondent avec les pattes arrière
+  // (même teinte LEG) quand les deux se superposent visuellement.
   ctx.lineCap = "round";
   let i = 0;
   for (const off of [-8, 8]) {
@@ -508,12 +541,27 @@ function drawGrenouille(b) {
       footX += Math.sin(phF) * 6;
       footY = by - Math.max(0, Math.cos(phF)) * 5;
     }
+    const hipX2 = bx + off + dir * 10, hipY2 = by - 16 + s;
+    ctx.strokeStyle = "rgba(0,0,0,0.28)";
+    ctx.lineWidth = 5.5;
+    ctx.beginPath(); ctx.moveTo(hipX2, hipY2); ctx.lineTo(footX, footY); ctx.stroke();
+    ctx.strokeStyle = LEG;
+    ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.moveTo(bx + off + dir * 10, by - 16 + s);
+    ctx.moveTo(hipX2, hipY2);
     ctx.lineTo(footX, footY);
     ctx.stroke();
     // orteils palmés
-    ctx.strokeStyle = b.darkColor;
+    ctx.strokeStyle = "rgba(0,0,0,0.28)";
+    ctx.lineWidth = 3;
+    for (const toe of [-3, 0, 3]) {
+      ctx.beginPath();
+      ctx.moveTo(footX, footY);
+      ctx.lineTo(footX + toe + dir * 2, footY + 3);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = LEG;
+    ctx.lineWidth = 1.6;
     for (const toe of [-3, 0, 3]) {
       ctx.beginPath();
       ctx.moveTo(footX, footY);
@@ -583,7 +631,11 @@ function drawManchot(b) {
   const s = Math.max(0, b.squash);
   const bx = b.x, by = b.y;
   const dir = b.side === 0 ? 1 : -1;
-  const waddle = (b.onGround && b.vx !== 0) ? Math.sin(b.walkPhase) * 3 : 0;
+  // fureur grandissante au fil des touches (purement visuel, 0 → ANGER_MAX) :
+  // tremblement de rage qui s'ajoute au dandinement normal.
+  const angerT = (b.anger || 0) / ANGER_MAX;
+  const angerShake = angerT > 0.12 ? Math.sin(performance.now() / 30) * angerT * 3.6 : 0;
+  const waddle = ((b.onGround && b.vx !== 0) ? Math.sin(b.walkPhase) * 3 : 0) + angerShake;
   const headY = by - 66 + s * 1.5;
   ctx.save();
   drawShadow(b);
@@ -620,6 +672,18 @@ function drawManchot(b) {
   ctx.quadraticCurveTo(bx + waddle, by - 4 + s, bx - 26 + waddle, by - 22 + s);
   ctx.fill();
   outline();
+
+  // fureur : tout le corps rougit progressivement (pas seulement les joues),
+  // par-dessus le corps foncé qui vient d'être dessiné
+  if (angerT > 0.08) {
+    ctx.fillStyle = "rgba(230,25,15," + Math.min(0.55, angerT * 0.6).toFixed(2) + ")";
+    ctx.beginPath();
+    ctx.moveTo(bx - 26 + waddle, by - 22 + s);
+    ctx.quadraticCurveTo(bx - 30 + waddle, by - 78 + s, bx + waddle, by - 88 + s);
+    ctx.quadraticCurveTo(bx + 30 + waddle, by - 78 + s, bx + 26 + waddle, by - 22 + s);
+    ctx.quadraticCurveTo(bx + waddle, by - 4 + s, bx - 26 + waddle, by - 22 + s);
+    ctx.fill();
+  }
 
   // 2e teinte : bande latérale plus claire (couleur du joueur) sur les flancs
   ctx.fillStyle = b.color;
@@ -689,14 +753,98 @@ function drawManchot(b) {
     ctx.closePath(); ctx.fill();
   }
 
-  // yeux bien contrastés : anneau foncé + blanc + pupille
+  // yeux bien contrastés : anneau foncé + blanc + pupille (le blanc rougit
+  // avec la fureur croissante)
   for (const off of [3, 12]) {
     const ex = bx + waddle + dir * off, ey = headY - 3;
     ctx.fillStyle = b.darkColor;
     ctx.beginPath(); ctx.arc(ex, ey, 6.5, 0, Math.PI * 2); ctx.fill();
-    drawTrackingEye(ex, ey, 5, 2.6);
+    drawTrackingEye(ex, ey, 5, 2.6, undefined, undefined, angerT);
   }
-  drawBrows(bx + waddle + dir * 3, bx + waddle + dir * 12, headY - 3, 6.5, faceMood(b));
+  // sourcils : tempérament colérique de base (légèrement froncés au repos),
+  // qui s'incline de plus en plus avec la fureur — plus prononcé que le
+  // préréglage "fierce" classique une fois la jauge pleine.
+  drawBrows(bx + waddle + dir * 3, bx + waddle + dir * 12, headY - 3, 6.5, {
+    inner: 1.5 + angerT * 4.5,
+    outer: -angerT * 6.5,
+    lift: -angerT * 2
+  });
+
+  // fureur croissante : joues qui rougissent, éclairs de colère, veines qui
+  // pulsent, vapeur qui s'échappe — dessinés en tout dernier pour rester
+  // par-dessus la tête.
+  if (angerT > 0.05) {
+    // joues rouges, sous chaque œil (par-dessus le masque clair)
+    ctx.fillStyle = "rgba(235,20,10," + Math.min(0.9, 0.25 + angerT * 0.75).toFixed(2) + ")";
+    for (const off of [3, 12]) {
+      ctx.beginPath();
+      ctx.ellipse(bx + waddle + dir * off, headY + 7, 4 + angerT * 2.5, 2.8 + angerT * 2, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  if (angerT > 0.2) {
+    // veines de colère qui palpitent sur le front (deux, à fureur avancée)
+    const pulse = Math.sin(performance.now() / 80) > 0 ? 1 : 0.4;
+    ctx.strokeStyle = "rgba(210,20,20," + Math.min(0.95, 0.5 * pulse + angerT * 0.5).toFixed(2) + ")";
+    ctx.lineWidth = 1.6 + angerT * 1.4; ctx.lineCap = "round";
+    const veins = angerT > 0.55 ? [-8, 6] : [-8];
+    for (const vo of veins) {
+      const vx0 = bx + waddle + dir * vo, vy0 = headY - 15;
+      ctx.beginPath();
+      ctx.moveTo(vx0, vy0);
+      ctx.lineTo(vx0 + 2, vy0 + 4);
+      ctx.lineTo(vx0 - 1, vy0 + 7);
+      ctx.lineTo(vx0 + 2, vy0 + 11);
+      ctx.stroke();
+    }
+  }
+  if (angerT > 0.15) {
+    // vapeur qui s'échappe de la tête, de plus en plus dense et épaisse —
+    // liseré sombre systématique (sinon invisible sur la banquise, tout en blanc)
+    const nPuffs = Math.min(6, Math.ceil((angerT - 0.15) / 0.13));
+    const t = performance.now() / 220;
+    for (let p = 0; p < nPuffs; p++) {
+      const cyc = (t + p * 0.3) % 1; // 0 → 1 : monte et s'estompe
+      const px = bx + waddle + (p - (nPuffs - 1) / 2) * 10 + Math.sin(t * 3 + p) * 3;
+      const py = headY - 22 - cyc * 30;
+      ctx.globalAlpha = (1 - cyc) * (0.75 + angerT * 0.25);
+      const r2 = 5 + angerT * 4 + cyc * 5;
+      ctx.fillStyle = "rgba(235,240,245,0.95)";
+      ctx.strokeStyle = "rgba(90,90,100,0.5)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.arc(px, py, r2, 0, Math.PI * 2);
+      ctx.fill(); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+  }
+  if (angerT > 0.3) {
+    // éclairs de colère au-dessus de la tête (façon bande dessinée), bien
+    // au-dessus de la vapeur — de plus en plus nombreux et vifs
+    const nBolts = Math.min(3, Math.ceil((angerT - 0.3) / 0.22));
+    const t2 = performance.now() / 130;
+    for (let bIdx = 0; bIdx < nBolts; bIdx++) {
+      const jitter = Math.sin(t2 + bIdx * 2.1) * 2;
+      const cx3 = bx + waddle + (bIdx - (nBolts - 1) / 2) * 16 + jitter;
+      const cy3 = headY - 58 - Math.abs(Math.sin(t2 * 0.7 + bIdx)) * 4;
+      ctx.save();
+      ctx.translate(cx3, cy3);
+      ctx.rotate(Math.sin(t2 + bIdx) * 0.25);
+      ctx.fillStyle = "#ffd400";
+      ctx.strokeStyle = "rgba(120,60,0,0.7)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-3, -9);
+      ctx.lineTo(2, -2);
+      ctx.lineTo(-1, -2);
+      ctx.lineTo(4, 9);
+      ctx.lineTo(-2, 1);
+      ctx.lineTo(1, 1);
+      ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+  }
   ctx.restore();
 }
 
@@ -704,16 +852,21 @@ function drawLapin(b) {
   const s = Math.max(0, b.squash);
   const bx = b.x, by = b.y;
   const dir = b.side === 0 ? 1 : -1;
-  const headY = by - 64 + s * 1.5;
+  const fatigueT = (b.fatigue || 0) / FATIGUE_MAX;
+  // à fatigue max, la tête s'affaisse un peu : posture d'épave
+  const headY = by - 64 + s * 1.5 + fatigueT * 6;
   ctx.save();
   drawShadow(b);
-  drawLegs(b, dir, s, b.darkColor, "paws");
+  drawLegs(b, dir, s, "#f2f2f2", "paws"); // pattes arrière blanches
 
   // queue pompon
   ctx.fillStyle = "rgba(255,255,255,0.95)";
   ctx.beginPath();
   ctx.arc(bx - dir * 27, by - 26 + s, 8, 0, Math.PI * 2);
   ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.18)";
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
 
   // corps
   ctx.fillStyle = b.color;
@@ -728,12 +881,30 @@ function drawLapin(b) {
   ctx.ellipse(bx + dir * 5, by - 24 + s, 16, 12, 0, 0, Math.PI * 2);
   ctx.fill();
 
-  // oreilles (penchées en arrière pendant le saut)
+  // petites pattes avant : deux toutes petites rondelles blanches posées sur
+  // le ventre (à hauteur du poitrail, PAS en bas du buste) — léger rebond en
+  // marche
+  ctx.fillStyle = "#f2f2f2";
+  ctx.strokeStyle = "rgba(0,0,0,0.2)";
+  ctx.lineWidth = 1.2;
+  for (let pi = 0; pi < 2; pi++) {
+    const bob = (b.onGround && b.vx !== 0)
+      ? Math.max(0, Math.sin(b.walkPhase + pi * Math.PI)) * 2 : 0;
+    const pawX = bx + dir * (4 + pi * 7), pawY = by - 19 + s - bob;
+    ctx.beginPath();
+    ctx.arc(pawX, pawY, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // oreilles (penchées en arrière pendant le saut ; s'affaissent
+  // progressivement avec la fatigue — purement visuel, 0 → FATIGUE_MAX)
   const earBack = b.onGround ? 0 : -dir * 0.35;
+  const earDroop = fatigueT * 1.9; // à fatigue max, elles pendent, complètement molles
   for (const side of [-1, 1]) {
     ctx.save();
     ctx.translate(bx + side * 8, headY - 14);
-    ctx.rotate(side * 0.18 + earBack);
+    ctx.rotate(side * (0.18 + earDroop) + earBack * (1 - fatigueT));
     ctx.fillStyle = b.color;
     ctx.beginPath();
     ctx.ellipse(0, -16, 6.5, 18, 0, 0, Math.PI * 2);
@@ -796,6 +967,63 @@ function drawLapin(b) {
   drawTrackingEye(bx + dir * 3, headY - 6, 5.5, 2.6, gzx, gzy);
   drawTrackingEye(bx + dir * 12, headY - 6, 5.5, 2.6, gzx, gzy);
   drawBrows(bx + dir * 3, bx + dir * 12, headY - 6, 5.5, faceMood(b));
+
+  // paupières lourdes à la fatigue : les yeux finissent presque totalement
+  // fermés (regard à bout de forces), par-dessus les yeux déjà dessinés
+  if (fatigueT > 0.1) {
+    const lidH = Math.min(10.8, (fatigueT - 0.1) / 0.9 * 10.8);
+    ctx.fillStyle = b.color;
+    for (const ex of [bx + dir * 3, bx + dir * 12]) {
+      ctx.fillRect(ex - 6, headY - 12, 12, lidH);
+    }
+  }
+
+  // langue qui pend sous le menton, halètement à bout de souffle (dès le
+  // tiers de la jauge) — bande allongée qui se balance, PAS un amas collé
+  // au museau : elle part de sous les dents et descend clairement.
+  if (fatigueT > 0.32) {
+    const tongueLen = 5 + (fatigueT - 0.32) / 0.68 * 20; // 5 → 25 px
+    const wob = Math.sin(performance.now() / 150) * 2;
+    const tx = bx + dir * 13, ty = headY + 15;
+    const tipX = tx + wob, tipY = ty + tongueLen;
+    ctx.fillStyle = "#ff6f91";
+    ctx.strokeStyle = "rgba(190,50,90,0.7)"; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(tx - 3, ty);
+    ctx.lineTo(tx + 3, ty);
+    ctx.quadraticCurveTo(tx + 3 + wob * 0.3, ty + tongueLen * 0.6, tipX + 2.5, tipY);
+    ctx.quadraticCurveTo(tipX, tipY + 2.5, tipX - 2.5, tipY);
+    ctx.quadraticCurveTo(tx - 3 + wob * 0.3, ty + tongueLen * 0.6, tx - 3, ty);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    // sillon central pour lire la langue comme une bande, pas un blob
+    ctx.beginPath();
+    ctx.moveTo(tx, ty + 1);
+    ctx.quadraticCurveTo(tx + wob * 0.3, ty + tongueLen * 0.6, tipX, tipY - 2);
+    ctx.stroke();
+  }
+
+  // gouttes de sueur (de plus en plus nombreuses et grosses) — dessinées en
+  // tout dernier pour rester par-dessus la tête. Un déluge complet à fatigue max.
+  if (fatigueT > 0.08) {
+    const nDrops = Math.min(9, Math.ceil(fatigueT * 9));
+    ctx.strokeStyle = "rgba(60,120,180,0.6)";
+    ctx.lineWidth = 0.8;
+    for (let d = 0; d < nDrops; d++) {
+      const dropSize = 4.5 + fatigueT * 3.2;
+      const onLeft = d % 2 === 0;
+      const dx = (onLeft ? bx - dir * 22 : bx + dir * 25) + (d % 3) * 3;
+      const dy = headY - 26 + Math.floor(d / 2) * 10 + Math.sin(performance.now() / 200 + d) * 1.5;
+      ctx.fillStyle = "rgba(140,205,255," + (0.75 + fatigueT * 0.25).toFixed(2) + ")";
+      ctx.beginPath();
+      ctx.moveTo(dx, dy - dropSize);
+      ctx.quadraticCurveTo(dx + dropSize * 0.75, dy + dropSize * 0.25, dx, dy + dropSize);
+      ctx.quadraticCurveTo(dx - dropSize * 0.75, dy + dropSize * 0.25, dx, dy - dropSize);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
   ctx.restore();
 }
 

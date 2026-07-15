@@ -2,10 +2,13 @@
 "use strict";
 
 // ---------- Terrains et animaux ----------
+// chaque terrain appartient à un animal (voir ANIMALS plus bas) : son public
+// des tribunes est composé de cet animal, et le nom du terrain lui rend hommage.
 const TERRAINS = [
-  { key: "plage", name: "Plage" },
-  { key: "neige", name: "Banquise" },
-  { key: "nuit",  name: "Nuit étoilée" }
+  { key: "plage",   name: "La Zone de Piou-Piou",     animal: 0 },
+  { key: "neige",   name: "Le QG du Général Frigo",   animal: 2 },
+  { key: "nuit",    name: "La Mare à Slurp",          animal: 1 },
+  { key: "prairie", name: "Le Ter-Ter de Jeannot",    animal: 3 }
 ];
 let terrain = 0;
 
@@ -14,13 +17,16 @@ const ANIMALS = [
   // speed : vitesse au sol · jump : force de saut · power : force de frappe
   // control : 1 = parfait, <1 = déviation aléatoire à la frappe
   // beak : possède un bec (risque de crevaison) · slip : inertie/dérapage au sol
-  // stick : langue collante (grosse déviation) · molt : se déplume au fil des coups
+  // stick : langue collante (grosse déviation)
+  // molt : se déplume au fil des touches (8 coups), à nu d'un coup si le point est perdu
+  // tired : se fatigue au fil des touches (oreilles qui tombent, sueur) — purement visuel
+  // cracks : plastron qui se fissure au fil des touches, en éclats d'un coup à la perte du point
   {
     key: "oiseau", name: "Piou-Piou",
     stats: { vitesse: 4, detente: 4, puissance: 2, controle: 3 },
     speed: 1.12, jump: 1.12, power: 0.82, control: 0.9,
     beak: true, molt: true,
-    trait: "Bec fragile : peut crever la balle. Se déplume au fil des coups.",
+    trait: "Bec fragile : peut crever la balle. Se déplume au fil des touches (8 coups), à nu d'un coup en cas de point perdu.",
     superName: "Piqué éclair", superDesc: "Bond fulgurant : la frappe suivante est un smash aérien."
   },
   {
@@ -35,16 +41,16 @@ const ANIMALS = [
     key: "manchot", name: "Général Frigo",
     stats: { vitesse: 2, detente: 2, puissance: 5, controle: 4 },
     speed: 0.82, jump: 0.82, power: 1.28, control: 0.97,
-    beak: true,
-    trait: "Frappe très puissante et précise. Lent. Bec (crevaison rare).",
+    beak: true, angry: true,
+    trait: "Frappe très puissante et précise. Lent. Bec (crevaison rare). Devient de plus en plus furieux au fil des touches (purement visuel).",
     superName: "Canon des glaces", superDesc: "La frappe suivante devient un boulet de canon plongeant."
   },
   {
     key: "lapin", name: "Turbo-Jeannot",
     stats: { vitesse: 5, detente: 3, puissance: 2, controle: 3 },
     speed: 1.3, jump: 1.0, power: 0.85, control: 0.9,
-    slip: true,
-    trait: "Ultra-rapide, mais dérape à l'arrêt : placement difficile.",
+    slip: true, tired: true,
+    trait: "Ultra-rapide, mais dérape à l'arrêt : placement difficile. Se fatigue au fil des touches (purement visuel).",
     superName: "Turbo-bond", superDesc: "Vitesse décuplée et sauts illimités pendant un instant."
   }
 ];
@@ -113,6 +119,9 @@ const SUPER_DUR = { oiseau: 40, grenouille: 24, manchot: 60, lapin: 100 };
 let superFlash = "";          // libellé "SUPER !" affiché brièvement
 let superFlashT = 0;
 
+const FATIGUE_MAX = 8; // coups avant que le lapin soit visiblement épuisé
+const ANGER_MAX = 8;    // coups avant que le manchot soit au comble de la fureur
+
 class Blob {
   constructor(side, color, darkColor) {
     this.side = side;               // 0 gauche, 1 droite
@@ -135,6 +144,8 @@ class Blob {
     this.scramble = 0;    // lapin qui patine (jambes agitées)
     this.tongueOut = false; // grenouille : langue sortie après un coup collant
     this.molt = 0;        // plumes perdues par l'oiseau : 0 → MOLT_MAX
+    this.fatigue = 0;     // fatigue du lapin (oreilles/sueur) : 0 → FATIGUE_MAX
+    this.anger = 0;       // fureur du manchot (rougeurs, vapeur) : 0 → ANGER_MAX
     this.hasBall = false; // balle crevée plantée sur le bec
     this.jumpsUsed = 0;   // 0 au sol, 1 après le saut, 2 après le double saut
     this.prevJump = false; // détection du front montant (double saut)
@@ -162,9 +173,11 @@ class Blob {
     if (input.left)  this.vx = -sp;
     if (input.right) this.vx =  sp;
 
-    // dérapage du lapin : la vitesse affichée rattrape la consigne avec inertie
+    // dérapage du lapin : la vitesse affichée rattrape la consigne avec
+    // inertie — facteur volontairement bas : encore moins stable, il glisse
+    // longtemps avant de suivre une consigne de vitesse/arrêt.
     if (a.slip) {
-      this.dispVx += (this.vx - this.dispVx) * 0.16;
+      this.dispVx += (this.vx - this.dispVx) * 0.07;
       if (Math.abs(this.dispVx) < 0.05) this.dispVx = 0;
     } else {
       this.dispVx = this.vx;
@@ -172,10 +185,10 @@ class Blob {
     const moveVx = a.slip ? this.dispVx : this.vx;
 
     if (this.onGround && moveVx !== 0) {
-      // le lapin patine : quand il pousse mais que la vitesse réelle est en
-      // retard sur la consigne, il pédale frénétiquement (jambes excitées)
-      const scrambling = a.slip && input.left !== input.right &&
-                         Math.abs(this.dispVx) < Math.abs(this.vx) * 0.85;
+      // le lapin pédale frénétiquement en permanence dès qu'il court (pas
+      // seulement quand la vitesse réelle est en retard sur la consigne) :
+      // c'est sa signature, Turbo-Jeannot ne trottine jamais tranquillement.
+      const scrambling = a.slip;
       this.scramble = scrambling ? 1 : 0;
       this.walkPhase += scrambling ? 0.9 : 0.3;
       if (Math.random() < (scrambling ? 0.35 : 0.1)) spawnSand(this.x - Math.sign(this.vx) * 12, GROUND_Y, 1);

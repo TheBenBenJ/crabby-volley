@@ -16,21 +16,28 @@ function drawClouds(color) {
 
 // ---------- Tribunes animées (public) ----------
 // Bande de spectateurs derrière le terrain : ola permanente + explosion de joie
-// (bras levés, bonds) quand crowdHype grimpe (point marqué, smash). Purement
-// visuel, dérivé du temps → rien à synchroniser en ligne.
+// (bras/ailes/oreilles levés, bonds) quand crowdHype grimpe (point marqué,
+// smash). Le public de chaque terrain est composé de l'animal qui le
+// possède (ANIMALS[TERRAINS[terrain].animal]) : des manchots sur la
+// banquise, des piou-piou sur la plage, etc. Purement visuel, dérivé du
+// temps → rien à synchroniser en ligne.
 function drawCrowd() {
   const t = performance.now() / 1000;
   const key = TERRAINS[terrain].key;
+  const species = ANIMALS[TERRAINS[terrain].animal].key;
   const top = GROUND_Y - 118, bot = GROUND_Y - 78;
-  let stand, rail, pal, skin;
+  let stand, rail, pal, glow = false;
   if (key === "neige") {
-    stand = "#aabecd"; rail = "#8299ab"; skin = "#f0c9a0";
+    stand = "#aabecd"; rail = "#8299ab";
     pal = ["#e57373", "#64b5f6", "#ffffff", "#ffb74d", "#ba68c8", "#4db6ac"];
   } else if (key === "nuit") {
-    stand = "#161c30"; rail = "#28304c"; skin = null; // heads = points lumineux
+    stand = "#161c30"; rail = "#28304c"; glow = true; // halo de veilleuse nocturne
     pal = ["#ff8a80", "#82b1ff", "#ffd180", "#b388ff", "#a7ffeb", "#ffffff"];
+  } else if (key === "prairie") {
+    stand = "#8fae52"; rail = "#6b8a3a";
+    pal = ["#ff6f61", "#ffd93d", "#7ed957", "#4db3ff", "#c07bff", "#ffffff"];
   } else {
-    stand = "#b98a4b"; rail = "#8f6a38"; skin = "#f0c9a0";
+    stand = "#b98a4b"; rail = "#8f6a38";
     pal = ["#ff6f61", "#ffd93d", "#4db3ff", "#7ed957", "#c07bff", "#ffffff"];
   }
   // gradins
@@ -50,19 +57,8 @@ function drawCrowd() {
       const jit = Math.sin(t * (8 + (i % 5)) + i);
       const bounce = Math.max(0, wave) * 2.5 + hype * Math.abs(jit) * 7;
       const hy = ry - bounce;
-      ctx.fillStyle = col;
-      ctx.beginPath(); ctx.ellipse(x, hy + 5, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = skin || col;
-      ctx.beginPath(); ctx.arc(x, hy - 2, 3.4, 0, Math.PI * 2); ctx.fill();
-      if (key === "nuit") { // halo de veilleuse la nuit
-        ctx.fillStyle = "rgba(255,255,255,0.15)";
-        ctx.beginPath(); ctx.arc(x, hy - 2, 5, 0, Math.PI * 2); ctx.fill();
-      }
-      if (hype > 0.35 && jit > 0.2) { // bras levés quand ça chauffe
-        ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.lineCap = "round";
-        ctx.beginPath(); ctx.moveTo(x - 4, hy + 3); ctx.lineTo(x - 7, hy - 5 - bounce * 0.3); ctx.stroke();
-        ctx.beginPath(); ctx.moveTo(x + 4, hy + 3); ctx.lineTo(x + 7, hy - 5 - bounce * 0.3); ctx.stroke();
-      }
+      const excited = hype > 0.35 && jit > 0.2; // explosion de joie du moment
+      drawCrowdCritter(species, x, hy, col, excited, glow);
       // certains spectateurs agitent un fanion (plus fort quand ça chauffe)
       if (i % 5 === 0) {
         const wav = Math.sin(t * (3 + hype * 7) + i);
@@ -84,6 +80,74 @@ function drawCrowd() {
   ctx.fillRect(0, bot - 3, W, 1);
 }
 
+// un spectateur, dessiné en version miniature de l'animal du terrain.
+// (x, hy) = position de la tête (déjà animée : ola + bonds d'excitation).
+// col = teinte d'accessoire/plumage propre à ce spectateur (variété dans la
+// foule). excited = bras/ailes/oreilles levés (explosion de joie du moment).
+function drawCrowdCritter(species, x, hy, col, excited, glow) {
+  if (species === "manchot") {
+    // corps sombre + plastron blanc + petit foulard coloré (variété) + bec orange
+    ctx.fillStyle = "#20303f";
+    ctx.beginPath(); ctx.ellipse(x, hy + 4, 5, 7, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.ellipse(x, hy + 6, 2.6, 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, hy - 3, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(x, hy, 3.6, 1.6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ff9800";
+    ctx.beginPath(); ctx.moveTo(x - 1, hy - 3); ctx.lineTo(x - 4, hy - 2); ctx.lineTo(x - 1, hy - 1); ctx.closePath(); ctx.fill();
+    if (excited) { // ailerons levés
+      ctx.strokeStyle = "#20303f"; ctx.lineWidth = 2; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(x - 4, hy + 2); ctx.lineTo(x - 8, hy - 5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 4, hy + 2); ctx.lineTo(x + 8, hy - 5); ctx.stroke();
+    }
+  } else if (species === "grenouille") {
+    // corps vert (teinté), gros yeux globuleux sur le dessus
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(x, hy + 4, 5.5, 5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x - 3, hy - 3, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 3, hy - 3, 2.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#1a3d28";
+    ctx.beginPath(); ctx.arc(x - 3, hy - 3, 1.1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 3, hy - 3, 1.1, 0, Math.PI * 2); ctx.fill();
+    if (glow) { // halo de veilleuse la nuit
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      ctx.beginPath(); ctx.arc(x, hy - 3, 6, 0, Math.PI * 2); ctx.fill();
+    }
+    if (excited) { // pattes avant levées, ravies
+      ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(x - 4, hy + 3); ctx.lineTo(x - 7, hy - 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 4, hy + 3); ctx.lineTo(x + 7, hy - 4); ctx.stroke();
+    }
+  } else if (species === "lapin") {
+    // corps + tête teintés (variété de la foule), longues oreilles dressées
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(x, hy + 4, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, hy - 3, 3.6, 0, Math.PI * 2); ctx.fill();
+    const earSpread = excited ? 0.32 : 0.16;
+    for (const side of [-1, 1]) {
+      ctx.save();
+      ctx.translate(x + side * 2, hy - 6);
+      ctx.rotate(side * earSpread);
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.ellipse(0, -6, 1.7, 6, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    }
+  } else {
+    // oiseau (piou-piou) : petit corps teinté, bec orange, ailes qui s'agitent
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(x, hy + 4, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, hy - 3, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ff9800";
+    ctx.beginPath(); ctx.moveTo(x + 3, hy - 3); ctx.lineTo(x + 7, hy - 2); ctx.lineTo(x + 3, hy - 1); ctx.closePath(); ctx.fill();
+    if (excited) { // ailes levées
+      ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(x - 4, hy + 3); ctx.lineTo(x - 7, hy - 4); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 4, hy + 3); ctx.lineTo(x + 7, hy - 4); ctx.stroke();
+    }
+  }
+}
+
 function drawSkyBirds() {
   const t = performance.now() / 1000;
   ctx.strokeStyle = "rgba(60,60,80,0.55)";
@@ -97,6 +161,31 @@ function drawSkyBirds() {
     ctx.quadraticCurveTo(x - 4, y - 4, x, y);
     ctx.quadraticCurveTo(x + 4, y - 4, x + 8, y + w);
     ctx.stroke();
+  }
+}
+
+// papillons voletant au-dessus de la prairie : trajectoire en zigzag doux,
+// deux ailes qui battent en accordéon (purement décoratif).
+const BUTTERFLY_COLS = ["#ff6fae", "#ffd93d", "#7ed957", "#ffffff"];
+function drawButterflies() {
+  const t = performance.now() / 1000;
+  for (let i = 0; i < 5; i++) {
+    const speed = 10 + (i % 3) * 4;
+    const x = ((t * speed + i * 210) % (W + 80)) - 40;
+    const y = 130 + i * 26 + Math.sin(t * 1.4 + i * 1.7) * 22;
+    const flap = Math.sin(t * 14 + i * 2) * 0.5 + 0.55; // 0.05 → 1.05
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = BUTTERFLY_COLS[i % BUTTERFLY_COLS.length];
+    for (const side of [-1, 1]) {
+      ctx.save();
+      ctx.scale(side, 1);
+      ctx.beginPath();
+      ctx.ellipse(3, 0, 5 * flap, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
   }
 }
 
@@ -161,9 +250,13 @@ function drawCrabBanner() {
 function drawCrab() {
   const t = performance.now() / 1000;
   const span = W - 160;
-  // position de base : va-et-vient, mais la vitesse varie par phases
-  const speedPhase = 0.045 + 0.03 * (0.5 + 0.5 * Math.sin(t * 0.23));
-  const ph = (t * speedPhase) % 2;
+  // position de base : va-et-vient à vitesse douce, légèrement modulée.
+  // /!\ La phase est l'INTÉGRALE de la vitesse, pas « t × vitesse » : écrire
+  // (t * speedPhase(t)) % 2 faisait exploser la vitesse réelle avec le temps
+  // (terme en t·speedPhase'(t)) → la crabette accélérait sans fin en cours de
+  // partie. Ici la vitesse reste bornée dans [0.03, 0.05] tour/s.
+  //   v(t) = 0.04 + 0.01·sin(0.23t)  →  ∫v = 0.04t − (0.01/0.23)·cos(0.23t)
+  const ph = (0.04 * t - 0.0435 * Math.cos(t * 0.23) + 0.0435) % 2;
   let cx = 80 + (ph < 1 ? ph : 2 - ph) * span;
   const dirMove = ph < 1 ? 1 : -1;
 
@@ -305,8 +398,9 @@ function resetWeather() {
 }
 
 // avancé une fois par tick DANS la simulation (déterministe).
-// Même machine à états sur les 3 terrains ; seul l'habillage change :
-//  plage → averse/orage · banquise → chute de neige/blizzard · nuit → pluie/orage
+// Même machine à états sur les 4 terrains ; seul l'habillage change :
+//  plage → averse/orage · banquise → chute de neige/blizzard
+//  marais nocturne → pluie/orage · prairie → averse/orage
 function stepWeather() {
   if (--weatherTimer > 0) return;
   const r = rng();
@@ -386,6 +480,7 @@ function drawBackground() {
   const key = TERRAINS[terrain].key;
   if (key === "plage") drawBgPlage();
   else if (key === "neige") drawBgNeige();
-  else drawBgNuit();
+  else if (key === "nuit") drawBgNuit();
+  else drawBgPrairie();
 }
 

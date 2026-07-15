@@ -137,5 +137,21 @@ test("bombe : touche le sol → explosion et point à l'adversaire", () => {
   assert.strictEqual(g.scores[0], 1, "bombe à droite → le camp gauche marque");
 });
 
+test("filet : une balle très rapide ne traverse pas le poteau (anti-tunnel)", () => {
+  const g = loadGame();
+  const C = g.consts;
+  g.newGame(1);
+  g.setState("play"); g.setServeCountdown(0);
+  // balle juste à gauche du filet, sous le sommet, lancée à droite plus vite
+  // qu'un tick de filet ne peut « couvrir » (franchissement en un seul pas)
+  g.ball.frozen = false;
+  g.ball.x = C.NET_X - C.NET_W / 2 - C.BALL_R - 2;
+  g.ball.y = C.NET_TOP + 80;
+  g.ball.vx = 40; g.ball.vy = 0;
+  g.stepGame({ left:false,right:false,jump:false }, { left:false,right:false,jump:false });
+  assert.ok(g.ball.x < C.NET_X, "la balle ne doit pas s'être téléportée de l'autre côté du filet");
+  assert.ok(g.ball.vx < 0, "la balle doit avoir rebondi (vx inversée)");
+});
+
 console.log("\n" + pass + " réussis, " + fail + " échoués");
 process.exit(fail ? 1 : 0);
