@@ -51,9 +51,12 @@ const ANIMALS = [
 function animOf(b) { return ANIMALS[b.animal]; }
 
 // ---------- État du jeu ----------
-// state: "menu" | "selectAnimal" | "selectTerrain" | "serve" | "play" | "point" | "gameover"
+// state: "menu" | "aiDifficulty" | "gameModeSelect"
+//        | "selectAnimal" | "selectTerrain" | "serve" | "play" | "point" | "gameover"
 //        | états du mode en ligne : "onlineMenu" | "joinEntry" | "hostWait"
 //          | "connecting" | "netWait" | "netError"
+// Flux du menu : menu → (Solo IA : aiDifficulty → gameModeSelect) | (Local : gameModeSelect direct)
+//                     → selectAnimal → selectTerrain → partie
 let state = "menu";
 let vsAI = true;
 let pointTimer = 0;

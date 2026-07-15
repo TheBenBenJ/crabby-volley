@@ -8,13 +8,11 @@ function handleMenuKeys(code, key) {
   if (code === "KeyN" && state !== "joinEntry") { musicOn = !musicOn; return; }
 
   if (state === "menu") {
-    if (code === "Digit1") { pendingMode = { vsAI: true, aiLevel: 0 }; startAnimalSelect(); }
-    if (code === "Digit2") { pendingMode = { vsAI: true, aiLevel: 1 }; startAnimalSelect(); }
-    if (code === "Digit3") { pendingMode = { vsAI: true, aiLevel: 2 }; startAnimalSelect(); }
-    if (code === "Digit4") { pendingMode = { vsAI: false }; startAnimalSelect(); }
-    if (code === "Digit6") { pendingMode = { vsAI: true, aiLevel: 1, mode2v2: true }; startAnimalSelect(); }
-    if (code === "Digit7") { pendingMode = { vsAI: true, aiLevel: 1, bomb: true }; startAnimalSelect(); }
-    if (code === "Digit5") {
+    // Écran d'accueil : 3 grandes catégories, chacune débouche sur ses propres
+    // sous-choix (difficulté, mode de jeu…) au lieu d'un mur de 8 options.
+    if (code === "Digit1") { state = "aiDifficulty"; }                        // Solo vs IA
+    if (code === "Digit2") { pendingMode = { vsAI: false }; state = "gameModeSelect"; } // Multijoueur local
+    if (code === "Digit3") {                                                  // Jouer en ligne
       if (typeof Peer === "undefined") {
         netErrorMsg = "PeerJS n'a pas pu être chargé — le mode en ligne nécessite Internet.";
         state = "netError";
@@ -23,6 +21,27 @@ function handleMenuKeys(code, key) {
       }
     }
     if (code === "KeyR") state = "rules";
+
+  } else if (state === "aiDifficulty") {
+    // Étape 2 (Solo vs IA) : la difficulté choisie amorce pendingMode, complété
+    // ensuite par le mode de jeu dans "gameModeSelect".
+    const lvl = { Digit1: 0, Digit2: 1, Digit3: 2 }[code];
+    if (lvl !== undefined) { pendingMode = { vsAI: true, aiLevel: lvl }; state = "gameModeSelect"; }
+    if (code === "Escape") state = "menu";
+
+  } else if (state === "gameModeSelect") {
+    // Étape finale avant le choix d'animal : type de partie. La 2v2 (toi + IA
+    // coéquipière vs 2 IA) n'a de sens que côté Solo — hors-ligne, seul le
+    // slot 0 est humain (voir update()/aiInput2v2 dans 08-ai.js/13-simulation.js).
+    if (pendingMode.vsAI) {
+      if (code === "Digit1") { startAnimalSelect(); }                              // 1v1 classique
+      if (code === "Digit2") { pendingMode.mode2v2 = true; startAnimalSelect(); }   // 2v2 (toi + IA vs 2 IA)
+      if (code === "Digit3") { pendingMode.bomb = true; startAnimalSelect(); }      // 💣 Bombe
+    } else {
+      if (code === "Digit1") { startAnimalSelect(); }                              // 1v1 classique
+      if (code === "Digit2") { pendingMode.bomb = true; startAnimalSelect(); }      // 💣 Bombe (2 joueurs)
+    }
+    if (code === "Escape") state = pendingMode.vsAI ? "aiDifficulty" : "menu";
 
   } else if (state === "rules") {
     if (code === "Escape" || code === "Enter" || code === "Space" || code === "KeyR") state = "menu";
@@ -78,7 +97,7 @@ function handleMenuKeys(code, key) {
     }
     if (code === "Escape") {
       if (pendingMode.online && netRole === "guest") quitOnline();
-      else state = pendingMode.online ? "onlineMenu" : "menu";
+      else state = pendingMode.online ? "onlineMenu" : "gameModeSelect"; // garde le contexte (difficulté/local)
     }
 
   } else if (state === "selectTerrain") {
@@ -153,36 +172,54 @@ function newGame(seed) {
   startRally();
 }
 
-function drawMenu() {
+// ---------- Aides d'affichage communes aux écrans de menu ----------
+// Fond animé assombri + titre, pour un habillage cohérent entre l'accueil et
+// les sous-écrans (une variante locale : netScreenBase existe côté 15-net.js,
+// mais un module ne doit pas dépendre d'un module chargé après lui).
+function menuScreenBase(title, subtitle, titleSize) {
   drawBackground();
   drawNet();
   blobL.draw();
   blobR.draw();
-  ctx.fillStyle = "rgba(20,20,40,0.6)";
+  ctx.fillStyle = "rgba(20,20,40,0.68)";
   ctx.fillRect(0, 0, W, H);
 
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffcc00";
-  ctx.font = "bold 54px 'Trebuchet MS', sans-serif";
-  ctx.fillText("VOLLEY DES ANIMAUX", W / 2, 120);
+  ctx.font = "bold " + (titleSize || 46) + "px 'Trebuchet MS', sans-serif";
+  ctx.fillText(title, W / 2, 92);
+  if (subtitle) {
+    ctx.fillStyle = "rgba(255,255,255,0.75)";
+    ctx.font = "17px 'Trebuchet MS', sans-serif";
+    ctx.fillText(subtitle, W / 2, 122);
+  }
+}
 
-  // liste verticale : navigable au clavier (touches) comme à la manette
-  const items = [
-    ["1  —  IA facile", "#fff"],
-    ["2  —  IA normale", "#fff"],
-    ["3  —  IA difficile", "#fff"],
-    ["4  —  Deux joueurs (même clavier ou 2 manettes)", "#fff"],
-    ["6  —  2v2 : toi + IA  vs  2 IA", "#ffb26b"],
-    ["7  —  💣 Bombe : renvoie-la avant qu'elle explose !", "#ff7043"],
-    ["5  —  Jouer en ligne (avec un ami)", "#7ed957"],
-    ["R  —  Règles du jeu & animaux", "#ffcc00"]
-  ];
-  ctx.font = "bold 20px 'Trebuchet MS', sans-serif";
+// liste verticale d'options, navigable au clavier comme à la manette
+function drawOptionList(items, y0, spacing, font) {
+  ctx.textAlign = "center";
+  ctx.font = font || "bold 24px 'Trebuchet MS', sans-serif";
   items.forEach(([txt, col], i) => {
     const sel = padConnected && navIdx === i;
     ctx.fillStyle = sel ? "#ffcc00" : col;
-    ctx.fillText((sel ? "▶  " : "") + txt + (sel ? "  ◀" : ""), W / 2, 186 + i * 28);
+    ctx.fillText((sel ? "▶  " : "") + txt + (sel ? "  ◀" : ""), W / 2, y0 + i * spacing);
   });
+}
+
+function drawMenu() {
+  menuScreenBase("VOLLEY DES ANIMAUX", null, 54);
+  ctx.fillStyle = "#ffcc00";
+  ctx.beginPath(); ctx.arc(W / 2, 125, 12, 0, Math.PI * 2); ctx.fill();
+
+  // écran d'accueil : 3 grandes catégories + les règles, chacune débouche
+  // ensuite sur ses propres sous-choix (difficulté, mode de jeu…)
+  const items = [
+    ["1  —  Solo contre l'IA", "#fff"],
+    ["2  —  Multijoueur local (même écran)", "#fff"],
+    ["3  —  Jouer en ligne (avec un ami)", "#7ed957"],
+    ["R  —  Règles du jeu & animaux", "#ffcc00"]
+  ];
+  drawOptionList(items, 210, 42);
 
   ctx.font = "17px 'Trebuchet MS', sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.85)";
@@ -193,9 +230,39 @@ function drawMenu() {
     ctx.font = "bold 16px 'Trebuchet MS', sans-serif";
     ctx.fillText("🎮 Manette détectée — croix/stick pour choisir, A pour valider, B pour revenir", W / 2, 468);
   }
+}
 
-  ctx.fillStyle = "#ffcc00";
-  ctx.beginPath(); ctx.arc(W / 2, 155, 12, 0, Math.PI * 2); ctx.fill();
+function drawAiDifficulty() {
+  menuScreenBase("Solo contre l'IA", "Choisis la difficulté");
+  const items = [
+    ["1  —  Facile", "#7ed957"],
+    ["2  —  Normale", "#ffd93d"],
+    ["3  —  Difficile", "#ff6b6b"]
+  ];
+  drawOptionList(items, 215, 52);
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.font = "17px 'Trebuchet MS', sans-serif";
+  ctx.fillText("Échap : retour", W / 2, 430);
+}
+
+function drawGameModeSelect() {
+  const subtitle = pendingMode.vsAI
+    ? "Solo — " + AI_LEVELS[pendingMode.aiLevel].name + "  —  choisis le mode de jeu"
+    : "Multijoueur local  —  choisis le mode de jeu";
+  menuScreenBase("Mode de jeu", subtitle);
+
+  const items = pendingMode.vsAI ? [
+    ["1  —  1v1 classique", "#fff"],
+    ["2  —  2v2 : toi + IA  vs  2 IA", "#ffb26b"],
+    ["3  —  💣 Bombe : renvoie-la avant qu'elle explose !", "#ff7043"]
+  ] : [
+    ["1  —  1v1 classique", "#fff"],
+    ["2  —  💣 Bombe : renvoie-la avant qu'elle explose !", "#ff7043"]
+  ];
+  drawOptionList(items, 220, 52);
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.font = "17px 'Trebuchet MS', sans-serif";
+  ctx.fillText("Échap : retour", W / 2, 430);
 }
 
 function drawRules() {

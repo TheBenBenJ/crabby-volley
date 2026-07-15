@@ -89,6 +89,8 @@ function render() {
   if (crowdHype > 0) crowdHype -= 1;
   for (const e of emotes) if (e && e.t > 0) e.t--;
   if (state === "menu") { drawMenu(); return; }
+  if (state === "aiDifficulty") { drawAiDifficulty(); return; }
+  if (state === "gameModeSelect") { drawGameModeSelect(); return; }
   if (state === "rules") { drawRules(); return; }
   if (state === "selectAnimal") { drawSelectAnimal(); return; }
   if (state === "selectTerrain") { drawSelectTerrain(); return; }
