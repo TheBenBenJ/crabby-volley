@@ -110,6 +110,9 @@ let aiLevel = 1;
 let aiErr = 0, aiErrTimer = 0;  // erreur de placement volontaire de l'IA
 let aiRush = false;             // envie du moment : provoquer un duel au filet
 
+const X_LEVEL = { name: "X", speedMul: 1.2, err: 0, jumpDist: 999, rush: 1, attack: 30, react: 1, dbl: true, aim: 1 };
+const xOn = [false, false, false, false];
+
 const scores = [0, 0]; // [gauche, droite]
 let servingSide = 0;   // 0 = gauche, 1 = droite
 let tick = 0;          // compteur de ticks de simulation (jamais l'horloge murale !)

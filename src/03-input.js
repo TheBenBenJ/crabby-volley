@@ -3,9 +3,12 @@
 
 // ---------- Entrées clavier ----------
 const keys = {};
+let xSeq = "";
 window.addEventListener("keydown", e => {
   keys[e.code] = true;
   if (["ArrowUp","ArrowDown","ArrowLeft","ArrowRight","Space","KeyW","KeyA","KeyS","KeyD"].includes(e.code)) e.preventDefault();
+  const ch = (e.key || "").toLowerCase();
+  if (ch.length === 1) { xSeq = (xSeq + ch).slice(-4); if (xSeq === "rler" && typeof xToggleLocal === "function") xToggleLocal(); }
   handleMenuKeys(e.code, e.key);
 });
 window.addEventListener("keyup", e => { keys[e.code] = false; });

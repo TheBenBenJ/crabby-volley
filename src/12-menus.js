@@ -3,6 +3,11 @@
 
 // ---------- Écrans de menu et de sélection ----------
 function handleMenuKeys(code, key) {
+  // pavé numérique équivalent au clavier principal dans tous les menus
+  // (sélection d'animal/terrain, difficulté, etc.) — sauf en saisie de code
+  // de partie (joinEntry gère déjà Numpad lui-même, plus bas).
+  if (state !== "joinEntry" && /^Numpad[0-9]$/.test(code)) code = "Digit" + code.slice(-1);
+
   // M coupe le son — sauf pendant la saisie d'un code (M peut en faire partie)
   if (code === "KeyM" && state !== "joinEntry") { muted = !muted; return; }
   if (code === "KeyN" && state !== "joinEntry") { musicOn = !musicOn; return; }
@@ -165,6 +170,8 @@ function newGame(seed) {
   }
   particles.length = 0;
   aiErr = 0; aiErrTimer = 0; aiRush = false; // repart d'un état IA neutre (déterminisme)
+  xOn.fill(false);
+  for (const b of [blobL, blob2L, blobR, blob2R]) b._xSpd = undefined;
   streak[0] = streak[1] = 0; superCharge[0] = superCharge[1] = 0;
   superFlash = ""; superFlashT = 0;
   resetWeather();

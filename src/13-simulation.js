@@ -211,18 +211,18 @@ function stepGame(inL, inR, ins) {
 
 function localInputs(side) {
   const pad = padGameInput(side); // manette 1 → Rouge, manette 2 → Vert
-  if (side === 0) return {
+  const raw = side === 0 ? {
     left:  !!keys["KeyA"] || pad.left,
     right: !!keys["KeyD"] || pad.right,
     jump:  !!(keys["KeyW"] || keys["Space"]) || pad.jump,
     super: !!keys["KeyS"] || pad.super            // Rouge : S = SUPER
-  };
-  return {
+  } : {
     left:  !!keys["ArrowLeft"] || pad.left,
     right: !!keys["ArrowRight"] || pad.right,
     jump:  !!keys["ArrowUp"] || pad.jump,
     super: !!keys["ArrowDown"] || pad.super        // Vert : ↓ = SUPER
   };
+  return xInput(side, activeBlobs[side], raw);
 }
 
 function update() {

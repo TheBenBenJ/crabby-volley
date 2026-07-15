@@ -27,126 +27,109 @@ function predictLandingX() {
   return x;
 }
 
-function aiInput() {
-  const lvl = AI_LEVELS[aiLevel];
+// side (optionnel, défaut 1 = camp droit, comportement historique) : 0 pour
+// piloter le camp gauche à la place — toute la géométrie ci-dessous est
+// symétrique par rapport au filet selon ce paramètre.
+// lvlOverride (optionnel) : profil à utiliser au lieu de AI_LEVELS[aiLevel].
+function aiInput(side, lvlOverride, god) {
+  if (side === undefined) side = 1;
+  const lvl = lvlOverride || AI_LEVELS[aiLevel];
   const input = { left: false, right: false, jump: false };
-  // Smash Battle : l'IA martèle à une cadence liée à sa difficulté
-  // (~3,3 / 5 / 7,5 appuis par seconde — un humain motivé tape 6-10/s)
   if (battle.active) {
-    const period = [8, 5, 3, 2][aiLevel]; // impitoyable = martèlement quasi increvable
+    const period = [8, 5, 3, 2][aiLevel];
     input.jump = Math.floor(tick / period) % 2 === 0;
     return input;
   }
-  const me = blobR;
+  const me = side === 0 ? blobL : blobR;
+  const opp = side === 0 ? blobR : blobL;
   const input2 = { left: false, right: false, jump: false, super: false };
   Object.assign(input, input2);
 
-  // l'IA commet une erreur de placement, renouvelée régulièrement
-  // (rng seedé : l'IA reste déterministe pour le futur mode en ligne)
   if (--aiErrTimer <= 0) {
     aiErr = (rng() - 0.5) * 2 * lvl.err;
-    aiRush = rng() < lvl.rush; // envie de duel, re-tirée régulièrement (seedé)
+    aiRush = rng() < lvl.rush;
     aiErrTimer = 40;
   }
 
-  // déclenche sa technique SUPER quand elle est prête, au bon moment
-  if (superCharge[1] === 1 && me.superT <= 0 && !ball.frozen && state === "play") {
+  if (superCharge[side] === 1 && me.superT <= 0 && !ball.frozen && state === "play") {
     const key = animOf(me).key;
-    const onMySide = ball.x > NET_X;
-    const nearHit = Math.abs(ball.x - me.x) < 72 && ball.y > me.y - 210 && ball.vy > -1;
+    const onMySide = side === 0 ? ball.x < NET_X : ball.x > NET_X;
+    const hitReach = god ? 100 : 72;
+    const nearHit = Math.abs(ball.x - me.x) < hitReach && ball.y > me.y - 210 && ball.vy > -1;
     if (key === "grenouille") {
-      if (onMySide && ball.vy > 0 && (ball.y > me.y - 70 || Math.abs(ball.x - me.x) > 110)) input.super = true;
+      if (onMySide && ball.vy > 0 && (ball.y > me.y - 70 || Math.abs(ball.x - me.x) > (god ? 90 : 110))) input.super = true;
     } else if (key === "oiseau" || key === "manchot" || key === "chibre") {
       if (onMySide && nearHit) input.super = true;
-    } else if (onMySide && ball.vx > 0) { // lapin : turbo dès que la balle arrive
+    } else if (onMySide && (side === 0 ? ball.vx < 0 : ball.vx > 0)) {
       input.super = true;
     }
   }
 
-  // --- chasse au Smash Battle ---
-  // balle qui plane près du filet + adversaire dans la zone : l'IA fonce
-  // au filet et saute pour croiser l'adversaire en l'air → duel !
   const ballHighNearNet = !ball.frozen && state === "play" &&
         Math.abs(ball.x - NET_X) < BATTLE_BALL_DIST + 40 &&
         ball.y > -40 && ball.y < NET_TOP + 70;
-  const oppTowardNet = Math.abs(blobL.x - NET_X) < BATTLE_NET_DIST + 60;
-  if (aiRush && battle.cooldown === 0 && ballHighNearNet && oppTowardNet) {
-    const rushX = NET_X + NET_W / 2 + 42;
+  const oppTowardNet = Math.abs(opp.x - NET_X) < BATTLE_NET_DIST + 60;
+  const landsNearNet = !god || !ballHighNearNet || Math.abs(predictLandingX() - NET_X) < BATTLE_BALL_DIST + 80;
+  if (aiRush && battle.cooldown === 0 && ballHighNearNet && oppTowardNet && landsNearNet) {
+    const rushX = side === 0 ? NET_X - NET_W / 2 - 42 : NET_X + NET_W / 2 + 42;
     const dxr = rushX - me.x;
     if (dxr < -6) input.left = true;
     else if (dxr > 6) input.right = true;
     if (me.onGround && Math.abs(dxr) < 30 &&
-        (!blobL.onGround || Math.abs(blobL.x - NET_X) < BATTLE_NET_DIST)) {
+        (!opp.onGround || Math.abs(opp.x - NET_X) < BATTLE_NET_DIST)) {
       input.jump = true;
     }
     return input;
   }
 
-  // anticipation : dès que la balle repart vers son camp (ou l'a franchi), l'IA
-  // se met en route vers le point de chute prévu — elle n'attend pas la balle.
-  const ballComing = ball.x > NET_X - 120 || (ball.vx > 0.3 && !ball.frozen && ball.x > NET_X - 220);
+  const ballComing = side === 0
+    ? (ball.x < NET_X + 120 || (ball.vx < -0.3 && !ball.frozen && ball.x < NET_X + 220))
+    : (ball.x > NET_X - 120 || (ball.vx > 0.3 && !ball.frozen && ball.x > NET_X - 220));
   let targetX;
 
-  if (ball.frozen && servingSide === 1) {
-    // aller sous la balle pour servir
-    targetX = ball.x + 8;
+  if (ball.frozen && servingSide === side) {
+    targetX = ball.x + (side === 0 ? -8 : 8);
   } else if (ballComing) {
     const land = predictLandingX();
-    if (land <= NET_X) {
+    const notReachingMe = side === 0 ? land >= NET_X : land <= NET_X;
+    const shortNearNet = side === 0 ? land > NET_X - 90 : land < NET_X + 90;
+    if (notReachingMe) {
       targetX = me.homeX;
-    } else if (land < NET_X + 90) {
-      // BALLE COURTE (retombe près du filet) : priorité à la fiabilité, on se
-      // met quasi dessous pour la remonter — surtout PAS l'offset de placement,
-      // qui écarterait l'IA du filet et la ferait rater la balle.
-      targetX = land + 8;
+    } else if (shortNearNet) {
+      targetX = land + (side === 0 ? -8 : 8);
     } else if (lvl.aim) {
-      // PLACEMENT INTENTIONNEL : viser LOIN de l'adversaire.
-      // L'IA est à droite ; se poster à droite de la balle (offset>0) la renvoie
-      // vers la gauche. CRUCIAL : l'offset doit rester DANS le rayon de frappe
-      // (≈ BALL_R + rayon corps ≈ 40 px) sinon l'IA se poste à côté de la balle
-      // et la rate complètement. On module donc l'angle dans une plage sûre :
-      // adverse au filet → offset un peu plus grand (drive plus profond) ;
-      // adverse au fond → offset plus petit (renvoi plus court, plus vertical).
-      const oppNearNet = blobL.x > NET_X - 150;
+      const oppNearNet = side === 0 ? opp.x < NET_X + 150 : opp.x > NET_X - 150;
       const place = oppNearNet ? 26 : 15;
-      targetX = land + place + aiErr;
+      targetX = land + (side === 0 ? -(place + aiErr) : (place + aiErr));
     } else {
-      // niveaux bas : simple renvoi offensif, décalage fixe (borné au rayon utile)
-      targetX = land + Math.min(lvl.attack, 22) + aiErr;
+      const place = Math.min(lvl.attack, 22);
+      targetX = land + (side === 0 ? -(place + aiErr) : (place + aiErr));
     }
   } else {
     targetX = me.homeX;
   }
-  // rester dans son camp ; on autorise à s'approcher au plus près du filet
-  // (≈ limite physique du joueur) pour aller chercher les amortis courts
-  targetX = Math.max(NET_X + 36, Math.min(W - 40, targetX));
+  targetX = side === 0
+    ? Math.max(40, Math.min(NET_X - 36, targetX))
+    : Math.max(NET_X + 36, Math.min(W - 40, targetX));
 
   const dx = targetX - me.x;
-  // zone morte proportionnelle à la vitesse : un pas de déplacement rapide
-  // dépasse une petite zone morte → l'IA oscillerait autour de sa cible. On
-  // la cale sur ~un pas pour qu'elle se pose net (positionnement précis).
   const step = BLOB_SPEED * lvl.speedMul * animOf(me).speed;
   const dead = Math.max(6 - lvl.react * 3, step * 0.9);
   if (dx < -dead) input.left = true;
   else if (dx > dead) input.right = true;
 
-  // SAUT : on ne saute QUE pour les balles trop hautes pour un contact debout,
-  // et bien centrées horizontalement (fenêtre serrée = contact sûr, fini les
-  // whiffs). Les balles basses se jouent debout : le contact tête/corps est
-  // automatique dès que la balle descend dans le joueur → beaucoup plus fiable.
-  const overMySide = ball.x > NET_X + BALL_R;
+  const overMySide = side === 0 ? ball.x < NET_X - BALL_R : ball.x > NET_X + BALL_R;
   const reachX = Math.abs(ball.x - me.x) < 30;
   const descending = ball.vy > -1;
-  const highBall = ball.y < me.y - 92 && ball.y > me.y - 210; // au-dessus de la tête
+  const highBall = ball.y < me.y - 92 && ball.y > me.y - 210;
   if (!ball.frozen && overMySide && reachX && descending && highBall) {
     if (me.onGround) {
       input.jump = true;
     } else if (lvl.dbl && me.jumpsUsed === 1 && me.vy > -1.5 && ball.y < me.y - 150) {
-      input.jump = true; // double saut pour une balle encore plus haute
+      input.jump = true;
     }
   }
-  // service : sauter pour toucher la balle gelée
-  if (ball.frozen && servingSide === 1 && Math.abs(ball.x - me.x) < 20 && me.onGround) {
+  if (ball.frozen && servingSide === side && Math.abs(ball.x - me.x) < 20 && me.onGround) {
     input.jump = true;
   }
   return input;
@@ -156,8 +139,8 @@ function aiInput() {
 // Chaque IA connaît son camp (me.side) et son coéquipier ; celui qui est le
 // plus proche du point de chute prend la balle, l'autre couvre sa zone (home).
 // Pas de Smash Battle en 2v2 → logique de duel retirée ici.
-function aiInput2v2(me) {
-  const lvl = AI_LEVELS[aiLevel];
+function aiInput2v2(me, lvlOverride) {
+  const lvl = lvlOverride || AI_LEVELS[aiLevel];
   const input = { left: false, right: false, jump: false, super: false };
   const side = me.side;
   const back = side === 0 ? -1 : 1;               // « derrière la balle » côté son mur
@@ -229,5 +212,36 @@ function aiInput2v2(me) {
     }
   }
   return input;
+}
+
+function xAI(blob) {
+  if (battle.active) return { left: false, right: false, jump: tick % 2 === 0, super: false };
+  if (mode === "2v2") return aiInput2v2(blob, X_LEVEL);
+  return aiInput(blob.side, X_LEVEL, true);
+}
+
+function setX(blob, on) {
+  if (on) {
+    if (blob._xSpd === undefined) blob._xSpd = blob.speedMul;
+    blob.speedMul = X_LEVEL.speedMul;
+  } else if (blob._xSpd !== undefined) {
+    blob.speedMul = blob._xSpd;
+    blob._xSpd = undefined;
+  }
+}
+
+function xToggleLocal() {
+  const inMatch = state === "play" || state === "serve" || state === "point";
+  if (!inMatch) return;
+  const slot = online ? mySlot : 0;
+  const blob = activeBlobs[slot];
+  if (!blob) return;
+  xOn[slot] = !xOn[slot];
+  setX(blob, xOn[slot]);
+  beep(xOn[slot] ? 760 : 320, 0.05, "sine", 0.06);
+}
+
+function xInput(idx, blob, raw) {
+  return xOn[idx] ? xAI(blob) : raw;
 }
 

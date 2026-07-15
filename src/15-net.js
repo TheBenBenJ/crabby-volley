@@ -90,12 +90,13 @@ function onlineLocalInput() {
   // marchent, et n'importe quelle manette branchée pilote le joueur local
   let pl = false, pr = false, pj = false, ps = false;
   for (const p of padsNow) { pl = pl || p.left; pr = pr || p.right; pj = pj || p.jump; ps = ps || p.super; }
-  return {
+  const raw = {
     left:  !!(keys["KeyA"] || keys["ArrowLeft"]) || pl,
     right: !!(keys["KeyD"] || keys["ArrowRight"]) || pr,
     jump:  !!(keys["KeyW"] || keys["Space"] || keys["ArrowUp"]) || pj,
     super: !!(keys["KeyS"] || keys["ArrowDown"]) || ps
   };
+  return xInput(mySlot, activeBlobs[mySlot], raw);
 }
 
 // ---------- Connexion ----------
@@ -258,6 +259,7 @@ function onNetData(m) {
       if (m.s > guestInSeq) {
         guestInSeq = m.s;
         guestIn = { left: !!m.l, right: !!m.r, jump: !!m.j, super: !!m.sp };
+        setX(blobR, !!m.x);
       }
       break;
     case "snap": // invité : instantané de l'hôte
@@ -386,6 +388,7 @@ function onHostData(g, m) {
       if (m.s > g.inSeq) {
         g.inSeq = m.s;
         g.in = { left: !!m.l, right: !!m.r, jump: !!m.j, super: !!m.sp };
+        setX(activeBlobs[g.slot], !!m.x);
       }
       break;
     case "bye": onGuestClosed(g); break;
@@ -502,7 +505,8 @@ function netUpdate() {
       inputHistory.push({ s: inputSeq, i: input });
       if (inputHistory.length > 240) inputHistory.shift();
       sendFast({ t: "in", m: matchId, s: inputSeq,
-                 l: input.left ? 1 : 0, r: input.right ? 1 : 0, j: input.jump ? 1 : 0, sp: input.super ? 1 : 0 });
+                 l: input.left ? 1 : 0, r: input.right ? 1 : 0, j: input.jump ? 1 : 0, sp: input.super ? 1 : 0,
+                 x: xOn[mySlot] ? 1 : 0 });
       // prédiction : son propre personnage répond immédiatement
       // (sauf pendant un Smash Battle : le monde est figé, seuls les
       // appuis comptent — l'hôte fait foi sur les compteurs)

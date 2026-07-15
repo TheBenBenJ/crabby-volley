@@ -758,19 +758,23 @@ function drawGrenouille(b) {
     i++;
   }
 
-  // large bouche expressive (sourire / moue / grande ouverte)
+  // large bouche expressive (sourire / moue / grande ouverte) — grande
+  // ouverte de force quand la langue traîne dehors, peu importe l'humeur
   {
     const mp = mouthParams(faceMood(b));
     const mcx = bx + dir * 4, mcy = by - 46 + s;
-    if (mp.open >= 5) {
+    if (mp.open >= 5 || b.tongueOut) {
+      const openAmt = Math.max(mp.open, 6);
       ctx.fillStyle = "#7a2233";
       ctx.beginPath();
-      ctx.ellipse(mcx, mcy + 3, 11, mp.open, 0, 0, Math.PI * 2);
+      ctx.ellipse(mcx, mcy + 3, 11, openAmt, 0, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = "#ff5c8a"; // langue au fond
-      ctx.beginPath();
-      ctx.ellipse(mcx, mcy + 3 + mp.open * 0.4, 6, mp.open * 0.4, 0, 0, Math.PI * 2);
-      ctx.fill();
+      if (!b.tongueOut) {
+        ctx.fillStyle = "#ff5c8a"; // langue au fond (bouche ouverte hors coup collant)
+        ctx.beginPath();
+        ctx.ellipse(mcx, mcy + 3 + openAmt * 0.4, 6, openAmt * 0.4, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     } else {
       ctx.strokeStyle = b.darkColor;
       ctx.lineWidth = 2.5;
@@ -782,19 +786,27 @@ function drawGrenouille(b) {
     }
   }
 
-  // langue sortie (après un coup collant) : pend hors de la bouche
+  // langue sortie (après un coup collant) : bande fine qui fouette hors de
+  // la bouche grande ouverte et retombe en s'enroulant, avec sillon central
+  // et bout arrondi — pas un amas informe.
   if (b.tongueOut) {
-    const mx = bx + dir * 6, my = by - 40 + s;
-    ctx.fillStyle = "#ff5c8a";
+    const mx = bx + dir * 4, my = by - 43 + s;
+    const len = 27, curl = dir * 11;
+    ctx.strokeStyle = "#ff5c8a";
+    ctx.lineWidth = 7;
+    ctx.lineCap = "round";
     ctx.beginPath();
-    ctx.moveTo(mx - 4, my);
-    ctx.quadraticCurveTo(mx + dir * 10, my + 14, mx + dir * 16, my + 20);
-    ctx.quadraticCurveTo(mx + dir * 20, my + 22, mx + dir * 15, my + 12);
-    ctx.quadraticCurveTo(mx + dir * 8, my + 6, mx + 4, my);
-    ctx.closePath();
-    ctx.fill();
-    ctx.strokeStyle = "#d63a68"; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(mx + dir * 2, my + 3); ctx.lineTo(mx + dir * 13, my + 15); ctx.stroke();
+    ctx.moveTo(mx, my);
+    ctx.quadraticCurveTo(mx + dir * len * 0.75, my + len * 0.45, mx + curl, my + len);
+    ctx.stroke();
+    ctx.strokeStyle = "#d63a68";
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.moveTo(mx, my + 2);
+    ctx.quadraticCurveTo(mx + dir * len * 0.75, my + len * 0.45, mx + curl, my + len - 2);
+    ctx.stroke();
+    ctx.fillStyle = "#ff5c8a";
+    ctx.beginPath(); ctx.arc(mx + curl, my + len, 3.6, 0, Math.PI * 2); ctx.fill();
   }
 
   // yeux globuleux sur le dessus
