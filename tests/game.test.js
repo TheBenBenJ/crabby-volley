@@ -137,5 +137,31 @@ test("bombe : touche le sol → explosion et point à l'adversaire", () => {
   assert.strictEqual(g.scores[0], 1, "bombe à droite → le camp gauche marque");
 });
 
+test("IA : le niveau Impitoyable bat un adversaire scripté moyen", () => {
+  const NET_X = 450; // W/2
+  const g = loadGame();
+  g.setVsAI(true); g.setAiLevel(3); // Impitoyable (IA = joueur droit)
+  g.newGame(2026);
+  // adversaire GAUCHE piloté par un bot « moyen » : se met sous la balle, sert,
+  // saute pour renvoyer. Sert de garde-fou : si l'IA se remet à rater ses renvois
+  // (ex. bug de placement hors du rayon de frappe), elle ne gagnera plus.
+  function driveLeft() {
+    const me = g.blobL, b = g.ball, serving = g.getServing?.() === 0;
+    let target = me.x;
+    if (b.frozen) target = b.x;
+    else if (b.x < NET_X + 40) target = Math.min(b.x, NET_X - 45);
+    const dx = target - me.x;
+    g.keys.KeyA = dx < -6; g.keys.KeyD = dx > 6;
+    const close = Math.abs(b.x - me.x) < 46 && b.y < me.y - 34 && b.y > me.y - 150;
+    g.keys.KeyW = (!b.frozen && b.x < NET_X && close && me.onGround) ||
+                  (b.frozen && Math.abs(b.x - me.x) < 20 && me.onGround);
+  }
+  let f = 0;
+  for (; f < 300000 && g.getState() !== "gameover"; f++) { driveLeft(); g.update(); }
+  assert.strictEqual(g.getState(), "gameover", "le match doit se terminer");
+  assert.ok(g.scores[1] > g.scores[0],
+    "l'IA Impitoyable (" + g.scores[1] + ") doit battre le bot (" + g.scores[0] + ")");
+});
+
 console.log("\n" + pass + " réussis, " + fail + " échoués");
 process.exit(fail ? 1 : 0);
