@@ -1,0 +1,17 @@
+{
+  "name": "crabby-volley",
+  "version": "1.0.0",
+  "description": "Jeu de volley d'animaux en HTML5 Canvas — solo, 2 joueurs, 2v2 et multijoueur en ligne (WebRTC/PeerJS).",
+  "type": "commonjs",
+  "scripts": {
+    "test": "node tests/game.test.js",
+    "start": "python3 -m http.server 8000"
+  },
+  "keywords": ["game", "canvas", "volleyball", "webrtc", "peerjs", "multiplayer"],
+  "author": "Benjamin Mille",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/TheBenBenJ/crabby-volley.git"
+  }
+}

@@ -1,0 +1,801 @@
+// crabby-volley · rendu des animaux & expressions faciales
+"use strict";
+
+// ---------- Dessin des animaux ----------
+// Chaque fonction reçoit un objet "b" (Blob réel ou aperçu du menu) avec :
+// x, y, side, color, darkColor, onGround, vx, walkPhase, squash, animal
+// et éventuellement groundY (pour les aperçus hors du sol de jeu).
+
+function drawAnimal(b) {
+  const key = ANIMALS[b.animal].key;
+  drawSuperAura(b);                         // halo derrière l'animal
+  // pendant le Turbo-bond du lapin : traînée d'images fantômes
+  if (b.superT > 0 && key === "lapin") drawTurboGhosts(b, key);
+  if (key === "oiseau") drawOiseau(b);
+  else if (key === "grenouille") drawGrenouille(b);
+  else if (key === "manchot") drawManchot(b);
+  else drawLapin(b);
+  drawSuperOverlay(b, key);                 // langue-grappin, charge de smash…
+  drawEmote(b);                             // bulle d'émotion
+}
+
+// n'affiche les effets de super que pour les vrais joueurs (pas les aperçus menu)
+function isLiveBlob(b) { return b === blobL || b === blobR; }
+
+// ---------- Expressions faciales ----------
+// Humeur PUREMENT visuelle, dérivée d'états déjà connus (émote récente en cours,
+// super chargée/active, saut) : aucune donnée nouvelle → rien à synchroniser,
+// l'invité affiche la même chose (il reçoit émotes/super via les événements).
+function faceMood(b) {
+  const side = b === blobL ? 0 : b === blobR ? 1 : -1;
+  if (side >= 0) {
+    const e = emotes[side];
+    if (e && e.t > 0) {
+      if (e.kind === "happy") return "happy";
+      if (e.kind === "sad") return "sad";
+      if (e.kind === "wow") return "shock";
+    }
+    if (b.superT > 0 || superCharge[side] === 1) return "fierce";
+  }
+  if (!b.onGround) return "focus";
+  return "idle";
+}
+
+// deux sourcils au-dessus des yeux ; leur inclinaison porte l'émotion.
+// (ex1, ex2) = centres des yeux, eyeY = leur ordonnée, r = rayon de l'œil.
+function drawBrows(ex1, ex2, eyeY, r, mood) {
+  const cx = (ex1 + ex2) / 2;
+  let inner, outer, lift;
+  switch (mood) {
+    case "fierce": inner = 4;  outer = -3; lift = 0;  break; // froncés (déterminé)
+    case "focus":  inner = 3;  outer = -1; lift = 1;  break; // concentré
+    case "happy":  inner = -3; outer = -4; lift = -3; break; // haussés, joyeux
+    case "sad":    inner = -4; outer = 3;  lift = -1; break; // peinés (intérieurs hauts)
+    case "shock":  inner = -5; outer = -5; lift = -6; break; // très haussés
+    default:       inner = -1; outer = -1; lift = -2;        // repos, à peine levés
+  }
+  ctx.save();
+  ctx.strokeStyle = "rgba(35,28,22,0.82)";
+  ctx.lineWidth = 2.4;
+  ctx.lineCap = "round";
+  for (const ex of [ex1, ex2]) {
+    const toCenter = ex <= cx ? 1 : -1;         // sens « vers l'intérieur du visage »
+    const y0 = eyeY - r - 1 + lift;
+    ctx.beginPath();
+    ctx.moveTo(ex + toCenter * r * 0.55, y0 + inner); // extrémité interne
+    ctx.lineTo(ex - toCenter * r * 0.75, y0 + outer); // extrémité externe
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// bouche : ouverture (px) & courbure (+ sourire / − moue) selon l'humeur.
+function mouthParams(mood) {
+  switch (mood) {
+    case "happy":  return { open: 3,   curve: 5 };
+    case "sad":    return { open: 2,   curve: -5 };
+    case "shock":  return { open: 8,   curve: 0 };
+    case "fierce": return { open: 4,   curve: -2 };
+    case "focus":  return { open: 5,   curve: 0 };
+    default:       return { open: 1.5, curve: 1 };
+  }
+}
+// facteur d'ouverture du bec (0 = fermé, 1 = grand ouvert) pour l'effort/le cri.
+function mouthOpen(b) {
+  switch (faceMood(b)) {
+    case "shock":  return 1;
+    case "focus":  return 0.7;
+    case "fierce": return 0.5;
+    default:       return 0;
+  }
+}
+
+// bulle d'émotion au-dessus de la tête (réaction aux points/smash)
+function drawEmote(b) {
+  const side = b === blobL ? 0 : b === blobR ? 1 : -1;
+  if (side < 0) return;
+  const e = emotes[side];
+  if (!e || e.t <= 0) return;
+  const prog = 1 - e.t / 55;
+  const ex = b.x, ey = b.y - 94 - prog * 14;
+  ctx.save();
+  ctx.globalAlpha = Math.min(1, e.t / 12);
+  ctx.textAlign = "center";
+  if (e.kind === "happy") {
+    ctx.fillStyle = "#ffd93d";
+    ctx.save(); ctx.translate(ex - 11, ey + 2); ctx.rotate(prog); drawStarShape(5); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.translate(ex + 11, ey - 3); ctx.rotate(-prog); drawStarShape(4); ctx.fill(); ctx.restore();
+    ctx.save(); ctx.translate(ex, ey - 8); drawStarShape(6); ctx.fill(); ctx.restore();
+  } else if (e.kind === "sad") {
+    ctx.fillStyle = "#5db3ff";
+    ctx.beginPath();
+    ctx.moveTo(ex, ey - 7);
+    ctx.quadraticCurveTo(ex + 6, ey + 2, ex, ey + 8);
+    ctx.quadraticCurveTo(ex - 6, ey + 2, ex, ey - 7);
+    ctx.fill();
+  } else if (e.kind === "wow") {
+    ctx.fillStyle = "#fff"; ctx.strokeStyle = "#e84545"; ctx.lineWidth = 4; ctx.lineJoin = "round";
+    ctx.font = "bold 30px 'Trebuchet MS', sans-serif";
+    ctx.strokeText("!", ex, ey + 10); ctx.fillText("!", ex, ey + 10);
+  }
+  ctx.restore();
+}
+
+function drawSuperAura(b) {
+  if (!isLiveBlob(b)) return;
+  const t = performance.now() / 1000;
+  if (b.superT > 0) {
+    // super ACTIVE : gros halo coloré palpitant
+    const pulse = 0.6 + Math.sin(t * 18) * 0.25;
+    ctx.save();
+    ctx.globalAlpha = pulse;
+    const g = ctx.createRadialGradient(b.x, b.y - 40, 6, b.x, b.y - 40, 62);
+    g.addColorStop(0, "rgba(255,240,150,0.9)");
+    g.addColorStop(1, "rgba(255,200,60,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(b.x, b.y - 40, 62, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  } else if (superCharge[b.side] === 1) {
+    // super PRÊTE : anneau doré tournoyant + étoiles orbitales
+    ctx.save();
+    ctx.globalAlpha = 0.75 + Math.sin(t * 6) * 0.25;
+    ctx.strokeStyle = "#ffd93d";
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(b.x, b.y - 38, 44, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "#fff4b0";
+    for (let i = 0; i < 3; i++) {
+      const a = t * 2.4 + i * (Math.PI * 2 / 3);
+      ctx.save();
+      ctx.translate(b.x + Math.cos(a) * 44, b.y - 38 + Math.sin(a) * 44);
+      drawStarShape(5); ctx.fill();
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+}
+
+function drawTurboGhosts(b, key) {
+  ctx.save();
+  for (let i = 1; i <= 3; i++) {
+    ctx.globalAlpha = 0.12 * (4 - i);
+    const gx = b.x - b.vx * i * 2.2;
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.ellipse(gx, b.y - 30, 26, 24, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawSuperOverlay(b, key) {
+  if (!isLiveBlob(b)) return;
+  const dir = b.side === 0 ? 1 : -1;
+  // Langue-grappin : la langue file vers la cible attrapée
+  if (key === "grenouille" && b.tongueT > 0) {
+    const mx = b.x + dir * 8, my = b.y - 46;
+    ctx.save();
+    ctx.strokeStyle = "#ff4d7e";
+    ctx.lineCap = "round";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    ctx.moveTo(mx, my);
+    ctx.quadraticCurveTo((mx + b.tongueTX) / 2, my - 20, b.tongueTX, b.tongueTY);
+    ctx.stroke();
+    ctx.fillStyle = "#ff7ba3";
+    ctx.beginPath(); ctx.arc(b.tongueTX, b.tongueTY, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+  // Smash armé (oiseau/manchot) : électricité autour du corps
+  if (b.superSmash && b.superT > 0) {
+    const t = performance.now() / 1000;
+    ctx.save();
+    ctx.strokeStyle = key === "manchot" ? "#7fe0ff" : "#fff27a";
+    ctx.lineWidth = 2;
+    ctx.globalAlpha = 0.8;
+    for (let i = 0; i < 5; i++) {
+      const a = t * 9 + i * 1.3;
+      const r1 = 30, r2 = 40 + Math.sin(t * 20 + i) * 4;
+      ctx.beginPath();
+      ctx.moveTo(b.x + Math.cos(a) * r1, b.y - 36 + Math.sin(a) * r1);
+      ctx.lineTo(b.x + Math.cos(a + 0.3) * r2, b.y - 36 + Math.sin(a + 0.3) * r2);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+function groundOf(b) { return b.groundY !== undefined ? b.groundY : GROUND_Y; }
+
+// liseré cartoon : trace le contour du chemin courant (après un fill)
+function outline(alpha = 0.18) {
+  ctx.strokeStyle = "rgba(0,0,0," + alpha + ")";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function drawShadow(b) {
+  // ombre douce (dégradé radial) qui rétrécit et pâlit quand l'animal saute
+  const gy = groundOf(b);
+  const air = Math.max(0, Math.min(1, (gy - b.y) / 200)); // 0 au sol → 1 en l'air
+  const rx = 34 - air * 14, ry = 8 - air * 3;
+  const alpha = 0.28 * (1 - air * 0.6);
+  const g = ctx.createRadialGradient(b.x, gy + 6, 1, b.x, gy + 6, rx);
+  g.addColorStop(0, "rgba(0,0,0," + alpha.toFixed(3) + ")");
+  g.addColorStop(1, "rgba(0,0,0,0)");
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.ellipse(b.x, gy + 6, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// œil blanc dont la pupille suit la balle.
+// (gx,gy) optionnel : origine commune du regard → les deux yeux pointent
+// PARALLÈLEMENT (fini le strabisme quand la balle est proche entre les yeux).
+function drawTrackingEye(ex, ey, r, pr, gx, gy) {
+  ctx.fillStyle = "#fff";
+  ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
+  const ox = gx !== undefined ? gx : ex, oy = gy !== undefined ? gy : ey;
+  const dx = ball.x - ox, dy = ball.y - oy;
+  const d = Math.hypot(dx, dy) || 1;
+  const amp = r - pr - 0.5;
+  const px = ex + dx / d * amp, py = ey + dy / d * amp;
+  ctx.fillStyle = "#222";
+  ctx.beginPath();
+  ctx.arc(px, py, pr, 0, Math.PI * 2);
+  ctx.fill();
+  // petit reflet pour donner du relief
+  ctx.fillStyle = "rgba(255,255,255,0.9)";
+  ctx.beginPath();
+  ctx.arc(px - pr * 0.35, py - pr * 0.35, Math.max(0.6, pr * 0.35), 0, Math.PI * 2);
+  ctx.fill();
+}
+
+// pattes fines animées (oiseau, lapin) — renvoie les positions des pieds
+function drawLegs(b, dir, s, legColor, footStyle) {
+  ctx.strokeStyle = legColor;
+  ctx.lineWidth = 3.5;
+  ctx.lineCap = "round";
+  for (let i = 0; i < 2; i++) {
+    const hipX = b.x + (i === 0 ? -9 : 9);
+    const hipY = b.y - 16 + s;
+    let footX, footY;
+    if (!b.onGround) {
+      footX = hipX - dir * 7;
+      footY = b.y - 2;
+    } else if (b.vx !== 0) {
+      const amp = b.scramble ? 13 : 9;   // patinage : grandes foulées désordonnées
+      const lift = b.scramble ? 9 : 6;
+      const ph = b.walkPhase + i * Math.PI;
+      footX = hipX + Math.sin(ph) * amp;
+      footY = b.y - Math.max(0, Math.cos(ph)) * lift;
+    } else {
+      footX = hipX;
+      footY = b.y;
+    }
+    ctx.beginPath();
+    ctx.moveTo(hipX, hipY);
+    ctx.lineTo(footX, footY);
+    ctx.stroke();
+    if (footStyle === "toes") {
+      for (const toe of [-4, 0, 4]) {
+        ctx.beginPath();
+        ctx.moveTo(footX, footY);
+        ctx.lineTo(footX + toe + dir * 3, footY + 3);
+        ctx.stroke();
+      }
+    } else { // grands pieds (lapin)
+      ctx.fillStyle = legColor;
+      ctx.beginPath();
+      ctx.ellipse(footX + dir * 5, footY + 1, 9, 4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawOiseau(b) {
+  const s = Math.max(0, b.squash);
+  const bx = b.x, by = b.y;
+  const dir = b.side === 0 ? 1 : -1;
+  const m = (b.molt || 0) / MOLT_MAX;   // 0 (emplumé) → 1 (nu)
+  const plume = 1 - m;                   // facteur de plumage restant
+  const headY = by - (64 - m * 6) + s * 1.5; // tête descend un peu quand nu
+  const SKIN = "#e6a98f", SKIN_D = "#c98a6e";
+  // rayon du corps : maigrichon quand déplumé
+  const bodyRx = 32 - m * 12, bodyRy = 26 - m * 11;
+  ctx.save();
+  drawShadow(b);
+  drawLegs(b, dir, s, "#e6900a", "toes");
+
+  // queue (disparaît totalement quand nu)
+  if (plume > 0.05) {
+    ctx.fillStyle = b.darkColor;
+    ctx.save();
+    ctx.translate(bx - dir * 28, by - 40 + s);
+    ctx.rotate(-dir * 0.5);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 16 * plume, 7 * plume, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  } else {
+    // moignon de queue nu (2-3 tuyaux de plume)
+    ctx.strokeStyle = SKIN_D; ctx.lineWidth = 2;
+    for (const o of [-3, 0, 3]) {
+      ctx.beginPath(); ctx.moveTo(bx - dir * 22, by - 34 + s);
+      ctx.lineTo(bx - dir * 30, by - 34 + o + s); ctx.stroke();
+    }
+  }
+
+  // corps : peau nue en dessous (toujours), plumes colorées par-dessus qui fondent
+  ctx.fillStyle = SKIN;
+  ctx.beginPath();
+  ctx.ellipse(bx, by - 32 + s, bodyRx, bodyRy, 0, 0, Math.PI * 2);
+  ctx.fill();
+  if (plume > 0.02) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, plume);
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.ellipse(bx, by - 32 + s, 32, 26 - s * 0.8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    outline();
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    ctx.beginPath();
+    ctx.ellipse(bx + dir * 6, by - 26 + s, 17, 13, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  // corps nu : côtes visibles + duvet clairsemé quand bien déplumé
+  if (m > 0.35) {
+    ctx.strokeStyle = SKIN_D; ctx.lineWidth = 1.2; ctx.globalAlpha = 0.6;
+    for (let i = 0; i < 3; i++) {
+      const ry = by - 40 + i * 7 + s;
+      ctx.beginPath();
+      ctx.arc(bx + dir * 4, ry, bodyRx * 0.6, Math.PI * 0.15, Math.PI * 0.85);
+      ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // quelques rares plumes rescapées qui dépassent
+    ctx.strokeStyle = SKIN_D; ctx.lineWidth = 1;
+    for (let i = 0; i < 5; i++) {
+      const px = bx - 12 + i * 6, py2 = by - 46 + s + (i % 2) * 4;
+      ctx.beginPath(); ctx.moveTo(px, py2); ctx.lineTo(px + dir * 2, py2 - 5); ctx.stroke();
+    }
+  }
+
+  // aile (rapetisse puis disparaît ; à nu, petit moignon d'aile déplumée)
+  if (plume > 0.05) {
+    const flap = b.onGround ? 0 : Math.sin(performance.now() / 60) * 0.8;
+    ctx.fillStyle = b.darkColor;
+    ctx.save();
+    ctx.translate(bx - dir * 10, by - 38 + s);
+    ctx.rotate(dir * (0.35 + flap));
+    ctx.beginPath();
+    ctx.ellipse(-dir * 14, 0, 18 * plume, 9 * plume, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  } else {
+    ctx.strokeStyle = SKIN_D; ctx.lineWidth = 3; ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(bx - dir * 6, by - 36 + s);
+    ctx.lineTo(bx - dir * 16, by - 30 + s);
+    ctx.stroke();
+  }
+
+  // TÊTE : plumée aussi (peau nue quand m élevé), un peu plus petite à nu
+  const headR = 22 - m * 4;
+  ctx.fillStyle = SKIN;
+  ctx.beginPath();
+  ctx.arc(bx, headY, headR, 0, Math.PI * 2);
+  ctx.fill();
+  if (plume > 0.02) {
+    ctx.save();
+    ctx.globalAlpha = Math.min(1, plume);
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.arc(bx, headY, 22, 0, Math.PI * 2);
+    ctx.fill();
+    outline();
+    ctx.restore();
+  }
+
+  // houppette (part en premier ; à nu, 1-2 poils ridicules)
+  if (plume > 0.5) {
+    ctx.fillStyle = b.darkColor;
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.ellipse(bx + i * 5, headY - 22, 3, 8 * plume, i * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else if (m > 0.6) {
+    ctx.strokeStyle = SKIN_D; ctx.lineWidth = 1;
+    for (const o of [-2, 2]) {
+      ctx.beginPath();
+      ctx.moveTo(bx + o, headY - headR);
+      ctx.lineTo(bx + o + dir, headY - headR - 6);
+      ctx.stroke();
+    }
+  }
+
+  // bec (toujours présent) — s'ouvre à l'effort / la surprise
+  {
+    const g2 = mouthOpen(b) * 6;
+    if (g2 > 1.5) {
+      ctx.fillStyle = "#7a2233"; // intérieur sombre visible quand ouvert
+      ctx.beginPath();
+      ctx.moveTo(bx + dir * (headR - 4), headY + 2 - g2 * 0.4);
+      ctx.lineTo(bx + dir * (headR + 11), headY + 2);
+      ctx.lineTo(bx + dir * (headR - 4), headY + 2 + g2 * 0.4);
+      ctx.closePath();
+      ctx.fill();
+    }
+    ctx.fillStyle = "#ff9800";
+    // mandibule supérieure
+    ctx.beginPath();
+    ctx.moveTo(bx + dir * (headR - 4), headY - 3 - g2 * 0.2);
+    ctx.lineTo(bx + dir * (headR + 13), headY + 2 - g2);
+    ctx.lineTo(bx + dir * (headR - 4), headY + 2 - g2 * 0.4);
+    ctx.closePath();
+    ctx.fill();
+    // mandibule inférieure
+    ctx.beginPath();
+    ctx.moveTo(bx + dir * (headR - 4), headY + 2 + g2 * 0.4);
+    ctx.lineTo(bx + dir * (headR + 13), headY + 2 + g2);
+    ctx.lineTo(bx + dir * (headR - 4), headY + 8 + g2 * 0.2);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  drawTrackingEye(bx + dir * 3, headY - 7, 6, 2.8);
+  drawTrackingEye(bx + dir * 13 - m * 3, headY - 7, 6, 2.8);
+  drawBrows(bx + dir * 3, bx + dir * 13 - m * 3, headY - 7, 6, faceMood(b));
+  ctx.restore();
+}
+
+function drawGrenouille(b) {
+  const s = Math.max(0, b.squash);
+  const bx = b.x, by = b.y;
+  const dir = b.side === 0 ? 1 : -1;
+  ctx.save();
+  drawShadow(b);
+
+  // pattes arrière : cuisses repliées au sol (qui se dandinent en marchant),
+  // détendues et pédalantes en l'air
+  ctx.fillStyle = b.darkColor;
+  if (b.onGround) {
+    for (const side of [-1, 1]) {
+      // en marche, les cuisses montent/descendent en alternance
+      const step = b.vx !== 0 ? Math.sin(b.walkPhase + (side < 0 ? 0 : Math.PI)) * 3 : 0;
+      ctx.beginPath();
+      ctx.ellipse(bx + side * 25, by - 12 + s - step, 13, 10, side * 0.3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    ctx.strokeStyle = b.darkColor;
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    for (const side of [-1, 1]) {
+      const kick = Math.sin(performance.now() / 90 + side) * 5; // pédalage
+      ctx.beginPath();
+      ctx.moveTo(bx + side * 20, by - 18);
+      ctx.lineTo(bx + side * 30, by + 2 + kick);
+      ctx.stroke();
+    }
+  }
+
+  // corps massif
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.ellipse(bx, by - 34 + s, 33, 30 - s * 0.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline();
+
+  // ventre clair
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.beginPath();
+  ctx.ellipse(bx + dir * 4, by - 22 + s, 20, 14, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // pattes avant qui marchent (balancier en alternance)
+  ctx.strokeStyle = b.darkColor;
+  ctx.lineWidth = 4;
+  ctx.lineCap = "round";
+  let i = 0;
+  for (const off of [-8, 8]) {
+    let footY = by, footX = bx + off + dir * 12;
+    if (!b.onGround) { footY = by - 4; }
+    else if (b.vx !== 0) {
+      const phF = b.walkPhase + i * Math.PI;
+      footX += Math.sin(phF) * 6;
+      footY = by - Math.max(0, Math.cos(phF)) * 5;
+    }
+    ctx.beginPath();
+    ctx.moveTo(bx + off + dir * 10, by - 16 + s);
+    ctx.lineTo(footX, footY);
+    ctx.stroke();
+    // orteils palmés
+    ctx.strokeStyle = b.darkColor;
+    for (const toe of [-3, 0, 3]) {
+      ctx.beginPath();
+      ctx.moveTo(footX, footY);
+      ctx.lineTo(footX + toe + dir * 2, footY + 3);
+      ctx.stroke();
+    }
+    i++;
+  }
+
+  // large bouche expressive (sourire / moue / grande ouverte)
+  {
+    const mp = mouthParams(faceMood(b));
+    const mcx = bx + dir * 4, mcy = by - 46 + s;
+    if (mp.open >= 5) {
+      ctx.fillStyle = "#7a2233";
+      ctx.beginPath();
+      ctx.ellipse(mcx, mcy + 3, 11, mp.open, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ff5c8a"; // langue au fond
+      ctx.beginPath();
+      ctx.ellipse(mcx, mcy + 3 + mp.open * 0.4, 6, mp.open * 0.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.strokeStyle = b.darkColor;
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(mcx - 13, mcy);
+      ctx.quadraticCurveTo(mcx, mcy + mp.curve * 1.7, mcx + 13, mcy);
+      ctx.stroke();
+    }
+  }
+
+  // langue sortie (après un coup collant) : pend hors de la bouche
+  if (b.tongueOut) {
+    const mx = bx + dir * 6, my = by - 40 + s;
+    ctx.fillStyle = "#ff5c8a";
+    ctx.beginPath();
+    ctx.moveTo(mx - 4, my);
+    ctx.quadraticCurveTo(mx + dir * 10, my + 14, mx + dir * 16, my + 20);
+    ctx.quadraticCurveTo(mx + dir * 20, my + 22, mx + dir * 15, my + 12);
+    ctx.quadraticCurveTo(mx + dir * 8, my + 6, mx + 4, my);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "#d63a68"; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(mx + dir * 2, my + 3); ctx.lineTo(mx + dir * 13, my + 15); ctx.stroke();
+  }
+
+  // yeux globuleux sur le dessus
+  for (const off of [-11, 11]) {
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.arc(bx + off, by - 62 + s * 1.5, 10, 0, Math.PI * 2);
+    ctx.fill();
+    drawTrackingEye(bx + off, by - 63 + s * 1.5, 7, 3.2);
+  }
+  drawBrows(bx - 11, bx + 11, by - 63 + s * 1.5, 10, faceMood(b));
+
+  // narines
+  ctx.fillStyle = b.darkColor;
+  ctx.beginPath(); ctx.arc(bx + dir * 12 - 3, by - 54 + s, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(bx + dir * 12 + 3, by - 54 + s, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function drawManchot(b) {
+  const s = Math.max(0, b.squash);
+  const bx = b.x, by = b.y;
+  const dir = b.side === 0 ? 1 : -1;
+  const waddle = (b.onGround && b.vx !== 0) ? Math.sin(b.walkPhase) * 3 : 0;
+  const headY = by - 66 + s * 1.5;
+  ctx.save();
+  drawShadow(b);
+
+  // pieds palmés orange, rattachés haut sous le corps (pas de vide)
+  ctx.strokeStyle = "#f57c00";
+  ctx.lineWidth = 6;
+  ctx.lineCap = "round";
+  ctx.fillStyle = "#ff9800";
+  for (let i = 0; i < 2; i++) {
+    const hipX = bx + waddle + (i === 0 ? -7 : 7);
+    let footX = hipX + dir * 3, footY = by;
+    if (!b.onGround) { footX = hipX - dir * 5; footY = by - 4; }
+    else if (b.vx !== 0) {
+      const ph = b.walkPhase + i * Math.PI;
+      footX = hipX + Math.sin(ph) * 7 + dir * 3;
+      footY = by - Math.max(0, Math.cos(ph)) * 4;
+    }
+    ctx.beginPath();
+    ctx.moveTo(hipX, by - 20 + s);   // hanche remontée dans le corps
+    ctx.lineTo(footX, footY);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(footX + dir * 5, footY + 1, 10, 4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // CORPS foncé, base descendue jusqu'au sol pour englober les hanches
+  ctx.fillStyle = b.darkColor;
+  ctx.beginPath();
+  ctx.moveTo(bx - 26 + waddle, by - 22 + s);
+  ctx.quadraticCurveTo(bx - 30 + waddle, by - 78 + s, bx + waddle, by - 88 + s);
+  ctx.quadraticCurveTo(bx + 30 + waddle, by - 78 + s, bx + 26 + waddle, by - 22 + s);
+  ctx.quadraticCurveTo(bx + waddle, by - 4 + s, bx - 26 + waddle, by - 22 + s);
+  ctx.fill();
+  outline();
+
+  // 2e teinte : bande latérale plus claire (couleur du joueur) sur les flancs
+  ctx.fillStyle = b.color;
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath();
+  ctx.ellipse(bx - dir * 17 + waddle, by - 46 + s, 9, 30, dir * 0.15, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+
+  // plastron blanc net et resserré, descendu jusqu'en bas
+  ctx.fillStyle = "#f7fbff";
+  ctx.beginPath();
+  ctx.moveTo(bx - 14 + waddle, by - 22 + s);
+  ctx.quadraticCurveTo(bx - 14 + waddle, by - 60 + s, bx + waddle, by - 64 + s);
+  ctx.quadraticCurveTo(bx + 14 + waddle, by - 60 + s, bx + 14 + waddle, by - 22 + s);
+  ctx.quadraticCurveTo(bx + waddle, by - 8 + s, bx - 14 + waddle, by - 22 + s);
+  ctx.fill();
+
+  // ailerons foncés
+  const flap = b.onGround ? 0.15 : Math.sin(performance.now() / 55) * 0.5 + 0.3;
+  ctx.fillStyle = b.darkColor;
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.translate(bx + side * 24 + waddle, by - 48 + s);
+    ctx.rotate(side * (0.55 + flap));
+    ctx.beginPath();
+    ctx.ellipse(0, 10, 6.5, 17, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // TÊTE foncée
+  ctx.fillStyle = b.darkColor;
+  ctx.beginPath();
+  ctx.arc(bx + waddle, headY, 21, 0, Math.PI * 2);
+  ctx.fill();
+  outline();
+
+  // large masque facial clair (contraste pour bien voir les yeux)
+  ctx.fillStyle = "#fbe7c6";
+  ctx.beginPath();
+  ctx.ellipse(bx + waddle + dir * 2, headY + 1, 15, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // BEC court orange — s'ouvre à l'effort / la surprise
+  {
+    const bxw = bx + waddle;
+    const g2 = mouthOpen(b) * 6;
+    if (g2 > 1.5) {
+      ctx.fillStyle = "#7a2233";
+      ctx.beginPath();
+      ctx.moveTo(bxw + dir * 13, headY + 3 - g2 * 0.4);
+      ctx.lineTo(bxw + dir * 25, headY + 3);
+      ctx.lineTo(bxw + dir * 13, headY + 3 + g2 * 0.4);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = "#ff9800";
+    ctx.beginPath(); // mandibule supérieure
+    ctx.moveTo(bxw + dir * 13, headY - 2 - g2 * 0.2);
+    ctx.lineTo(bxw + dir * 27, headY + 3 - g2);
+    ctx.lineTo(bxw + dir * 13, headY + 3 - g2 * 0.4);
+    ctx.closePath(); ctx.fill();
+    ctx.beginPath(); // mandibule inférieure
+    ctx.moveTo(bxw + dir * 13, headY + 3 + g2 * 0.4);
+    ctx.lineTo(bxw + dir * 27, headY + 3 + g2);
+    ctx.lineTo(bxw + dir * 13, headY + 8 + g2 * 0.2);
+    ctx.closePath(); ctx.fill();
+  }
+
+  // yeux bien contrastés : anneau foncé + blanc + pupille
+  for (const off of [3, 12]) {
+    const ex = bx + waddle + dir * off, ey = headY - 3;
+    ctx.fillStyle = b.darkColor;
+    ctx.beginPath(); ctx.arc(ex, ey, 6.5, 0, Math.PI * 2); ctx.fill();
+    drawTrackingEye(ex, ey, 5, 2.6);
+  }
+  drawBrows(bx + waddle + dir * 3, bx + waddle + dir * 12, headY - 3, 6.5, faceMood(b));
+  ctx.restore();
+}
+
+function drawLapin(b) {
+  const s = Math.max(0, b.squash);
+  const bx = b.x, by = b.y;
+  const dir = b.side === 0 ? 1 : -1;
+  const headY = by - 64 + s * 1.5;
+  ctx.save();
+  drawShadow(b);
+  drawLegs(b, dir, s, b.darkColor, "paws");
+
+  // queue pompon
+  ctx.fillStyle = "rgba(255,255,255,0.95)";
+  ctx.beginPath();
+  ctx.arc(bx - dir * 27, by - 26 + s, 8, 0, Math.PI * 2);
+  ctx.fill();
+
+  // corps
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.ellipse(bx, by - 30 + s, 30, 26 - s * 0.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline();
+
+  // ventre clair
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.beginPath();
+  ctx.ellipse(bx + dir * 5, by - 24 + s, 16, 12, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // oreilles (penchées en arrière pendant le saut)
+  const earBack = b.onGround ? 0 : -dir * 0.35;
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.translate(bx + side * 8, headY - 14);
+    ctx.rotate(side * 0.18 + earBack);
+    ctx.fillStyle = b.color;
+    ctx.beginPath();
+    ctx.ellipse(0, -16, 6.5, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f5b7c5";
+    ctx.beginPath();
+    ctx.ellipse(0, -15, 3.2, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // tête
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.arc(bx, headY, 21, 0, Math.PI * 2);
+  ctx.fill();
+  outline();
+
+  // museau : nez rose
+  ctx.fillStyle = "#f06292";
+  ctx.beginPath();
+  ctx.moveTo(bx + dir * 16, headY + 1);
+  ctx.lineTo(bx + dir * 23, headY + 4);
+  ctx.lineTo(bx + dir * 16, headY + 7);
+  ctx.closePath();
+  ctx.fill();
+  // moustaches des deux côtés
+  ctx.strokeStyle = "rgba(80,80,80,0.6)";
+  ctx.lineWidth = 1;
+  for (const sgn of [1, -1]) {
+    for (const wy of [-1, 3]) {
+      ctx.beginPath();
+      ctx.moveTo(bx + dir * 15, headY + 4);
+      ctx.lineTo(bx + dir * 15 + sgn * 16, headY + 4 + wy * sgn);
+      ctx.stroke();
+    }
+  }
+  // deux petites quenottes sous le nez
+  ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "rgba(80,80,80,0.5)";
+  ctx.lineWidth = 0.6;
+  for (const qx of [-2.5, 2.5]) {
+    ctx.beginPath();
+    ctx.rect(bx + dir * 14 + qx, headY + 8, 4, 6);
+    ctx.fill(); ctx.stroke();
+  }
+  // petite bouche ouverte à l'effort (sous les quenottes)
+  {
+    const mo = mouthOpen(b);
+    if (mo >= 0.7) {
+      ctx.fillStyle = "#b3475e";
+      ctx.beginPath();
+      ctx.ellipse(bx + dir * 16, headY + 16, 3.2, 2 + mo * 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // regard partagé depuis le centre des deux yeux → yeux bien parallèles
+  const gzx = bx + dir * 7.5, gzy = headY - 6;
+  drawTrackingEye(bx + dir * 3, headY - 6, 5.5, 2.6, gzx, gzy);
+  drawTrackingEye(bx + dir * 12, headY - 6, 5.5, 2.6, gzx, gzy);
+  drawBrows(bx + dir * 3, bx + dir * 12, headY - 6, 5.5, faceMood(b));
+  ctx.restore();
+}
+

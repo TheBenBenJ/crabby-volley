@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Volley des Animaux</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    background: #1a1a2e;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Trebuchet MS", Verdana, sans-serif;
+    overflow: hidden;
+  }
+  #wrap { position: relative; }
+  canvas {
+    display: block;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0,0,0,.6);
+    /* la taille CSS est pilotée par resizeCanvas() (Hi-DPI + plein écran) */
+    max-width: 100vw;
+    max-height: 100vh;
+  }
+</style>
+</head>
+<body>
+<div id="wrap"><canvas id="game" width="900" height="500"></canvas></div>
+<!-- PeerJS : signalisation cloud gratuite pour le mode en ligne (voir MULTIJOUEUR.md).
+     Si le CDN est inaccessible, le jeu reste jouable hors ligne : seul le mode
+     en ligne affichera un message d'erreur. -->
+<script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
+<!-- Modules du jeu, chargés dans l’ordre de dépendance (voir README).
+     Scripts classiques : ils partagent le même scope global, comme
+     l’ancien fichier unique — le découpage est purement organisationnel. -->
+<script src="src/01-core.js"></script>
+<script src="src/02-audio.js"></script>
+<script src="src/03-input.js"></script>
+<script src="src/04-state.js"></script>
+<script src="src/05-animals.js"></script>
+<script src="src/06-physics.js"></script>
+<script src="src/07-scoring.js"></script>
+<script src="src/08-ai.js"></script>
+<script src="src/09-particles.js"></script>
+<script src="src/10-scenery.js"></script>
+<script src="src/11-terrains.js"></script>
+<script src="src/12-menus.js"></script>
+<script src="src/13-simulation.js"></script>
+<script src="src/14-snapshots.js"></script>
+<script src="src/15-net.js"></script>
+<script src="src/16-render.js"></script>
+<script src="src/17-main.js"></script>
+</body>
+</html>
