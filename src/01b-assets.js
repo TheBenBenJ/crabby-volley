@@ -275,16 +275,15 @@ function drawSamySpriteMaster(b) {
 
   let bobY = 0, lean = 0, squashX = 1, squashY = 1;
   const walkSpr = isSamyWalkSprite(spr);
-  // Hauteur d'affichage : sprites natifs (~290px) → scale down (plus net qu'un upscale)
-  let baseH = 100;
-  if (walkSpr) baseH = 102;
-  else if (spr === SPRITES.samyIdleSide) baseH = 100;
-  else if (spr === SPRITES.samyRun) baseH = 100;
-  else if (spr === SPRITES.samyPounce || spr === SPRITES.samyPanic) baseH = 104;
-  else if (spr === SPRITES.samyIdle) baseH = 98;
-  // Fatigue : pose "tired" éventuelle via sprite, pas un squash qui coupe la tête
-  if (fatigueT > 0.55 && spriteReady(SPRITES.samyIdleSide) && !moving && b.onGround && !turbo) {
-    // légèrement plus tassé sans rotation agressive
+  // Sammy plus grand que Scooby (~84) : échalas lisible, sprites assez nets pour zoomer
+  let baseH = 112;
+  if (walkSpr) baseH = 116;
+  else if (spr === SPRITES.samyIdleSide) baseH = 112;
+  else if (spr === SPRITES.samyRun) baseH = 114;
+  else if (spr === SPRITES.samyPounce || spr === SPRITES.samyPanic) baseH = 118;
+  else if (spr === SPRITES.samyIdle) baseH = 110;
+  // Fatigue : légèrement plus tassé, sans couper la tête
+  if (fatigueT > 0.55 && !moving && b.onGround && !turbo) {
     baseH -= 4;
   }
 
@@ -339,7 +338,7 @@ function drawSamyTurboGhosts(b) {
   const dir = b.side === 0 ? 1 : -1;
   const moveVx = b.dispVx != null ? b.dispVx : (b.vx || 0);
   for (let i = 1; i <= 3; i++) {
-    drawAnchoredSprite(spr, b.x - moveVx * i * 2.4, b.y, dir, 100 - i * 2, {
+    drawAnchoredSprite(spr, b.x - moveVx * i * 2.4, b.y, dir, 112 - i * 2, {
       alpha: 0.18 * (4 - i) / 3,
       lean: moveVx * 0.025
     });
