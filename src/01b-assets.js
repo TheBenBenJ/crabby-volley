@@ -130,10 +130,15 @@ function drawScoobySpriteMaster(b) {
   let lean = 0;
   let squashX = 1;
   let squashY = 1;
-  // Même hauteur de base pour idle / marche / saut (PNG normalisés).
-  // Les frames walk sont un peu plus « accroupies » : +8 % pour matcher l'idle.
+  // L'idle profil est plus « droit / rempli » que les poses de marche (plus
+  // allongées) : à même hauteur de canvas il paraît plus gros. On compense.
   const walkSpr = isScoobyWalkSprite(spr);
-  const baseH = (walkSpr ? 84 : 78) - fatigueT * 5;
+  let baseH = 82;
+  if (walkSpr) baseH = 84;
+  else if (spr === SPRITES.scoobyIdleSide || spr === SPRITES.scoobyRun) baseH = 70;
+  else if (spr === SPRITES.scoobyPounce) baseH = 78;
+  else if (spr === SPRITES.scoobyIdle) baseH = 72; // menu face
+  baseH -= fatigueT * 5;
 
   if (!b.onGround || turbo) {
     // léger stretch air / turbo (discret)
