@@ -276,11 +276,13 @@ function drawSamySpriteMaster(b) {
 
   let bobY = 0, lean = 0, squashX = 1, squashY = 1;
   const walkSpr = isSamyWalkSprite(spr);
-  let baseH = 88; // Sammy est plus grand / filiforme
-  if (walkSpr) baseH = 90;
-  else if (spr === SPRITES.samyIdleSide || spr === SPRITES.samyRun) baseH = 86;
-  else if (spr === SPRITES.samyPounce || spr === SPRITES.samyPanic) baseH = 92;
-  else if (spr === SPRITES.samyIdle) baseH = 84;
+  // Sammy est grand / filiforme : plus haut que Scooby à l'écran
+  let baseH = 108;
+  if (walkSpr) baseH = 112;
+  else if (spr === SPRITES.samyIdleSide) baseH = 108;
+  else if (spr === SPRITES.samyRun) baseH = 110;
+  else if (spr === SPRITES.samyPounce || spr === SPRITES.samyPanic) baseH = 114;
+  else if (spr === SPRITES.samyIdle) baseH = 106;
   baseH -= fatigueT * 5;
 
   if (!b.onGround || turbo) {
@@ -333,7 +335,7 @@ function drawSamyTurboGhosts(b) {
   const dir = b.side === 0 ? 1 : -1;
   const moveVx = b.dispVx != null ? b.dispVx : (b.vx || 0);
   for (let i = 1; i <= 3; i++) {
-    drawAnchoredSprite(spr, b.x - moveVx * i * 2.4, b.y, dir, 80 - i * 2, {
+    drawAnchoredSprite(spr, b.x - moveVx * i * 2.4, b.y, dir, 100 - i * 2, {
       alpha: 0.18 * (4 - i) / 3,
       lean: moveVx * 0.025
     });
