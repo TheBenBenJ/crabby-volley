@@ -3,6 +3,10 @@
 
 // ---------- Smash Battle : logique ----------
 function canStartBattle() {
+  // En ligne : JAMAIS de Smash Battle. Le duel fige la balle ~1,3 s au filet —
+  // avec la latence, ça se lit comme un « blocage réseau » (balle coincée).
+  // Hors-ligne / même clavier : le duel reste actif (c'est le fun du mode local).
+  if (typeof online !== "undefined" && online) return false;
   return !bombMode && // pas de duel au filet en mode bombe (la mèche tourne !)
          state === "play" && !ball.frozen && !ball.popped && battle.cooldown === 0 &&
          !blobL.onGround && !blobR.onGround &&

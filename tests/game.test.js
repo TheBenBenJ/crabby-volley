@@ -223,6 +223,23 @@ test("filet : une balle qui passe AU-DESSUS n'est pas bloquée", () => {
   assert.ok(g.ball.vx > 0, "la vitesse horizontale reste vers la droite");
 });
 
+test("filet : un lob qui frôle le sommet passe (pas de rejet latéral)", () => {
+  // Régression du bug « balle coincée au filet » : la gravité faisait
+  // retomber y sous NET_TOP pile dans le poteau → rebond latéral alors
+  // que la trajectoire était un passage par-dessus.
+  const g = loadGame();
+  g.setVsAI(true); g.setAiLevel(1);
+  g.newGame(7);
+  g.setState("play"); g.setServeCountdown(0);
+  g.ball.frozen = false;
+  g.ball.x = g.consts.NET_X - 30;
+  g.ball.y = g.consts.NET_TOP - 5;
+  g.ball.vx = 8; g.ball.vy = 3;
+  for (let i = 0; i < 25; i++) g.updateBall();
+  assert.ok(g.ball.x > g.consts.NET_X + 30, "le lob frôlant doit passer (x=" + g.ball.x + ")");
+  assert.ok(g.ball.vx > 0, "vx reste vers la droite (pas de rebond poteau)");
+});
+
 test("filet : balle coincée dans le poteau est éjectée (anti-stick)", () => {
   const g = loadGame();
   g.setVsAI(true); g.setAiLevel(1);
