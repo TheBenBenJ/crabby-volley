@@ -41,6 +41,11 @@ const SMASH_VX = 14, SMASH_VY = 12; // vitesse du smash destructeur
 // --- Mode Bombe ---
 const BOMB_TIME = 600;      // 10 s à 60 Hz : durée de la mèche avant explosion
 
+// --- Soft ownership balle (1v1 en ligne, camp invité) ---
+// L'invité ne simule la balle que si elle est CLAIREMENT dans son camp
+// (hors zone filet). Pas de handoff bilatéral → pas de deadlock poteau.
+const GUEST_BALL_MARGIN = 60; // px à droite de NET_X pour autorité invité
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 

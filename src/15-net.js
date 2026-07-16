@@ -4,15 +4,14 @@
 // ============================================================
 //                     MODE EN LIGNE (WebRTC)
 // ============================================================
-// Architecture "hôte autoritaire" (voir MULTIJOUEUR.md) :
-//  - L'HÔTE fait tourner TOUTE la simulation (balle + collisions + score).
-//  - L'INVITÉ envoie ses entrées à 60 Hz, interpole les snapshots, et PRÉDIT
-//    uniquement son propre personnage (réconciliation par rejeu d'inputs).
-//  - Près du filet, l'hôte envoie des snaps à 60 Hz (sinon 30 Hz) pour que
-//    le passage de balle reste fluide côté invité.
+// Architecture hybride (voir MULTIJOUEUR.md) — 1v1 :
+//  - SOFT OWNERSHIP : l'invité simule la balle UNIQUEMENT quand elle est
+//    clairement dans son camp (x > NET_X + GUEST_BALL_MARGIN). Zone filet,
+//    camp hôte, scoring, service/point → toujours l'hôte. Pas de handoff
+//    bilatéral (évite les deadlocks poteau de l'ancien ownership 0↔1).
+//  - CORPS : chacun prédit son perso ; snaps pour le monde distant.
+//  - 2v2 : hôte pleinement autoritaire.
 // La signalisation passe par le cloud PeerJS ; ensuite WebRTC en direct.
-// (Une tentative d'ownership balle par camp a été abandonnée : handoffs au
-//  filet → balle bloquée / deadlock. L'hôte autoritaire est plus robuste.)
 
 const SNAP_EVERY = 2;          // cadence de base (~30 Hz)
 const SNAP_NEAR_NET = 1;       // près du filet : 60 Hz (passage de balle fluide)
@@ -23,6 +22,8 @@ const INTERP_MAX = 7;          // plafond du délai (connexion instable)
 const EXTRAP_MAX = 8;          // ticks d'extrapolation max quand un snapshot tarde
 const NET_TIMEOUT = 2500;      // ms de silence → pause "connexion instable"
 const RECONCILE_SNAP = 60;     // px d'écart au-delà desquels on téléporte
+const BALL_STALE_MS = 200;     // sans paquet balle invité → l'hôte reprend
+const GUEST_BALL_HOLD = 8;     // ticks de renvoi balle après sortie de zone
 const CODE_LEN = 5;
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sans I/O/0/1
 const PEER_PREFIX = "vda26-";  // espace de noms sur le cloud PeerJS
@@ -67,6 +68,10 @@ let guestInSeq = 0;            // n° de séquence de cette entrée (= ack renvo
 let netFrame = 0;              // cadence d'envoi des snapshots
 let lastPeerMsg = 0;           // horodatage du dernier message reçu
 let netFrozen = false;         // simulation gelée (invité silencieux)
+let guestBall = null;          // dernier état balle reçu de l'invité
+let lastGuestBallAt = 0;       // horodatage de ce paquet
+let lastGuestPtSeq = 0;        // dernier point différé consommé (idempotence)
+let guestBallHold = 0;         // invité : renvoi balle après sortie de zone
 
 // --- 2v2 en ligne ---
 // L'hôte accepte jusqu'à 3 invités. Chaque joueur occupe un « slot » = son
@@ -312,13 +317,14 @@ function onNetData(m) {
       newGame(m.seed); // même graine → mêmes positions/service de départ
       break;
     }
-    case "in": // hôte : entrées de l'invité (on ne garde que la plus récente)
+    case "in": // hôte : entrées de l'invité (+ balle soft-own éventuelle)
       if (netRole !== "host" || m.m !== matchId) break;
       if (m.s > guestInSeq) {
         guestInSeq = m.s;
         guestIn = { left: !!m.l, right: !!m.r, jump: !!m.j, super: !!m.sp };
         setX(blobR, !!m.x);
       }
+      if (m.b) { guestBall = m.b; lastGuestBallAt = performance.now(); }
       break;
     case "snap": // invité : instantané de l'hôte
       if (netRole !== "guest" || m.m !== matchId) break;
@@ -340,6 +346,7 @@ function hostStartMatch() {
   guestInSeq = 0;
   guestIn = { left: false, right: false, jump: false };
   netFrame = 0;
+  guestBall = null; lastGuestBallAt = 0; lastGuestPtSeq = 0;
   const seed = (Math.random() * 2 ** 31) | 0;
   sendRel({ t: "start", m: matchId, seed, terrain, a: [blobL.animal, blobR.animal],
             bomb: bombMode ? 1 : 0, bt: bombTime });
@@ -359,6 +366,52 @@ function guestResetMatch() {
   lastSnapTime = performance.now();
   interpDelay = INTERP_DELAY;
   lastSnapArrival = 0; snapGapEMA = 0; snapJitterEMA = 0;
+  pendingNetPoint = null;
+  netPtSeq = 0;
+  guestBallHold = 0;
+  ballScoreLock = false;
+}
+
+// Invité 1v1 : simule la balle si elle est clairement dans son camp.
+function guestOwnsBall() {
+  return mode === "1v1" && !battle.active &&
+         (state === "play" || state === "serve") &&
+         !ball.popped && ballInGuestOwnZone(ball.x);
+}
+
+// Hôte : appliquer la balle invité si paquet frais et encore à droite du
+// poteau. Seuil plus bas que GUEST_BALL_MARGIN pour consommer les paquets
+// de sortie de zone (hold) sans jamais laisser l'invité simuler au filet.
+function hostUsesGuestBall() {
+  const HOST_ACCEPT = NET_X + 24; // juste à droite du volume poteau+balle
+  return mode === "1v1" && !battle.active &&
+         guestBall && (performance.now() - lastGuestBallAt) < BALL_STALE_MS &&
+         guestBall.x > HOST_ACCEPT;
+}
+
+// Point différé invité — idempotent par séquence (anti multi-score).
+function hostTakeGuestBallPoint() {
+  if (!guestBall || !guestBall.pt || !Array.isArray(guestBall.pt)) return;
+  const side = guestBall.pt[0] | 0;
+  const reason = guestBall.pt[1] || "";
+  const seq = guestBall.pt[2] | 0;
+  guestBall.pt = null;
+  if (seq <= lastGuestPtSeq) return;
+  lastGuestPtSeq = seq;
+  if (state === "play" || state === "serve") awardPoint(side, reason);
+}
+
+// Pose les blobs distants d'après le dernier snap (collisions locales invité).
+function guestSyncRemoteBlobs() {
+  const n = snapBuf.length;
+  if (!n) return;
+  const last = snapBuf[n - 1];
+  activeBlobs.forEach((b, i) => {
+    if (i === mySlot) return;
+    const sb = last.blobs[i]; if (!sb) return;
+    b.x = sb.x; b.y = sb.y; b.vx = sb.vx; b.vy = sb.vy;
+    b.onGround = sb.onGround; b.walkPhase = sb.walkPhase; b.squash = sb.squash;
+  });
 }
 
 function hostSnapCadence() {
@@ -548,8 +601,15 @@ function netUpdate() {
         const elapsed = POINT_MAX_WAIT - pointTimer;
         if ((elapsed >= POINT_MIN_WAIT && (pointAdvanceRequested() || guestIn.jump)) || pointTimer <= 0) startRally();
       } else if (state === "play" || state === "serve") {
-        // hôte autoritaire : simule TOUT (balle incluse)
-        stepGame(onlineLocalInput(), guestIn);
+        // Soft ownership : balle clairement à droite + paquet frais →
+        // on pose la balle invité et on ne simule que les corps.
+        if (hostUsesGuestBall()) {
+          applyBallState(guestBall);
+          stepGame(onlineLocalInput(), guestIn, null, { skipBall: true });
+          hostTakeGuestBallPoint();
+        } else {
+          stepGame(onlineLocalInput(), guestIn);
+        }
       }
     }
     netFrame++;
@@ -581,14 +641,41 @@ function netUpdate() {
       inputSeq++;
       inputHistory.push({ s: inputSeq, i: input });
       if (inputHistory.length > 240) inputHistory.shift();
-      sendFast({ t: "in", m: matchId, s: inputSeq,
-                 l: input.left ? 1 : 0, r: input.right ? 1 : 0,
-                 j: input.jump ? 1 : 0, sp: input.super ? 1 : 0,
-                 x: xOn[mySlot] ? 1 : 0 });
-      // prédiction : son propre personnage répond immédiatement
-      // (sauf pendant un Smash Battle : le monde est figé, seuls les
-      // appuis comptent — l'hôte fait foi sur les compteurs)
-      if (!battle.active) activeBlobs[mySlot].update(input);
+
+      let ballPkt = null;
+      if (guestOwnsBall()) {
+        // Soft ownership : hits locaux instantanés dans le camp droit
+        guestSyncRemoteBlobs();
+        netDeferScore = true;
+        const me = activeBlobs[mySlot];
+        if (state === "serve" && serveCountdown > 0) {
+          me.update({ left: input.left, right: input.right, jump: false });
+          serveCountdown--;
+          ball.y += Math.sin(tick / 18) * 0.3;
+        } else {
+          maybeActivateSuper(me, input);
+          me.update(input);
+          updateBall();
+          tickSuper(me);
+        }
+        if (state === "serve" && !ball.frozen) state = "play";
+        netDeferScore = false;
+        ballPkt = packBallState();
+        if (!guestOwnsBall()) guestBallHold = GUEST_BALL_HOLD; // sortie de zone
+      } else if (!battle.active) {
+        activeBlobs[mySlot].update(input);
+        if (guestBallHold > 0) {
+          guestBallHold--;
+          ballPkt = packBallState(); // dernière trajectoire pour l'hôte
+        }
+      }
+
+      const msg = { t: "in", m: matchId, s: inputSeq,
+                    l: input.left ? 1 : 0, r: input.right ? 1 : 0,
+                    j: input.jump ? 1 : 0, sp: input.super ? 1 : 0,
+                    x: xOn[mySlot] ? 1 : 0 };
+      if (ballPkt) msg.b = ballPkt;
+      sendFast(msg);
     }
   }
 }
@@ -620,17 +707,55 @@ function onSnapMsg(m) {
 
 // champs "discrets" (non interpolables) : appliqués dès réception
 function applyDiscrete(d) {
+  const iOwnBall = guestOwnsBall() || guestBallHold > 0;
+  const prevState = state;
   state = d.state; servingSide = d.servingSide;
-  pointMsg = d.pointMsg; tick = d.tick; serveCountdown = d.serveCountdown || 0;
+  pointMsg = d.pointMsg;
+  if (!iOwnBall) tick = d.tick;
+  if (!iOwnBall) serveCountdown = d.serveCountdown || 0;
   scores[0] = d.scores[0]; scores[1] = d.scores[1];
+  // Changement d'état (point / serve / fin) : adopter ENTIÈREMENT la balle
+  // hôte (évite balle périmée du rally précédent → service bloqué).
+  if (prevState !== d.state &&
+      (d.state === "point" || d.state === "gameover" || d.state === "serve")) {
+    pendingNetPoint = null;
+    ballScoreLock = false;
+    guestBallHold = 0;
+    ball.x = d.ball.x; ball.y = d.ball.y;
+    ball.vx = d.ball.vx; ball.vy = d.ball.vy;
+    ball.angle = d.ball.angle;
+    ball.frozen = d.ball.frozen; ball.popped = !!d.ball.popped;
+    ball.smash = d.ball.smash || 0;
+    ball.lastTouchSide = d.ball.lastTouchSide;
+    ball.touches = [d.ball.touches[0], d.ball.touches[1]];
+    ball.trail.length = 0;
+    if (d.serveCountdown !== undefined) serveCountdown = d.serveCountdown;
+  }
   if (d.streak) { streak[0] = d.streak[0]; streak[1] = d.streak[1]; }
   if (d.superCharge) { superCharge[0] = d.superCharge[0]; superCharge[1] = d.superCharge[1]; }
   if (d.weather !== undefined) { weather = d.weather; weatherTimer = d.weatherTimer; }
   if (d.bombMode !== undefined) { bombMode = d.bombMode; bombTimer = d.bombTimer || 0; }
-  ball.frozen = d.ball.frozen; ball.popped = !!d.ball.popped;
-  ball.smash = d.ball.smash || 0;
-  ball.lastTouchSide = d.ball.lastTouchSide;
-  ball.touches = [d.ball.touches[0], d.ball.touches[1]];
+  // Physique balle : ne pas écraser si on simule localement (anti rubber-band)
+  if (!iOwnBall) {
+    ball.frozen = d.ball.frozen; ball.popped = !!d.ball.popped;
+    ball.smash = d.ball.smash || 0;
+    ball.lastTouchSide = d.ball.lastTouchSide;
+    ball.touches = [d.ball.touches[0], d.ball.touches[1]];
+  }
+  // Reprise hôte : balle déjà hors zone invité → forcer l'état snap
+  if (iOwnBall && d.ball && !ballInGuestOwnZone(d.ball.x) &&
+      (d.state === "play" || d.state === "serve") && prevState === d.state) {
+    // hôte a repris près du filet : on lâche la possession locale
+    guestBallHold = 0;
+    ballScoreLock = false;
+    ball.x = d.ball.x; ball.y = d.ball.y;
+    ball.vx = d.ball.vx; ball.vy = d.ball.vy;
+    ball.angle = d.ball.angle;
+    ball.frozen = d.ball.frozen; ball.popped = !!d.ball.popped;
+    ball.smash = d.ball.smash || 0;
+    ball.lastTouchSide = d.ball.lastTouchSide;
+    ball.touches = [d.ball.touches[0], d.ball.touches[1]];
+  }
   if (d.battle) {
     battle.active = d.battle.active; battle.t = d.battle.t;
     battle.count = [d.battle.count[0], d.battle.count[1]];
@@ -726,6 +851,8 @@ function guestApplyView() {
   const n = snapBuf.length;
   if (!n) return;
   const last = snapBuf[n - 1];
+  // Soft ownership : balle déjà simulée en local — n'interpoler que l'adversaire
+  const iOwnBall = guestOwnsBall() || guestBallHold > 0;
 
   // --- extrapolation (dead reckoning AVEC filet) ---
   // Sans collision filet ici, la balle traversait le poteau entre deux snaps
@@ -734,9 +861,11 @@ function guestApplyView() {
   if (renderTick > last.tick + 0.001 && last.state === "play" &&
       !last.ball.frozen && !last.ball.popped && !(last.battle && last.battle.active)) {
     const dt = Math.min(renderTick - last.tick, EXTRAP_MAX);
-    const pb = predictBallMotion(last.ball.x, last.ball.y, last.ball.vx, last.ball.vy, dt);
-    ball.x = pb.x; ball.y = pb.y;
-    ball.angle = last.ball.angle + ((pb.vx + last.ball.vx) * 0.5) * 0.03 * dt;
+    if (!iOwnBall) {
+      const pb = predictBallMotion(last.ball.x, last.ball.y, last.ball.vx, last.ball.vy, dt);
+      ball.x = pb.x; ball.y = pb.y;
+      ball.angle = last.ball.angle + ((pb.vx + last.ball.vx) * 0.5) * 0.03 * dt;
+    }
     activeBlobs.forEach((b, i) => {
       if (i === mySlot) return;
       const b1 = last.blobs[i]; if (!b1) return;
@@ -759,38 +888,35 @@ function guestApplyView() {
   if (s0.state !== s1.state) a = 1; // reset de manche : pas de glissade
 
   const L = (u, v) => u + (v - u) * a;
-  // Passage de filet côté invité :
-  //  - lob / clear (y au NET_X ≤ sommet) → lerp pur (fluide, pas de « handoff »)
-  //  - vraie collision poteau entre 2 snaps → dead-reckoning physique depuis s0
-  //    (pas de freeze puis téléport à a=0.55, qui donnait l'impression d'un
-  //    rebond / passage de responsabilité)
-  const x0 = s0.ball.x, y0 = s0.ball.y, x1 = s1.ball.x, y1 = s1.ball.y;
-  let yAtNet = null;
-  if ((x0 - NET_X) * (x1 - NET_X) < 0 && Math.abs(x1 - x0) > 1e-6) {
-    yAtNet = y0 + ((NET_X - x0) / (x1 - x0)) * (y1 - y0);
-  }
-  const clearsOver = yAtNet !== null && yAtNet <= NET_TOP + 1;
-  const throughPost = yAtNet !== null && yAtNet > NET_TOP + 1;
-  if (throughPost && s0.tick !== s1.tick &&
-      s0.state === "play" && !s0.ball.frozen && !s0.ball.popped) {
-    const dt = Math.max(0, renderTick - s0.tick);
-    const pb = predictBallMotion(x0, y0, s0.ball.vx, s0.ball.vy, dt);
-    // légère correction vers s1 pour rester collé à l'hôte
-    const k = a * 0.4;
-    ball.x = pb.x + (x1 - pb.x) * k;
-    ball.y = pb.y + (y1 - pb.y) * k;
-    ball.angle = L(s0.ball.angle, s1.ball.angle);
-  } else {
-    ball.x = L(x0, x1);
-    ball.y = L(y0, y1);
-    ball.angle = L(s0.ball.angle, s1.ball.angle);
-    // clear : on n'agrafe PAS la balle au poteau (le clamp gauche→droite
-    // faisait exactement le « rebond de handoff » au passage)
-    if (!clearsOver && ball.y > NET_TOP + 2) {
-      const leftC = NET_X - NET_W / 2 - BALL_R;
-      const rightC = NET_X + NET_W / 2 + BALL_R;
-      if (ball.x > leftC && ball.x < rightC) {
-        ball.x = ball.x < NET_X ? leftC : rightC;
+  if (!iOwnBall) {
+    // Passage de filet côté invité :
+    //  - lob / clear → lerp pur
+    //  - vraie collision poteau → dead-reckoning physique depuis s0
+    const x0 = s0.ball.x, y0 = s0.ball.y, x1 = s1.ball.x, y1 = s1.ball.y;
+    let yAtNet = null;
+    if ((x0 - NET_X) * (x1 - NET_X) < 0 && Math.abs(x1 - x0) > 1e-6) {
+      yAtNet = y0 + ((NET_X - x0) / (x1 - x0)) * (y1 - y0);
+    }
+    const clearsOver = yAtNet !== null && yAtNet <= NET_TOP + 1;
+    const throughPost = yAtNet !== null && yAtNet > NET_TOP + 1;
+    if (throughPost && s0.tick !== s1.tick &&
+        s0.state === "play" && !s0.ball.frozen && !s0.ball.popped) {
+      const dt = Math.max(0, renderTick - s0.tick);
+      const pb = predictBallMotion(x0, y0, s0.ball.vx, s0.ball.vy, dt);
+      const k = a * 0.4;
+      ball.x = pb.x + (x1 - pb.x) * k;
+      ball.y = pb.y + (y1 - pb.y) * k;
+      ball.angle = L(s0.ball.angle, s1.ball.angle);
+    } else {
+      ball.x = L(x0, x1);
+      ball.y = L(y0, y1);
+      ball.angle = L(s0.ball.angle, s1.ball.angle);
+      if (!clearsOver && ball.y > NET_TOP + 2) {
+        const leftC = NET_X - NET_W / 2 - BALL_R;
+        const rightC = NET_X + NET_W / 2 + BALL_R;
+        if (ball.x > leftC && ball.x < rightC) {
+          ball.x = ball.x < NET_X ? leftC : rightC;
+        }
       }
     }
   }

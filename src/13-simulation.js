@@ -170,9 +170,12 @@ function tickBomb() {
   }
 }
 
-// stepGame(inL, inR)        → 1v1 / online (chemin d'origine)
-// stepGame(null, null, ins) → 2v2 : `ins` alignées sur activeBlobs
-function stepGame(inL, inR, ins) {
+// stepGame(inL, inR)                    → 1v1 / online
+// stepGame(null, null, ins)             → 2v2
+// stepGame(inL, inR, null, {skipBall})  → online 1v1 : corps seuls (balle chez l'invité)
+function stepGame(inL, inR, ins, opts) {
+  opts = opts || {};
+  const skipBall = !!opts.skipBall;
   tick++;
   stepWeather();
   if (superFlashT > 0) superFlashT--;
@@ -181,6 +184,9 @@ function stepGame(inL, inR, ins) {
     stepBattle(inL, inR);
     return; // le monde est figé pendant le duel (1v1 uniquement)
   }
+  // IMPORTANT : tester l'ÉTAT (pas seulement le compteur). En soft ownership,
+  // skipBall laisse serveCountdown figé côté hôte ; sans le test d'état on
+  // resterait coincé dans cette branche une fois en "play".
   if (state === "serve" && serveCountdown > 0) {
     // pendant le décompte : on peut se déplacer mais pas sauter ni servir
     if (ins) {
@@ -189,13 +195,16 @@ function stepGame(inL, inR, ins) {
       blobL.update({ left: inL.left, right: inL.right, jump: false });
       blobR.update({ left: inR.left, right: inR.right, jump: false });
     }
-    serveCountdown--;
-    ball.y += Math.sin(tick / 18) * 0.3;
+    // skipBall : le propriétaire distant gère décompte + flottement balle
+    if (!skipBall) {
+      serveCountdown--;
+      ball.y += Math.sin(tick / 18) * 0.3;
+    }
   } else if (ins) {
     // 2v2 : pas de Smash Battle (duel à 2), on met à jour les 4 joueurs
     activeBlobs.forEach((b, i) => maybeActivateSuper(b, ins[i]));
     activeBlobs.forEach((b, i) => b.update(ins[i]));
-    updateBall();
+    if (!skipBall) updateBall();
     activeBlobs.forEach(b => tickSuper(b));
   } else {
     // déclenchement des techniques signature avant le mouvement
@@ -204,8 +213,8 @@ function stepGame(inL, inR, ins) {
     blobL.update(inL);
     blobR.update(inR);
     // déclenchement du duel : les deux en l'air au filet, balle proche
-    if (canStartBattle()) startBattle(inL, inR);
-    else updateBall();
+    if (!skipBall && canStartBattle()) startBattle(inL, inR);
+    else if (!skipBall) updateBall();
     tickSuper(blobL);
     tickSuper(blobR);
   }

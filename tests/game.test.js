@@ -255,5 +255,48 @@ test("filet : balle coincée dans le poteau est éjectée (anti-stick)", () => {
   assert.ok(Math.abs(g.ball.vx) >= 2, "vitesse d'éjection minimale");
 });
 
+test("soft ownership : zone invité hors filet (marge)", () => {
+  const g = loadGame();
+  const M = g.consts.GUEST_BALL_MARGIN;
+  assert.ok(M >= 40, "marge assez large pour éviter le poteau");
+  assert.strictEqual(g.ballInGuestOwnZone(g.consts.NET_X + M + 1), true);
+  assert.strictEqual(g.ballInGuestOwnZone(g.consts.NET_X + M), false);
+  assert.strictEqual(g.ballInGuestOwnZone(g.consts.NET_X), false);
+  assert.strictEqual(g.ballInGuestOwnZone(g.consts.NET_X - 40), false);
+});
+
+test("soft ownership : skipBall avance les corps sans bouger la balle", () => {
+  const g = loadGame();
+  g.setVsAI(true); g.setAiLevel(1);
+  g.newGame(9);
+  g.setState("play"); g.setServeCountdown(0);
+  g.ball.frozen = false;
+  g.ball.x = 700; g.ball.y = 120; g.ball.vx = 0; g.ball.vy = 0;
+  const bx = g.ball.x, by = g.ball.y;
+  const x0 = g.blobL.x;
+  const N = { left: false, right: true, jump: false, super: false };
+  g.stepGame(N, N, null, { skipBall: true });
+  assert.strictEqual(g.ball.x, bx, "skipBall ne déplace pas la balle");
+  assert.strictEqual(g.ball.y, by);
+  assert.ok(g.blobL.x !== x0 || g.blobL.vx !== 0, "les corps avancent quand même");
+});
+
+test("soft ownership : pack/applyBallState round-trip", () => {
+  const g = loadGame();
+  g.newGame(2);
+  g.setState("play"); g.setServeCountdown(0);
+  g.ball.frozen = false;
+  g.ball.x = 620; g.ball.y = 150; g.ball.vx = -3; g.ball.vy = 4;
+  g.ball.angle = 1.2; g.ball.touches = [1, 2];
+  const packed = g.packBallState();
+  g.ball.x = 0; g.ball.y = 0; g.ball.vx = 0; g.ball.vy = 0;
+  g.applyBallState(packed);
+  assert.strictEqual(g.ball.x, 620);
+  assert.strictEqual(g.ball.y, 150);
+  assert.strictEqual(g.ball.vx, -3);
+  assert.strictEqual(g.ball.vy, 4);
+  assert.deepStrictEqual(g.ball.touches, [1, 2]);
+});
+
 console.log("\n" + pass + " réussis, " + fail + " échoués");
 process.exit(fail ? 1 : 0);

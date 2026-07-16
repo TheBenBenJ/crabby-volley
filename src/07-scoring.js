@@ -4,6 +4,14 @@
 // ---------- Points / score ----------
 function awardPoint(side, reason) {
   if (state !== "play" && state !== "serve") return;
+  // Invité soft-owner : ne touche pas au score local — l'hôte valide via `pt`.
+  if (netDeferScore) {
+    if (!pendingNetPoint) pendingNetPoint = { side, reason: reason || "", seq: ++netPtSeq };
+    ballScoreLock = true;
+    ball.vx = 0; ball.vy = 0;
+    return;
+  }
+  ballScoreLock = false;
   scores[side]++;
   scorePop[side] = 20;
   shake = 8;
@@ -68,6 +76,8 @@ function startRally() {
   battle.prevJump = [false, false];
   battle.cooldown = 0;
   bombTimer = bombTime; // la mèche ne se consume qu'une fois la balle en jeu
+  pendingNetPoint = null;
+  ballScoreLock = false;
   state = "serve";
   serveCountdown = 69; // 3·2·1 (63, ~0.35s chacun) + "GO !" (6)
 }

@@ -372,6 +372,13 @@ const BOMB_DURATIONS = [
   { secs: 7,  ticks: 420 },
   { secs: 10, ticks: 600 }
 ];
+
+// Soft ownership 1v1 : l'invité différé awardPoint → l'hôte valide (anti-divergence).
+let netDeferScore = false;
+let pendingNetPoint = null;       // { side, reason, seq } | null
+let ballScoreLock = false;        // invité : point armé → physique balle figée
+let netPtSeq = 0;                 // séquence monotone des points différés
+
 function setMode(m) {
   mode = m;
   if (m === "2v2") {

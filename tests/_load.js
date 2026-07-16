@@ -47,7 +47,8 @@ const EPILOGUE = `
   getBombTimer: () => bombTimer, setBombTimer: v => { bombTimer = v; },
   setBombTime: v => { bombTime = v; }, getBombTime: () => bombTime,
   updateBall,
-  consts: { W, H, NET_X, NET_W, NET_TOP, GROUND_Y, BALL_R, MAX_BALL_SPEED }
+  ballInGuestOwnZone, packBallState, applyBallState,
+  consts: { W, H, NET_X, NET_W, NET_TOP, GROUND_Y, BALL_R, MAX_BALL_SPEED, GUEST_BALL_MARGIN }
 };`;
 
 function srcConcat() {

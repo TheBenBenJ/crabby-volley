@@ -255,6 +255,8 @@ function ballBlobCollision(blob) {
 }
 
 function updateBall() {
+  // Invité : point différé déjà armé — on fige la balle jusqu'à validation hôte.
+  if (ballScoreLock) return;
   // balle crevée : elle reste plantée sur le bec de celui qui l'a crevée,
   // puis le point est accordé à l'adversaire après un court instant.
   if (ball.popped) {

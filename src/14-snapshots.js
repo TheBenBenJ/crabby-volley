@@ -4,6 +4,39 @@
 // ---------- Instantanés (préparation du mode en ligne) ----------
 // L'hôte envoie périodiquement getSnapshot() ; l'invité applique les champs
 // discrets + interpole les poses (voir 15-net.js). Voir MULTIJOUEUR.md.
+
+// Soft ownership : la balle est-elle assez profondément dans le camp droit
+// pour que l'invité la simule ? (hôte exclusive près du filet)
+function ballInGuestOwnZone(x) {
+  return x > NET_X + GUEST_BALL_MARGIN;
+}
+
+function packBallState() {
+  return {
+    x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, a: ball.angle,
+    f: ball.frozen ? 1 : 0, p: ball.popped ? 1 : 0, sm: ball.smash | 0,
+    lts: ball.lastTouchSide, ltt: ball.lastTouchTick,
+    t0: ball.touches[0], t1: ball.touches[1],
+    rs: rngSeed,
+    sc: serveCountdown,
+    // point différé renvoyé jusqu'à validation hôte (canal non fiable)
+    pt: pendingNetPoint ? [pendingNetPoint.side, pendingNetPoint.reason, pendingNetPoint.seq | 0] : null
+  };
+}
+
+function applyBallState(b) {
+  if (!b) return;
+  ball.x = b.x; ball.y = b.y; ball.vx = b.vx; ball.vy = b.vy;
+  ball.angle = b.a !== undefined ? b.a : ball.angle;
+  ball.frozen = !!b.f; ball.popped = !!b.p;
+  ball.smash = b.sm || 0;
+  ball.lastTouchSide = b.lts;
+  ball.lastTouchTick = b.ltt !== undefined ? b.ltt : -999;
+  ball.touches = [b.t0 | 0, b.t1 | 0];
+  if (b.rs !== undefined) rngSeed = b.rs;
+  if (b.sc !== undefined && state === "serve") serveCountdown = b.sc;
+}
+
 function getSnapshot() {
   return {
     state, servingSide, pointTimer, pointMsg, tick, serveCountdown,
