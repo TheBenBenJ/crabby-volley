@@ -930,7 +930,7 @@ function netScreenBase(title, kicker, subtitle) {
   if (subtitle) uiLabel(subtitle, mx, 174, 12, UI.muted, 1);
   uiRule(mx, W - mx, H - 42, UI.faint);
   uiLabel("Échap ← Retour", mx, H - 26, 10, UI.muted, 1.5);
-  uiLabel("Crabby Volley · En ligne", W - mx, H - 26, 10, UI.muted, 1.5, "right");
+  uiLabel((darkMode ? "Pussy Volley" : "Crabby Volley") + " · En ligne", W - mx, H - 26, 10, UI.muted, 1.5, "right");
 }
 
 function drawOnlineMenu() {

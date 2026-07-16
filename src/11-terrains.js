@@ -1081,7 +1081,7 @@ function overlay(title, subtitle) {
   else ctx.rect(px, py, pw, ph);
   ctx.fill();
   ctx.strokeStyle = "rgba(255,255,255,0.12)"; ctx.lineWidth = 1; ctx.stroke();
-  uiLabel("Crabby Volley", W / 2, py + 28, 10, uiAccent(), 2, "center");
+  uiLabel(darkMode ? "Pussy Volley" : "Crabby Volley", W / 2, py + 28, 10, uiAccent(), 2, "center");
   ctx.textAlign = "center";
   ctx.fillStyle = UI.ink;
   ctx.font = "800 36px " + UI.sans;

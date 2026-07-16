@@ -267,11 +267,11 @@ function menuScreenBase(o) {
   if (darkMode) drawHellVignette();
 
   const mx = UI.mx, acc = uiAccent();
-  uiLabel(o.kicker || (darkMode ? "Mode Belzébuth" : "Crabby Volley"), mx, 82, 12, acc, 3);
+  uiLabel(o.kicker || (darkMode ? "VOLLEY DES GÉNITAUX" : "Crabby Volley"), mx, 82, 12, acc, 3);
   ctx.textAlign = "left";
   ctx.fillStyle = UI.ink;
   ctx.font = "800 " + (o.titleSize || 42) + "px " + UI.sans;
-  ctx.fillText((darkMode ? "😈 " : "") + o.title, mx, 130);
+  ctx.fillText(o.title, mx, 130);
   uiRule(mx, W - mx, 150, UI.faint);
   if (o.subtitle) uiLabel(o.subtitle, mx, 174, 12, UI.muted, 1);
 
@@ -279,7 +279,7 @@ function menuScreenBase(o) {
   // (les écrans qui ont plus d'infos les posent PLUS HAUT, cf. drawMenu.)
   uiRule(mx, W - mx, H - 42, UI.faint);
   if (!o.noEscHint) uiLabel("Échap ← Retour", mx, H - 26, 10, UI.muted, 1.5);
-  uiLabel("Crabby Volley", W - mx, H - 26, 10, UI.muted, 1.5, "right");
+  uiLabel(darkMode ? "Pussy Volley" : "Crabby Volley", W - mx, H - 26, 10, UI.muted, 1.5, "right");
 }
 
 // petite ambiance "Belzébuth" superposée aux écrans de menu concernés :
@@ -356,8 +356,8 @@ function drawOptionList(items, y0, spacing, font) {
 
 function drawMenu() {
   const nP = visibleAnimalIdx().length, nT = visibleTerrainIdx().length;
-  menuScreenBase({ title: "CRABBY VOLLEY",
-                   kicker: "Volley des animaux · " + nP + " persos · " + nT + " terrains",
+  menuScreenBase({ title: darkMode ? "PUSSY VOLLEY" : "CRABBY VOLLEY",
+                   kicker: darkMode ? "VOLLEY DES GÉNITAUX" : "Volley des animaux · " + nP + " persos · " + nT + " terrains",
                    titleSize: 58, noEscHint: true });
 
   // écran d'accueil : 3 grandes catégories + les règles, chacune débouche
@@ -426,7 +426,7 @@ function drawRules() {
   uiLabel(darkMode ? "Belzébuth · Manuel" : "Manuel du joueur", UI.mx, 30, 10, uiAccent(), 2);
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
   ctx.font = "800 24px " + UI.sans;
-  ctx.fillText((darkMode ? "😈 " : "") + (darkMode ? "Règles des Enfers" : "Règles du jeu"), UI.mx, 54);
+  ctx.fillText(darkMode ? "Règles des Enfers" : "Règles du jeu", UI.mx, 54);
   uiRule(UI.mx, W - UI.mx, 66, UI.faint);
 
   // colonne gauche : règles générales (bornée pour ne jamais mordre sur la droite)
