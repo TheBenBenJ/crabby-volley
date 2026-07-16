@@ -256,7 +256,7 @@ function drawCrabBanner() {
   ctx.save();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.font = "bold 11px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 11px 'Inter', system-ui, sans-serif";
   const wText = ctx.measureText(msg).width;
   const padX = 8, padY = 5, wBox = wText + padX * 2, hBox = 19;
 

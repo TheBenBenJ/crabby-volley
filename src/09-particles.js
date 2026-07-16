@@ -195,7 +195,7 @@ function drawBallMarker() {
   ctx.fillRect(mx - 24, 44, 48, 20);
   ctx.fillStyle = "#fff";
   ctx.textAlign = "center";
-  ctx.font = "bold 13px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 13px 'Inter', system-ui, sans-serif";
   ctx.fillText(alt + " m", mx, 58);
 }
 

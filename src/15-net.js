@@ -716,12 +716,12 @@ function drawNetHUD() {
     ctx.fillStyle = col;
     ctx.beginPath(); ctx.arc(W - 70, 20, 5, 0, Math.PI * 2); ctx.fill();
     ctx.textAlign = "right";
-    ctx.font = "bold 14px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 14px 'Inter', system-ui, sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.9)";
     ctx.fillText(p + " ms", W - 14, 25);
   }
   ctx.textAlign = "right";
-  ctx.font = "13px 'Trebuchet MS', sans-serif";
+  ctx.font = "13px 'Inter', system-ui, sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.9)";
   ctx.fillText(netRole === "host" ? "Tu joues à gauche" : "Tu joues à droite", W - 14, 44);
 
@@ -740,7 +740,7 @@ function netScreenBase(title) {
   ctx.fillRect(0, 0, W, H);
   ctx.textAlign = "center";
   ctx.fillStyle = "#ffcc00";
-  ctx.font = "bold 40px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 40px 'Inter', system-ui, sans-serif";
   ctx.fillText(title, W / 2, 100);
 }
 
@@ -754,13 +754,13 @@ function drawOnlineMenu() {
     ["5  —  💣 Créer une partie Bombe 2v2", "#ff7043"],
     ["2  —  Rejoindre avec un code", "#fff"]
   ];
-  ctx.font = "bold 22px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 22px 'Inter', system-ui, sans-serif";
   opts.forEach(([txt, col], i) => {
     const sel = padConnected && navIdx === i;
     ctx.fillStyle = sel ? "#ffcc00" : col;
     ctx.fillText((sel ? "▶  " : "") + txt + (sel ? "  ◀" : ""), W / 2, 178 + i * 40);
   });
-  ctx.font = "16px 'Trebuchet MS', sans-serif";
+  ctx.font = "16px 'Inter', system-ui, sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.75)";
   ctx.fillText("L'hôte crée la partie et partage son code. 2v2 : places libres tenues par l'IA.", W / 2, 400);
   ctx.fillStyle = "rgba(255,255,255,0.6)";
@@ -770,13 +770,13 @@ function drawOnlineMenu() {
 function drawHostWait() {
   netScreenBase("Partie en ligne — tu joues à gauche");
   ctx.fillStyle = "#fff";
-  ctx.font = "20px 'Trebuchet MS', sans-serif";
+  ctx.font = "20px 'Inter', system-ui, sans-serif";
   ctx.fillText("Code de la partie :", W / 2, 180);
   ctx.fillStyle = "#ffcc00";
-  ctx.font = "bold 62px 'Courier New', monospace";
+  ctx.font = "bold 62px 'Space Mono', ui-monospace, monospace";
   ctx.fillText(peerReady ? netCode.split("").join(" ") : "· · · · ·", W / 2, 255);
   ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = "19px 'Trebuchet MS', sans-serif";
+  ctx.font = "19px 'Inter', system-ui, sans-serif";
   const dots = ".".repeat(1 + Math.floor(performance.now() / 400) % 3);
   ctx.fillText(
     netConnected ? "Joueur connecté ! Il choisit son animal" + dots
@@ -784,7 +784,7 @@ function drawHostWait() {
     :              "Création de la partie" + dots,
     W / 2, 320);
   ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.font = "17px 'Trebuchet MS', sans-serif";
+  ctx.font = "17px 'Inter', system-ui, sans-serif";
   ctx.fillText("En ligne : Q/D ou ←/→ pour bouger — Z, ↑ ou Espace pour sauter", W / 2, 390);
   ctx.fillText("Échap : annuler", W / 2, 430);
 }
@@ -792,10 +792,10 @@ function drawHostWait() {
 function drawHostLobby() {
   netScreenBase("Partie 2v2 en ligne");
   ctx.fillStyle = "#fff";
-  ctx.font = "18px 'Trebuchet MS', sans-serif";
+  ctx.font = "18px 'Inter', system-ui, sans-serif";
   ctx.fillText("Code de la partie :", W / 2, 140);
   ctx.fillStyle = "#ffcc00";
-  ctx.font = "bold 52px 'Courier New', monospace";
+  ctx.font = "bold 52px 'Space Mono', ui-monospace, monospace";
   ctx.fillText(peerReady ? netCode.split("").join(" ") : "· · · · ·", W / 2, 195);
 
   // 4 cartes de slots : 0 hôte + 1 coéquipier (gauche) ; 2 + 3 (droite)
@@ -813,35 +813,35 @@ function drawHostLobby() {
     ctx.fillRect(x, y, cw, ch);
     ctx.strokeStyle = cols[s]; ctx.lineWidth = 3; ctx.strokeRect(x, y, cw, ch);
     ctx.fillStyle = cols[s];
-    ctx.font = "bold 18px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 18px 'Inter', system-ui, sans-serif";
     ctx.fillText(labels[s], x + cw / 2, y + 28);
     ctx.fillStyle = human ? "#fff" : "rgba(255,255,255,0.6)";
-    ctx.font = "16px 'Trebuchet MS', sans-serif";
+    ctx.font = "16px 'Inter', system-ui, sans-serif";
     let status = s === 0 ? "prêt" : g ? (g.ready ? "connecté — prêt" : "connecté…") : "IA (place libre)";
     ctx.fillText(status, x + cw / 2, y + 54);
     if (s !== 0) {
       ctx.fillStyle = "rgba(255,255,255,0.45)";
-      ctx.font = "13px 'Trebuchet MS', sans-serif";
+      ctx.font = "13px 'Inter', system-ui, sans-serif";
       ctx.fillText(i < 2 ? "équipe gauche" : "équipe droite", x + cw / 2, y + 76);
     }
   });
 
   ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.font = "19px 'Trebuchet MS', sans-serif";
+  ctx.font = "19px 'Inter', system-ui, sans-serif";
   const n = guests.length;
   const dots = ".".repeat(1 + Math.floor(performance.now() / 400) % 3);
   ctx.fillText(n === 0
     ? "En attente de joueurs — envoie le code ! (jusqu'à 3)" + dots
     : n + (n > 1 ? " joueurs connectés" : " joueur connecté") + "  •  Entrée : lancer la partie", W / 2, 360);
   ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.font = "16px 'Trebuchet MS', sans-serif";
+  ctx.font = "16px 'Inter', system-ui, sans-serif";
   ctx.fillText("Les places libres seront tenues par l'IA  •  Échap : annuler", W / 2, 400);
 }
 
 function drawJoinEntry() {
   netScreenBase("Rejoindre une partie");
   ctx.fillStyle = "#fff";
-  ctx.font = "20px 'Trebuchet MS', sans-serif";
+  ctx.font = "20px 'Inter', system-ui, sans-serif";
   ctx.fillText("Saisis le code donné par l'hôte :", W / 2, 180);
   const cw = 54, gap = 12, x0 = W / 2 - (CODE_LEN * cw + (CODE_LEN - 1) * gap) / 2;
   for (let i = 0; i < CODE_LEN; i++) {
@@ -853,38 +853,38 @@ function drawJoinEntry() {
     ctx.strokeRect(x, 210, cw, 64);
     if (joinCode[i]) {
       ctx.fillStyle = "#ffcc00";
-      ctx.font = "bold 40px 'Courier New', monospace";
+      ctx.font = "bold 40px 'Space Mono', ui-monospace, monospace";
       ctx.fillText(joinCode[i], x + cw / 2, 256);
     }
   }
   ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = "18px 'Trebuchet MS', sans-serif";
+  ctx.font = "18px 'Inter', system-ui, sans-serif";
   ctx.fillText(joinCode.length === CODE_LEN
     ? "Entrée : se connecter"
     : "Lettres et chiffres — Retour arrière pour corriger", W / 2, 330);
   ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.font = "17px 'Trebuchet MS', sans-serif";
+  ctx.font = "17px 'Inter', system-ui, sans-serif";
   ctx.fillText("Échap : retour", W / 2, 430);
 }
 
 function drawNetScreen(title, sub) {
   netScreenBase(title);
   ctx.fillStyle = "#fff";
-  ctx.font = "22px 'Trebuchet MS', sans-serif";
+  ctx.font = "22px 'Inter', system-ui, sans-serif";
   const dots = ".".repeat(1 + Math.floor(performance.now() / 400) % 3);
   ctx.fillText(sub + dots, W / 2, 240);
   ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.font = "17px 'Trebuchet MS', sans-serif";
+  ctx.font = "17px 'Inter', system-ui, sans-serif";
   ctx.fillText("Échap : annuler", W / 2, 430);
 }
 
 function drawNetError() {
   netScreenBase("Oups !");
   ctx.fillStyle = "#ff8a8a";
-  ctx.font = "bold 22px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 22px 'Inter', system-ui, sans-serif";
   ctx.fillText(netErrorMsg, W / 2, 230);
   ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "18px 'Trebuchet MS', sans-serif";
+  ctx.font = "18px 'Inter', system-ui, sans-serif";
   ctx.fillText("Entrée ou Échap : retour au menu", W / 2, 320);
 }
 

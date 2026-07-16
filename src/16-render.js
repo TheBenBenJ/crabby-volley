@@ -43,10 +43,10 @@ function drawBattleHUD() {
   ctx.strokeRect(W / 2 - 330, 118, 660, 140);
 
   ctx.fillStyle = blink ? "#ffcc00" : "#ff9800";
-  ctx.font = "bold 42px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 42px 'Inter', system-ui, sans-serif";
   ctx.fillText("⚡ SMASH BATTLE ! ⚡", W / 2, 162);
   ctx.fillStyle = "rgba(255,255,255,0.92)";
-  ctx.font = "bold 17px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 17px 'Inter', system-ui, sans-serif";
   ctx.fillText("Martelez SAUT le plus vite possible !", W / 2, 188);
 
   // jauges de martelage, dos à dos depuis le centre
@@ -55,7 +55,7 @@ function drawBattleHUD() {
     const w = 250 * (battle.count[s] / maxC);
     ctx.fillStyle = sideColor(s);
     ctx.fillRect(s === 0 ? W / 2 - 20 - w : W / 2 + 20, 202, w, 18);
-    ctx.font = "bold 16px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 16px 'Inter', system-ui, sans-serif";
     ctx.fillText(battle.count[s], s === 0 ? W / 2 - 295 : W / 2 + 295, 216);
   }
   ctx.fillStyle = "rgba(255,255,255,0.6)";
@@ -153,7 +153,7 @@ function render() {
   if (state === "point") {
     ctx.textAlign = "center";
     ctx.fillStyle = "rgba(20,20,40,0.75)";
-    ctx.font = "bold 30px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 30px 'Inter', system-ui, sans-serif";
     ctx.fillRect(W / 2 - 260, H / 2 - 45, 520, 70);
     ctx.fillStyle = "#ffcc00";
     ctx.fillText(pointMsg, W / 2, H / 2);
@@ -162,7 +162,7 @@ function render() {
       const mySide = netRole === "host" ? 0 : (mode === "2v2" ? (mySlot < 2 ? 0 : 1) : 1);
       const win = (scores[0] > scores[1] ? 0 : 1) === mySide;
       overlay(pointMsg, win ? "Victoire !" : "Défaite…");
-      ctx.font = "18px 'Trebuchet MS', sans-serif";
+      ctx.font = "18px 'Inter', system-ui, sans-serif";
       ctx.fillStyle = "rgba(255,255,255,0.85)";
       let line;
       if (mode === "2v2") {

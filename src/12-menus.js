@@ -212,33 +212,69 @@ function newGame(seed) {
   startRally();
 }
 
-// ---------- Aides d'affichage communes aux écrans de menu ----------
-// Fond animé assombri + titre, pour un habillage cohérent entre l'accueil et
-// les sous-écrans (une variante locale : netScreenBase existe côté 15-net.js,
-// mais un module ne doit pas dépendre d'un module chargé après lui).
-function menuScreenBase(title, subtitle, titleSize) {
+// ---------- Design-system de l'interface (registre "suisse") ----------
+// Mise en page éditoriale calée à gauche : kicker mono en capitales, gros titre
+// grotesque, filet, listes à index mono. Palette restreinte + un accent.
+const UI = {
+  mx: 66,                              // marge gauche (colonne d'accroche)
+  ink: "#f4f5f7",                      // encre (quasi-blanc) sur le voile sombre
+  muted: "rgba(244,245,247,0.52)",
+  faint: "rgba(244,245,247,0.15)",
+  accent: "#ff3b3b",                   // accent unique
+  gold: "#ffcc00",
+  mono: "'Space Mono', ui-monospace, monospace",
+  sans: "'Inter', system-ui, sans-serif"
+};
+function uiAccent() { return darkMode ? "#ff2e2e" : UI.accent; }
+
+// libellé mono en capitales, espacé (kicker / folio / label technique)
+function uiLabel(txt, x, y, size, col, spacing, align) {
+  ctx.save();
+  ctx.textAlign = align || "left";
+  ctx.fillStyle = col || UI.muted;
+  ctx.font = "700 " + (size || 12) + "px " + UI.mono;
+  try { ctx.letterSpacing = (spacing == null ? 2 : spacing) + "px"; } catch (e) {}
+  ctx.fillText(txt.toUpperCase(), x, y);
+  ctx.restore();
+}
+function uiRule(x1, x2, y, col) {
+  ctx.strokeStyle = col || UI.faint;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x1, y + 0.5); ctx.lineTo(x2, y + 0.5); ctx.stroke();
+}
+
+// Habillage commun d'un écran de menu : monde animé en fond + voile éditorial,
+// kicker + titre flush-left + filet + sous-titre + folio de pied de page.
+// Signature objet : { title, subtitle, kicker, titleSize }.
+function menuScreenBase(o) {
+  if (typeof o === "string") o = { title: o, subtitle: arguments[1], titleSize: arguments[2] };
   drawBackground();
   drawNet();
   blobL.draw();
   blobR.draw();
-  ctx.fillStyle = darkMode ? "rgba(35,0,0,0.72)" : "rgba(20,20,40,0.68)";
+  // voile : dégradé sombre plus dense à gauche (colonne de texte)
+  const g = ctx.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0, darkMode ? "rgba(22,0,0,0.92)" : "rgba(10,11,16,0.90)");
+  g.addColorStop(0.6, darkMode ? "rgba(22,0,0,0.74)" : "rgba(10,11,16,0.70)");
+  g.addColorStop(1, darkMode ? "rgba(22,0,0,0.5)" : "rgba(10,11,16,0.46)");
+  ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
   if (darkMode) drawHellVignette();
 
-  ctx.textAlign = "center";
-  ctx.fillStyle = darkMode ? "#ff2e2e" : "#ffcc00";
-  ctx.font = "bold " + (titleSize || 46) + "px 'Trebuchet MS', sans-serif";
-  ctx.fillText((darkMode ? "😈 " : "") + title, W / 2, 92);
-  if (subtitle) {
-    ctx.fillStyle = "rgba(255,255,255,0.75)";
-    ctx.font = "17px 'Trebuchet MS', sans-serif";
-    ctx.fillText(subtitle, W / 2, 122);
-  }
-  if (darkMode) {
-    ctx.fillStyle = "rgba(255,110,80,0.85)";
-    ctx.font = "bold 13px 'Trebuchet MS', sans-serif";
-    ctx.fillText("— M O D E   B E L Z É B U T H —", W / 2, (titleSize || 46) > 46 ? 118 : 108);
-  }
+  const mx = UI.mx, acc = uiAccent();
+  uiLabel(o.kicker || (darkMode ? "Mode Belzébuth" : "Crabby Volley"), mx, 82, 12, acc, 3);
+  ctx.textAlign = "left";
+  ctx.fillStyle = UI.ink;
+  ctx.font = "800 " + (o.titleSize || 42) + "px " + UI.sans;
+  ctx.fillText((darkMode ? "😈 " : "") + o.title, mx, 130);
+  uiRule(mx, W - mx, 150, UI.faint);
+  if (o.subtitle) uiLabel(o.subtitle, mx, 174, 12, UI.muted, 1);
+
+  // folio de pied de page : court rappel à gauche, signature à droite.
+  // (les écrans qui ont plus d'infos les posent PLUS HAUT, cf. drawMenu.)
+  uiRule(mx, W - mx, H - 42, UI.faint);
+  if (!o.noEscHint) uiLabel("Échap ← Retour", mx, H - 26, 10, UI.muted, 1.5);
+  uiLabel("Crabby Volley", W - mx, H - 26, 10, UI.muted, 1.5, "right");
 }
 
 // petite ambiance "Belzébuth" superposée aux écrans de menu concernés :
@@ -262,21 +298,35 @@ function drawHellVignette() {
   ctx.restore();
 }
 
-// liste verticale d'options, navigable au clavier comme à la manette
+// liste verticale d'options, calée à gauche : index mono + libellé grotesque.
+// L'élément surligné (manette) reçoit une barre d'accent et passe en gras.
+// Les chaînes gardent le format "N  —  Libellé" (l'index est extrait/mis en mono).
 function drawOptionList(items, y0, spacing, font) {
-  ctx.textAlign = "center";
-  ctx.font = font || "bold 24px 'Trebuchet MS', sans-serif";
+  const mx = UI.mx;
+  ctx.textAlign = "left";
   items.forEach(([txt, col], i) => {
+    const y = y0 + i * spacing;
     const sel = padConnected && navIdx === i;
-    ctx.fillStyle = sel ? "#ffcc00" : col;
-    ctx.fillText((sel ? "▶  " : "") + txt + (sel ? "  ◀" : ""), W / 2, y0 + i * spacing);
+    const parts = txt.split("—");
+    const idx = parts[0].trim();
+    const label = parts.length > 1 ? parts.slice(1).join("—").trim() : txt;
+    if (sel) { ctx.fillStyle = uiAccent(); ctx.fillRect(mx - 20, y - 16, 6, 22); }
+    // index en mono
+    ctx.textAlign = "left";
+    ctx.fillStyle = sel ? uiAccent() : UI.muted;
+    ctx.font = "700 16px " + UI.mono;
+    ctx.fillText(idx, mx, y);
+    // libellé grotesque ; on garde une teinte pour les items « spéciaux »
+    const special = col && col !== "#fff";
+    ctx.fillStyle = sel ? UI.ink : (special ? col : UI.ink);
+    ctx.font = (sel ? "700 " : "500 ") + "22px " + UI.sans;
+    ctx.fillText(label, mx + 42, y);
   });
 }
 
 function drawMenu() {
-  menuScreenBase("VOLLEY DES ANIMAUX", null, 54);
-  ctx.fillStyle = "#ffcc00";
-  ctx.beginPath(); ctx.arc(W / 2, 125, 12, 0, Math.PI * 2); ctx.fill();
+  menuScreenBase({ title: "CRABBY VOLLEY", kicker: "Volley des animaux · 6 persos · 3 terrains",
+                   titleSize: 58, noEscHint: true });
 
   // écran d'accueil : 3 grandes catégories + les règles, chacune débouche
   // ensuite sur ses propres sous-choix (difficulté, mode de jeu…)
@@ -284,40 +334,33 @@ function drawMenu() {
     ["1  —  Solo contre l'IA", "#fff"],
     ["2  —  Multijoueur local (même écran)", "#fff"],
     ["3  —  Jouer en ligne (avec un ami)", "#7ed957"],
-    ["R  —  Règles du jeu & animaux", "#ffcc00"]
+    ["R  —  Règles du jeu & animaux", UI.gold]
   ];
-  drawOptionList(items, 210, 42);
+  drawOptionList(items, 226, 44);
 
-  ctx.font = "17px 'Trebuchet MS', sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.fillText("Gauche : Q/D + Z/Espace, S = SUPER   •   Droite : ← → + ↑, ↓ = SUPER", W / 2, 412);
-  ctx.fillText("Premier à " + WIN_SCORE + " (2 pts d'écart) — " + MAX_TOUCHES + " touches max   •   P : pause   •   M : son   •   N : musique", W / 2, 438);
-  if (padConnected) {
-    ctx.fillStyle = "#7ed957";
-    ctx.font = "bold 16px 'Trebuchet MS', sans-serif";
-    ctx.fillText("🎮 Manette détectée — croix/stick pour choisir, A pour valider, B pour revenir", W / 2, 468);
-  }
+  // bloc d'infos technique (au-dessus du folio pour ne pas se chevaucher)
+  uiLabel("Gauche  Q/D + Z/Espace · S super        Droite  ← → + ↑ · ↓ super", UI.mx, H - 58, 10, UI.muted, 1);
+  uiLabel(padConnected ? "🎮 Manette — stick/croix choisir · A valider · B retour"
+                       : "Premier à " + WIN_SCORE + " · 2 pts d'écart · " + MAX_TOUCHES + " touches max · P M N",
+          UI.mx, H - 26, 10, padConnected ? "#7ed957" : UI.muted, 1);
 }
 
 function drawAiDifficulty() {
-  menuScreenBase("Solo contre l'IA", "Choisis la difficulté");
+  menuScreenBase({ title: "Solo contre l'IA", kicker: "Étape 1/3 · Difficulté", subtitle: "Choisis la difficulté de l'adversaire" });
   const items = [
     ["1  —  Facile", "#7ed957"],
     ["2  —  Normale", "#ffd93d"],
     ["3  —  Difficile", "#ff6b6b"],
     ["4  —  Impitoyable  ☠", "#c48cff"]
   ];
-  drawOptionList(items, 200, 46);
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "17px 'Trebuchet MS', sans-serif";
-  ctx.fillText("Échap : retour", W / 2, 430);
+  drawOptionList(items, 238, 50);
 }
 
 function drawGameModeSelect() {
   const subtitle = pendingMode.vsAI
     ? "Solo — " + AI_LEVELS[pendingMode.aiLevel].name + "  —  choisis le mode de jeu"
     : "Multijoueur local  —  choisis le mode de jeu";
-  menuScreenBase("Mode de jeu", subtitle);
+  menuScreenBase({ title: "Mode de jeu", kicker: "Étape 2/3 · Format", subtitle: subtitle });
 
   const items = pendingMode.vsAI ? [
     ["1  —  1v1 classique", "#fff"],
@@ -328,24 +371,18 @@ function drawGameModeSelect() {
     ["1  —  1v1 classique", "#fff"],
     ["2  —  💣 Bombe 1v1", "#ff7043"]
   ];
-  drawOptionList(items, 205, 46);
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "17px 'Trebuchet MS', sans-serif";
-  ctx.fillText("Échap : retour", W / 2, 432);
+  drawOptionList(items, 236, 48);
 }
 
 function drawBombDuration() {
-  menuScreenBase("💣 Mode Bombe", "Combien de temps avant l'explosion ?");
+  menuScreenBase({ title: "Mode Bombe", kicker: "💣 Patate chaude · Durée de mèche",
+                   subtitle: "Renvoie la bombe avant la fin de la mèche" });
   const items = [
-    ["1  —  5 secondes   (nerveux)", "#ff6b6b"],
-    ["2  —  7 secondes   (équilibré)", "#ffd93d"],
-    ["3  —  10 secondes   (posé)", "#7ed957"]
+    ["1  —  5 secondes   ·   nerveux", "#ff6b6b"],
+    ["2  —  7 secondes   ·   équilibré", "#ffd93d"],
+    ["3  —  10 secondes   ·   posé", "#7ed957"]
   ];
-  drawOptionList(items, 215, 52);
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "17px 'Trebuchet MS', sans-serif";
-  ctx.fillText("La balle est une bombe : renvoie-la avant la fin de la mèche !", W / 2, 400);
-  ctx.fillText("Échap : retour", W / 2, 430);
+  drawOptionList(items, 240, 52);
 }
 
 function drawRules() {
@@ -355,7 +392,7 @@ function drawRules() {
   if (darkMode) drawHellVignette();
   ctx.textAlign = "center";
   ctx.fillStyle = darkMode ? "#ff2e2e" : "#ffcc00";
-  ctx.font = "bold 30px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 30px 'Inter', system-ui, sans-serif";
   ctx.fillText((darkMode ? "😈 " : "") + (darkMode ? "Règles des Enfers" : "Règles du jeu"), W / 2, 40);
 
   // colonne gauche : règles générales
@@ -363,8 +400,8 @@ function drawRules() {
   const hCol = darkMode ? "#ff6a4d" : "#7ed957";
   ctx.textAlign = "left";
   let y = 78;
-  const h = (txt, c) => { ctx.fillStyle = c || hCol; ctx.font = "bold 17px 'Trebuchet MS', sans-serif"; ctx.fillText(txt, lx, y); y += 22; };
-  const p = (txt) => { ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.font = "14px 'Trebuchet MS', sans-serif"; ctx.fillText(txt, lx, y); y += 19; };
+  const h = (txt, c) => { ctx.fillStyle = c || hCol; ctx.font = "bold 17px 'Inter', system-ui, sans-serif"; ctx.fillText(txt, lx, y); y += 22; };
+  const p = (txt) => { ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.font = "14px 'Inter', system-ui, sans-serif"; ctx.fillText(txt, lx, y); y += 19; };
 
   h("But du jeu");
   p("Faire tomber la balle dans le camp adverse.");
@@ -391,9 +428,9 @@ function drawRules() {
   const rx = W / 2 + 20;
   ctx.textAlign = "left";
   ctx.fillStyle = hCol;
-  ctx.font = "bold 17px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 17px 'Inter', system-ui, sans-serif";
   ctx.fillText(darkMode ? "Les damnés" : "Les animaux", rx, 78);
-  ctx.font = "11px 'Trebuchet MS', sans-serif";
+  ctx.font = "11px 'Inter', system-ui, sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.6)";
   ctx.fillText("V=Vitesse  D=Détente  P=Puissance  C=Contrôle", rx, 96);
 
@@ -417,13 +454,13 @@ function drawRules() {
 
     ctx.textAlign = "left";
     ctx.fillStyle = "#fff";
-    ctx.font = "bold 15px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 15px 'Inter', system-ui, sans-serif";
     ctx.fillText(a.name, ax + 62, ay + 22);
 
     // mini-jauges
     const st = a.stats;
     const pairs = [["V", st.vitesse], ["D", st.detente], ["P", st.puissance], ["C", st.controle]];
-    ctx.font = "11px 'Trebuchet MS', sans-serif";
+    ctx.font = "11px 'Inter', system-ui, sans-serif";
     pairs.forEach((pr, k) => {
       const gy = ay + 38 + k * 15;
       ctx.fillStyle = "rgba(255,255,255,0.7)";
@@ -436,13 +473,13 @@ function drawRules() {
 
     // trait
     ctx.fillStyle = "rgba(255,204,0,0.9)";
-    ctx.font = "11px 'Trebuchet MS', sans-serif";
+    ctx.font = "11px 'Inter', system-ui, sans-serif";
     wrapText2(a.trait, ax, ay + (compact ? 106 : 116), cellW - 4, 13);
   }
 
   ctx.textAlign = "center";
   ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "16px 'Trebuchet MS', sans-serif";
+  ctx.font = "16px 'Inter', system-ui, sans-serif";
   ctx.fillText("Échap : retour au menu", W / 2, H - 12);
 }
 
@@ -461,7 +498,7 @@ function wrapText2(text, x, y, maxW, lh) {
 
 function drawStatGauge(x, y, label, val) {
   ctx.textAlign = "left";
-  ctx.font = "11px 'Trebuchet MS', sans-serif";
+  ctx.font = "11px 'Inter', system-ui, sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   ctx.fillText(label, x, y - 3);
   for (let k = 0; k < 5; k++) {
@@ -483,11 +520,11 @@ function drawSelectAnimal() {
   const pdark  = darkMode ? "#7a1408" : "#d99e18";
   ctx.textAlign = "center";
   ctx.fillStyle = darkMode ? "#ff2e2e" : pcolor;
-  ctx.font = "bold 30px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 30px 'Inter', system-ui, sans-serif";
   ctx.fillText((darkMode ? "😈 " : "") + "Choisis ton animal — Joueur " + sideName(selPlayer), W / 2, 52);
   if (darkMode) {
     ctx.fillStyle = "rgba(255,110,80,0.85)";
-    ctx.font = "bold 13px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 13px 'Inter', system-ui, sans-serif";
     ctx.fillText("— M O D E   B E L Z É B U T H —", W / 2, 70);
   }
 
@@ -512,7 +549,7 @@ function drawSelectAnimal() {
     ctx.textAlign = "center";
     ctx.fillStyle = "#fff";
     // police du nom adaptée au nombre de cartes (plus serré à 5-6 animaux)
-    ctx.font = "bold " + (vis.length >= 6 ? 14 : vis.length === 5 ? 16 : 20) + "px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold " + (vis.length >= 6 ? 14 : vis.length === 5 ? 16 : 20) + "px 'Inter', system-ui, sans-serif";
     ctx.fillText((slot + 1) + " — " + a.name, cx, 205);
 
     // jauges de stats
@@ -524,21 +561,21 @@ function drawSelectAnimal() {
 
     // trait spécial (encadré, sur plusieurs lignes)
     ctx.textAlign = "center";
-    ctx.font = "12px 'Trebuchet MS', sans-serif";
+    ctx.font = "12px 'Inter', system-ui, sans-serif";
     ctx.fillStyle = "rgba(255,204,0,0.92)";
     wrapText(a.trait, cx, 322, cw - 30, 14);
 
     // technique SUPER
     ctx.fillStyle = "#ffd93d";
-    ctx.font = "bold 13px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 13px 'Inter', system-ui, sans-serif";
     ctx.fillText("★ " + a.superName, cx, 372);
     ctx.fillStyle = "rgba(255,255,255,0.8)";
-    ctx.font = "11px 'Trebuchet MS', sans-serif";
+    ctx.font = "11px 'Inter', system-ui, sans-serif";
     wrapText(a.superDesc, cx, 388, cw - 26, 13);
   }
 
   ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "16px 'Trebuchet MS', sans-serif";
+  ctx.font = "16px 'Inter', system-ui, sans-serif";
   ctx.textAlign = "center";
   ctx.fillText("Technique : 3 points d'affilée chargent le SUPER (S / ↓)", W / 2, 452);
   ctx.fillText("Appuie sur 1 – " + vis.length + "      •      Échap : retour", W / 2, 474);
@@ -562,7 +599,7 @@ function drawSelectTerrain() {
   ctx.fillRect(0, 0, W, H);
   ctx.textAlign = "center";
   ctx.fillStyle = darkMode ? "#ff3b3b" : "#ffcc00";
-  ctx.font = "bold 34px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 34px 'Inter', system-ui, sans-serif";
   ctx.fillText(darkMode ? "Choisis ton bourbier" : "Choisis le terrain", W / 2, 75);
 
   const visT = visibleTerrainIdx();
@@ -593,12 +630,12 @@ function drawSelectTerrain() {
     ctx.strokeRect(px, py, pw, ph);
 
     ctx.fillStyle = "#fff";
-    ctx.font = "bold " + (n > 3 ? 16 : 20) + "px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold " + (n > 3 ? 16 : 20) + "px 'Inter', system-ui, sans-serif";
     ctx.fillText((slot + 1) + "  —  " + TERRAINS[i].name, px + pw / 2, py + ph + 35);
   }
 
   ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "18px 'Trebuchet MS', sans-serif";
+  ctx.font = "18px 'Inter', system-ui, sans-serif";
   ctx.fillText("Appuie sur 1 – " + n + "      •      Échap : retour", W / 2, 460);
 }
 

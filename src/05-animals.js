@@ -136,7 +136,7 @@ function drawEmote(b) {
     ctx.fill();
   } else if (e.kind === "wow") {
     ctx.fillStyle = "#fff"; ctx.strokeStyle = "#e84545"; ctx.lineWidth = 4; ctx.lineJoin = "round";
-    ctx.font = "bold 30px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 30px 'Inter', system-ui, sans-serif";
     ctx.strokeText("!", ex, ey + 10); ctx.fillText("!", ex, ey + 10);
   }
   ctx.restore();

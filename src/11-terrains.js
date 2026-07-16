@@ -929,7 +929,7 @@ function drawBombHUD() {
   ctx.strokeStyle = blink ? "#fff" : col;
   ctx.lineWidth = 2;
   ctx.strokeRect(NET_X - 62, 24, 124, 42);
-  ctx.font = "bold 26px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 26px 'Inter', system-ui, sans-serif";
   ctx.fillStyle = blink ? "#fff" : col;
   ctx.fillText("💣 " + secs + "s", NET_X, 55);
   ctx.restore();
@@ -944,32 +944,48 @@ function drawHUD() {
     if (bombFlash < 0.02) bombFlash = 0;
   }
   if (bombMode && (state === "play" || state === "serve")) drawBombHUD();
-  // scores (avec effet "pop" quand un point est marqué)
-  ctx.textAlign = "center";
-  ctx.lineWidth = 5;
-  ctx.lineJoin = "round";
-  ctx.strokeStyle = "rgba(255,255,255,0.85)";
-  ctx.font = "bold " + (42 + scorePop[0] * 1.2) + "px 'Trebuchet MS', sans-serif";
-  ctx.strokeText(scores[0], W * 0.25, 55);
-  ctx.fillStyle = sideColor(0);
-  ctx.fillText(scores[0], W * 0.25, 55);
-  ctx.font = "bold " + (42 + scorePop[1] * 1.2) + "px 'Trebuchet MS', sans-serif";
-  ctx.strokeText(scores[1], W * 0.75, 55);
-  ctx.fillStyle = sideColor(1);
-  ctx.fillText(scores[1], W * 0.75, 55);
-  if (scorePop[0] > 0) scorePop[0]--;
-  if (scorePop[1] > 0) scorePop[1]--;
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.font = "bold 22px 'Trebuchet MS', sans-serif";
-  ctx.fillText("–", NET_X, 50);
 
-  // indicateur de touches
+  // ---- tableau de score : puce sombre + label mono + gros chiffre ----
+  const MONO = "'Space Mono', ui-monospace, monospace";
+  const SANS = "'Inter', system-ui, sans-serif";
+  const sideLbl = s => mode === "2v2" ? (s === 0 ? "ÉQUIPE 1" : "ÉQUIPE 2")
+                                      : (s === 0 ? "GAUCHE" : "DROITE");
+  for (const s of [0, 1]) {
+    const cx = s === 0 ? W * 0.25 : W * 0.75;
+    const col = sideColor(s);
+    // puce translucide
+    ctx.fillStyle = "rgba(10,12,18,0.40)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(cx - 62, 16, 124, 50, 10);
+    else ctx.rect(cx - 62, 16, 124, 50);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1; ctx.stroke();
+    // label mono
+    ctx.textAlign = "center";
+    ctx.fillStyle = "rgba(255,255,255,0.62)";
+    ctx.font = "700 10px " + MONO;
+    ctx.save(); try { ctx.letterSpacing = "2px"; } catch (e) {}
+    ctx.fillText(sideLbl(s), cx, 32);
+    ctx.restore();
+    // chiffre (Inter 900, grossit sur un point marqué)
+    ctx.fillStyle = col;
+    ctx.font = "900 " + (30 + scorePop[s] * 1.0) + "px " + SANS;
+    ctx.fillText(scores[s], cx, 60);
+    if (scorePop[s] > 0) scorePop[s]--;
+  }
+  // séparateur central mono
+  ctx.textAlign = "center";
+  ctx.fillStyle = "rgba(255,255,255,0.42)";
+  ctx.font = "700 12px " + MONO;
+  ctx.fillText("VS", NET_X, 46);
+
+  // indicateur de touches (petits points, sous la puce)
   for (const side of [0, 1]) {
     const baseX = side === 0 ? W * 0.25 - 24 : W * 0.75 - 24;
     for (let i = 0; i < MAX_TOUCHES; i++) {
       ctx.beginPath();
-      ctx.arc(baseX + i * 24, 78, 6, 0, Math.PI * 2);
-      ctx.fillStyle = i < ball.touches[side] ? sideColor(side) : "rgba(255,255,255,0.45)";
+      ctx.arc(baseX + i * 24, 80, 5, 0, Math.PI * 2);
+      ctx.fillStyle = i < ball.touches[side] ? sideColor(side) : "rgba(255,255,255,0.40)";
       ctx.fill();
     }
   }
@@ -992,7 +1008,7 @@ function drawHUD() {
     ctx.fillRect(bx, by, bw * frac, 7);
     // libellé
     ctx.textAlign = "center";
-    ctx.font = "bold 11px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 11px 'Inter', system-ui, sans-serif";
     if (ready) {
       ctx.fillStyle = "#ffd93d";
       const key = (s === 0 ? blobL : blobR);
@@ -1010,7 +1026,7 @@ function drawHUD() {
     ctx.fillStyle = "#ffd93d";
     ctx.strokeStyle = "rgba(0,0,0,0.5)";
     ctx.lineWidth = 4; ctx.lineJoin = "round";
-    ctx.font = "bold 34px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 34px 'Inter', system-ui, sans-serif";
     ctx.strokeText(superFlash, NET_X, 150);
     ctx.fillText(superFlash, NET_X, 150);
     ctx.globalAlpha = 1;
@@ -1021,7 +1037,7 @@ function drawHUD() {
     for (const s of [0, 1]) {
       if (scores[s] >= WIN_SCORE - 1 && scores[s] - scores[1 - s] >= 1) {
         ctx.fillStyle = sideColor(s);
-        ctx.font = "bold 16px 'Trebuchet MS', sans-serif";
+        ctx.font = "bold 16px 'Inter', system-ui, sans-serif";
         ctx.textAlign = "center";
         ctx.fillText("★ Balle de match — " + sideName(s) + " ★", NET_X, 128);
       }
@@ -1036,11 +1052,11 @@ function drawHUD() {
     ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.fillRect(NET_X - (n <= 0 ? 110 : 70), H / 2 - 70, (n <= 0 ? 220 : 140), 110);
     ctx.fillStyle = "#ffcc00";
-    ctx.font = "bold 88px 'Trebuchet MS', sans-serif";
+    ctx.font = "bold 88px 'Inter', system-ui, sans-serif";
     ctx.fillText(label, NET_X, H / 2 + 20);
   } else if (state === "serve") {
     ctx.fillStyle = terrain === 2 ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.55)";
-    ctx.font = "18px 'Trebuchet MS', sans-serif";
+    ctx.font = "18px 'Inter', system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("Service : " + sideName(servingSide) + " — touchez la balle !", NET_X, 105);
   }
@@ -1055,10 +1071,10 @@ function overlay(title, subtitle) {
   ctx.fillRect(0, 0, W, H);
   ctx.textAlign = "center";
   ctx.fillStyle = "#fff";
-  ctx.font = "bold 44px 'Trebuchet MS', sans-serif";
+  ctx.font = "bold 44px 'Inter', system-ui, sans-serif";
   ctx.fillText(title, W / 2, H / 2 - 20);
   if (subtitle) {
-    ctx.font = "20px 'Trebuchet MS', sans-serif";
+    ctx.font = "20px 'Inter', system-ui, sans-serif";
     ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.fillText(subtitle, W / 2, H / 2 + 20);
   }
