@@ -325,7 +325,9 @@ function drawOptionList(items, y0, spacing, font) {
 }
 
 function drawMenu() {
-  menuScreenBase({ title: "CRABBY VOLLEY", kicker: "Volley des animaux · 6 persos · 3 terrains",
+  const nP = visibleAnimalIdx().length, nT = visibleTerrainIdx().length;
+  menuScreenBase({ title: "CRABBY VOLLEY",
+                   kicker: "Volley des animaux · " + nP + " persos · " + nT + " terrains",
                    titleSize: 58, noEscHint: true });
 
   // écran d'accueil : 3 grandes catégories + les règles, chacune débouche
