@@ -1059,7 +1059,7 @@ function drawHUD() {
     ctx.font = "bold 88px 'Inter', system-ui, sans-serif";
     ctx.fillText(label, NET_X, H / 2 + 20);
   } else if (state === "serve") {
-    ctx.fillStyle = terrain === 2 ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.55)";
+    ctx.fillStyle = TERRAINS[terrain].dark ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.55)";
     ctx.font = "18px 'Inter', system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("Service : " + sideName(servingSide) + " — touchez la balle !", NET_X, 105);

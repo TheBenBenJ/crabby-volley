@@ -30,6 +30,10 @@ function handleMenuKeys(code, key) {
   if ((code === "KeyM" || code === "Semicolon") && state !== "joinEntry") { muted = !muted; saveSettings(); return; }
   if (code === "KeyN" && state !== "joinEntry") { musicOn = !musicOn; saveSettings(); return; }
 
+  // clic sur l'icône/le libellé "VOLUME" (voir drawVolumeControl) : coupe/
+  // rétablit le son, comme M — indépendant du niveau réglé sur les crans.
+  if (code === "MuteToggle") { muted = !muted; saveSettings(); return; }
+
   // clic sur un cran du slider de volume (voir drawVolumeControl) : règle le
   // niveau et réactive le son au passage, où qu'on soit dans les menus.
   const volMatch = /^Vol([1-5])$/.exec(code);
@@ -364,14 +368,17 @@ function drawOptionList(items, y0, spacing, font) {
 // directement à ce niveau, et réactive le son au passage s'il était coupé.
 // (x, y) = coin haut-droit (aligné à droite, comme le kicker est à gauche).
 function drawVolumeControl(x, y) {
-  ctx.textAlign = "right";
-  ctx.font = "700 10px " + UI.mono;
-  ctx.fillStyle = UI.muted;
-  ctx.fillText((muted ? "🔇" : "🔊") + " VOLUME", x, y);
   const bw = 14, gap = 4, n = 5;
   const totalW = n * bw + (n - 1) * gap;
   const labelGap = 78; // place réservée au libellé à gauche des crans
   const bx0 = x - labelGap - totalW;
+  // icône + libellé : clic = coupe/rétablit le son (comme M), indépendamment du niveau
+  const hov = isHover("MuteToggle");
+  hit(x - labelGap / 2, y - 5, labelGap, 18, "MuteToggle");
+  ctx.textAlign = "right";
+  ctx.font = "700 10px " + UI.mono;
+  ctx.fillStyle = hov ? UI.gold : UI.muted;
+  ctx.fillText((muted ? "🔇" : "🔊") + " VOLUME", x, y);
   for (let i = 0; i < n; i++) {
     const bxi = bx0 + i * (bw + gap);
     const code = "Vol" + (i + 1);
@@ -386,7 +393,7 @@ function drawVolumeControl(x, y) {
 function drawMenu() {
   const nP = visibleAnimalIdx().length, nT = visibleTerrainIdx().length;
   menuScreenBase({ title: darkMode ? "PUSSY VOLLEY" : "CRABBY VOLLEY",
-                   kicker: darkMode ? "VOLLEY DES GÉNITAUX" : "Volley des animaux · " + nP + " persos · " + nT + " terrains",
+                   kicker: (darkMode ? "Volley des génitaux · " : "Volley des animaux · ") + nP + " persos · " + nT + " terrains",
                    titleSize: 58, noEscHint: true });
   drawVolumeControl(W - UI.mx, 82);
 
@@ -395,24 +402,52 @@ function drawMenu() {
   const items = [
     ["1  —  Solo contre l'IA", "#fff"],
     ["2  —  Multijoueur local (même écran)", "#fff"],
-    ["3  —  Jouer en ligne (avec un ami)", "#7ed957"],
-    ["R  —  Règles du jeu & animaux", UI.gold]
+    ["3  —  Jouer en ligne (avec un ami)", "#fff"],
+    ["R  —  Règles du jeu & animaux", "#fff"]
   ];
   drawOptionList(items, 226, 44);
 
-  // bloc d'infos technique (au-dessus du folio pour ne pas se chevaucher)
-  uiLabel("Gauche  Q/D + Z/Espace · S super        Droite  ← → + ↑ · ↓ super", UI.mx, H - 58, 10, UI.muted, 1);
-  uiLabel(padConnected ? "🎮 Manette — stick/croix choisir · A valider · B retour"
-                       : "Premier à " + WIN_SCORE + " · 2 pts d'écart · " + MAX_TOUCHES + " touches max · P pause · M son · N musique",
-          UI.mx, H - 26, 10, padConnected ? "#7ed957" : UI.muted, 1);
+  // bloc d'infos technique (au-dessus du folio pour ne pas se chevaucher) —
+  // le mode de contrôle réellement actif (manette/tactile/clavier), pas
+  // toujours le clavier par défaut même si une manette est branchée ou qu'on
+  // joue au doigt.
+  uiLabel(controlsHint(), UI.mx, H - 58, 10, controlsHintColor(), 1);
+  uiLabel("Premier à " + WIN_SCORE + " · 2 pts d'écart · " + MAX_TOUCHES + " touches max · P pause · M son · N musique",
+          UI.mx, H - 26, 10, UI.muted, 1);
 }
 
+// résumé du mode de contrôle ACTIF (manette branchée > tactile détecté >
+// clavier par défaut), utilisé partout où un rappel des commandes est affiché
+// — sans ça, un joueur à la manette ou au doigt ne voyait toujours QUE des
+// raccourcis clavier, jamais mis à jour selon son matériel réel.
+function controlsHint() {
+  if (padConnected) return "🎮 Manette — stick/croix choisir · A valider · B retour";
+  if (hasTouch) return "📱 Tactile — pavé directionnel + boutons SAUT/SUPER à l'écran pendant la partie";
+  return "Gauche  Q/D + Z/Espace · S super        Droite  ← → + ↑ · ↓ super";
+}
+function controlsHintColor() { return (padConnected || hasTouch) ? "#7ed957" : UI.muted; }
+
+// ---------- Assistant de configuration : position dans le parcours ----------
+// Le nombre total d'étapes DÉPEND DU CHEMIN (IA ou non, Bombe ou non) — jamais
+// fixe. Tant que le choix Bombe n'est pas encore fait (Difficulté/Format), ce
+// total n'est pas connu à l'avance : on affiche alors SEULEMENT le numéro
+// d'étape (jamais un "/total" qui serait faux un coup sur deux). Dès que le
+// chemin est fixé (Durée de mèche puis Personnage/Terrain), le total exact
+// s'affiche — et coïncide alors avec l'étape courante pour la toute dernière.
+function wizardTotal() {
+  return (pendingMode.vsAI ? 1 : 0) + 1 /* Format (ou l'écran "Jouer en ligne") */
+       + (pendingMode.bomb ? 1 : 0) + 2 /* Personnage + Terrain */;
+}
+function wizardStepOnly(idx, label) { return "Étape " + idx + " · " + label; }
+function wizardStep(idx, label) { return "Étape " + idx + "/" + wizardTotal() + " · " + label; }
+
 function drawAiDifficulty() {
-  menuScreenBase({ title: "Solo contre l'IA", kicker: "Étape 1/3 · Difficulté", subtitle: "Choisis la difficulté de l'adversaire" });
+  menuScreenBase({ title: "Solo contre l'IA", kicker: wizardStepOnly(1, "Difficulté"),
+                   subtitle: "Choisis la difficulté de l'adversaire" });
   const items = [
     ["1  —  Facile", "#7ed957"],
-    ["2  —  Normale", "#ffd93d"],
-    ["3  —  Difficile", "#ff6b6b"],
+    ["2  —  Normale", UI.gold],
+    ["3  —  Difficile", UI.accent],
     ["4  —  Impitoyable  ☠", "#c48cff"]
   ];
   drawOptionList(items, 238, 50);
@@ -422,11 +457,11 @@ function drawGameModeSelect() {
   const subtitle = pendingMode.vsAI
     ? "Solo — " + AI_LEVELS[pendingMode.aiLevel].name + "  —  choisis le mode de jeu"
     : "Multijoueur local  —  choisis le mode de jeu";
-  menuScreenBase({ title: "Mode de jeu", kicker: "Étape 2/3 · Format", subtitle: subtitle });
+  menuScreenBase({ title: "Mode de jeu", kicker: wizardStepOnly(pendingMode.vsAI ? 2 : 1, "Format"), subtitle: subtitle });
 
   const items = pendingMode.vsAI ? [
     ["1  —  1v1 classique", "#fff"],
-    ["2  —  2v2 : toi + IA  vs  2 IA", "#ffb26b"],
+    ["2  —  2v2 : toi + IA  vs  2 IA", "#fff"],
     ["3  —  💣 Bombe 1v1", "#ff7043"],
     ["4  —  💣 Bombe 2v2", "#ff7043"]
   ] : [
@@ -437,11 +472,11 @@ function drawGameModeSelect() {
 }
 
 function drawBombDuration() {
-  menuScreenBase({ title: "Mode Bombe", kicker: "💣 Patate chaude · Durée de mèche",
+  menuScreenBase({ title: "Mode Bombe", kicker: wizardStep(wizardTotal() - 2, "💣 Durée de mèche"),
                    subtitle: "Renvoie la bombe avant la fin de la mèche" });
   const items = [
-    ["1  —  5 secondes   ·   nerveux", "#ff6b6b"],
-    ["2  —  7 secondes   ·   équilibré", "#ffd93d"],
+    ["1  —  5 secondes   ·   nerveux", UI.accent],
+    ["2  —  7 secondes   ·   équilibré", UI.gold],
     ["3  —  10 secondes   ·   posé", "#7ed957"]
   ];
   drawOptionList(items, 240, 52);
@@ -592,8 +627,12 @@ function drawSelectAnimal() {
 
   const pcolor = darkMode ? "#ff5a3d" : "#ffd36b";
   const pdark  = darkMode ? "#7a1408" : "#d99e18";
-  // en-tête éditorial compact (au-dessus de la rangée de cartes)
-  uiLabel(darkMode ? "Belzébuth · 3/3 · Génital" : "Étape 3/3 · Personnage", UI.mx, 34, 11, uiAccent(), 2);
+  // en-tête éditorial compact (au-dessus de la rangée de cartes) — l'invité en
+  // ligne ne choisit que son personnage (l'hôte gère le terrain) : un compteur
+  // d'étape n'a pas de sens pour lui, un simple libellé suffit.
+  const guestPicking = pendingMode.online && netRole === "guest";
+  uiLabel(guestPicking ? "En ligne · Ton personnage" : wizardStep(wizardTotal() - 1, "Personnage"),
+          UI.mx, 34, 11, uiAccent(), 2);
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
   ctx.font = "800 26px " + UI.sans;
   ctx.fillText("Joueur " + sideName(selPlayer) + (darkMode ? " — choisis ton génital" : " — choisis ton animal"), UI.mx, 60);
@@ -667,7 +706,7 @@ function drawSelectTerrain() {
   ctx.fillStyle = darkMode ? "#160303" : "#0e0f14";
   ctx.fillRect(0, 0, W, H);
   if (darkMode) drawHellVignette();
-  uiLabel(darkMode ? "Belzébuth · Bourbier" : "Dernière étape · Terrain", UI.mx, 40, 11, uiAccent(), 2);
+  uiLabel(wizardStep(wizardTotal(), "Terrain"), UI.mx, 40, 11, uiAccent(), 2);
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
   ctx.font = "800 30px " + UI.sans;
   ctx.fillText(darkMode ? "Choisis ton bourbier" : "Choisis le terrain", UI.mx, 74);

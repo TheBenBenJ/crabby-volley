@@ -4,13 +4,15 @@
 // ---------- Terrains et animaux ----------
 // chaque terrain appartient à un animal (voir ANIMALS plus bas) : son public
 // des tribunes est composé de cet animal, et le nom du terrain lui rend hommage.
+// dark : fond sombre (ciel nocturne/infernal) — sert à choisir un texte HUD
+// clair plutôt que sombre (voir drawHUD), au lieu de tester un index en dur.
 const TERRAINS = [
   { key: "plage",   name: "La Zone de Piou-Piou",     animal: 0 },
   { key: "neige",   name: "Le QG du Général Frigo",   animal: 2 },
-  { key: "nuit",    name: "La Mare à Slurp",          animal: 1 },
+  { key: "nuit",    name: "La Mare à Slurp",          animal: 1, dark: true },
   { key: "prairie", name: "Le Ter-Ter de Jeannot",    animal: 3 },
-  { key: "enfer",   name: "La Fournaise à Chibre",    animal: 4, hidden: true },
-  { key: "styx",    name: "Le Marigot de Schneck",    animal: 5, hidden: true }
+  { key: "enfer",   name: "La Fournaise à Chibre",    animal: 4, hidden: true, dark: true },
+  { key: "styx",    name: "Le Marigot de Schneck",    animal: 5, hidden: true, dark: true }
 ];
 let terrain = 0;
 

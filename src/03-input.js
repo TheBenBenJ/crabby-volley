@@ -22,6 +22,10 @@ function toGameXY(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
   return { x: (clientX - rect.left) / rect.width * W, y: (clientY - rect.top) / rect.height * H };
 }
+// portée globale (pas seulement dans le bloc ci-dessous) : les menus (12-menus.js)
+// s'en servent pour adapter le texte d'aide (clavier/manette/tactile).
+const hasTouch = (typeof window !== "undefined") &&
+  (("ontouchstart" in window) || (navigator && navigator.maxTouchPoints > 0));
 if (typeof canvas.addEventListener === "function") { // absent en environnement de test (voir tests/_load.js)
   canvas.addEventListener("mousemove", e => {
     const p = toGameXY(e.clientX, e.clientY);
@@ -40,7 +44,6 @@ if (typeof canvas.addEventListener === "function") { // absent en environnement 
   // cet objet partagé. Le pavé tactile est UNIQUE (pas un par joueur) : sur
   // un téléphone, un seul joueur humain tient l'appareil, donc on détermine
   // dynamiquement QUEL jeu de touches physiques il pilote selon le contexte.
-  const hasTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
   if (hasTouch) {
     const tc = document.getElementById("touchControls");
     function touchKeySet() {

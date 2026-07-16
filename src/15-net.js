@@ -941,7 +941,7 @@ function drawOnlineMenu() {
   const opts = [
     ["1  —  Créer une partie 1v1", "#fff"],
     ["2  —  Rejoindre avec un code", "#fff"],
-    ["3  —  Créer une partie 2v2", "#ffb26b"],
+    ["3  —  Créer une partie 2v2", "#fff"],
     ["4  —  💣 Créer une partie Bombe 1v1", "#ff7043"],
     ["5  —  💣 Créer une partie Bombe 2v2", "#ff7043"]
   ];
