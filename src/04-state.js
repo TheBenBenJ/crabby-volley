@@ -319,8 +319,8 @@ class Blob {
       const scrambling = a.slip;
       const gangPanic = a.key === "scooby" || a.key === "samy";
       this.scramble = scrambling ? 1 : 0;
-      // Sammy : avance un peu plus vite la phase pour un cycle de marche lisible
-      const phaseStep = a.key === "samy" ? 1.35 : (gangPanic ? 1.15 : 0.9);
+      // Sammy calé sur Scooby (1.15) : même cadence de marche, transitions douces
+      const phaseStep = gangPanic ? 1.15 : 0.9;
       this.walkPhase += scrambling ? phaseStep : 0.3;
       if (Math.random() < (scrambling ? (gangPanic ? 0.48 : 0.35) : 0.1)) {
         spawnSand(this.x - Math.sign(this.vx || moveVx) * 12, GROUND_Y, gangPanic ? 2 : 1);
