@@ -39,6 +39,9 @@ function drawCrowd() {
   } else if (key === "prairie") {
     stand = "#8fae52"; rail = "#6b8a3a";
     pal = ["#ff6f61", "#ffd93d", "#7ed957", "#4db3ff", "#c07bff", "#ffffff"];
+  } else if (key === "manoir") {
+    stand = "#2a2438"; rail = "#1a1528"; glow = true;
+    pal = ["#c4a35a", "#3d9e9a", "#e07a2a", "#b388ff", "#82b1ff", "#f0c94a"];
   } else if (hell) {
     stand = "#2a0808"; rail = "#160303"; glow = true;
     pal = ["#ff3b3b", "#ff8a3d", "#ffcf3d", "#ff5a2e", "#c62828", "#ff7a59"];
@@ -450,7 +453,7 @@ function resetWeather() {
 // avancé une fois par tick DANS la simulation (déterministe).
 // Même machine à états sur les 4 terrains ; seul l'habillage change :
 //  plage → tempête de sable · banquise → chute de neige/blizzard
-//  marais nocturne → brume qui se lève · prairie → averse/orage
+//  marais nocturne → brume · prairie → averse · manoir → brume hantée
 function stepWeather() {
   if (--weatherTimer > 0) return;
   const r = rng();
@@ -574,6 +577,7 @@ function drawBackground() {
   else if (key === "neige") drawBgNeige();
   else if (key === "nuit") drawBgNuit();
   else if (key === "prairie") drawBgPrairie();
+  else if (key === "manoir") drawBgManoir();
   else if (key === "enfer") drawBgEnfer();
   else drawBgStyx();
 }

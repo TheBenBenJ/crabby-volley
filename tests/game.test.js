@@ -309,6 +309,15 @@ test("Scooby : animal visible avec dessin et super turbo", () => {
   assert.strictEqual(g.blobL.animal, idx);
 });
 
+test("terrain Manoir Hanté lié à Scooby", () => {
+  const g = loadGame();
+  const manoir = g.TERRAINS.find(t => t.key === "manoir");
+  assert.ok(manoir, "terrain manoir présent");
+  assert.ok(!manoir.hidden, "terrain visible (pas Belzébuth)");
+  assert.strictEqual(g.ANIMALS[manoir.animal].key, "scooby");
+  assert.ok(typeof g.drawBgManoir === "function", "drawBgManoir défini");
+});
+
 test("soft ownership : pack/applyBallState round-trip", () => {
   const g = loadGame();
   g.newGame(2);

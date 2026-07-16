@@ -555,6 +555,280 @@ function drawHayBale(px) {
   ctx.beginPath(); ctx.moveTo(px - 26, py); ctx.lineTo(px + 26, py); ctx.stroke();
 }
 
+// ---------- Manoir hanté (Scooby) ----------
+function drawBgManoir() {
+  const t = performance.now() / 1000;
+  const rainy = weather === "rain" || weather === "storm";
+  const stormy = weather === "storm";
+
+  // ciel violet-nuit
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  if (stormy) { sky.addColorStop(0, "#0a0614"); sky.addColorStop(1, "#1a1230"); }
+  else { sky.addColorStop(0, "#1a0f2e"); sky.addColorStop(1, "#3a2a55"); }
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, GROUND_Y);
+
+  // étoiles timides
+  const starA = rainy ? 0.2 : 0.7;
+  for (let i = 0; i < 40; i++) {
+    const sxx = (i * 139.1) % W;
+    const syy = (i * 71.3) % (GROUND_Y - 160);
+    ctx.globalAlpha = (0.3 + Math.abs(Math.sin(t * 1.2 + i)) * 0.5) * starA;
+    ctx.fillStyle = "#e8e0ff";
+    ctx.beginPath();
+    ctx.arc(sxx, syy, i % 6 === 0 ? 1.6 : 1, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  // lune jaunâtre voilée
+  const moon = celestialPos();
+  ctx.fillStyle = "rgba(255,230,160,0.15)";
+  ctx.beginPath(); ctx.arc(moon.x, moon.y, 42, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = rainy ? "rgba(230,210,150,0.55)" : "#f5e6b8";
+  ctx.beginPath(); ctx.arc(moon.x, moon.y, 28, 0, Math.PI * 2); ctx.fill();
+
+  if (rainy) drawClouds(stormy ? "rgba(30,25,45,0.95)" : "rgba(55,45,75,0.88)");
+
+  // collines sombres
+  drawHillLayer(GROUND_Y - 100, "#1a1528", 0.1,
+    [[80, GROUND_Y - 140], [280, GROUND_Y - 110], [500, GROUND_Y - 150], [720, GROUND_Y - 115], [880, GROUND_Y - 135]]);
+  drawHillLayer(GROUND_Y - 85, "#221c35", 0.28,
+    [[160, GROUND_Y - 115], [400, GROUND_Y - 95], [620, GROUND_Y - 125], [820, GROUND_Y - 100]]);
+
+  drawHauntedManor(W * 0.28, GROUND_Y - 38, t, stormy);
+  drawDeadTrees();
+  drawGravestones();
+  drawCrowd();
+  drawMysteryMachine(W * 0.78, GROUND_Y - 8, t);
+
+  // sol : terre sombre / herbe morte
+  const ground = ctx.createLinearGradient(0, GROUND_Y - 38, 0, H);
+  ground.addColorStop(0, rainy ? "#3a3830" : "#4a4638");
+  ground.addColorStop(1, "#2a2820");
+  ctx.fillStyle = ground;
+  ctx.fillRect(0, GROUND_Y - 37, W, H - GROUND_Y + 37);
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.fillRect(0, GROUND_Y, W, 2);
+
+  // brins d'herbes mortes
+  ctx.strokeStyle = "rgba(80,70,40,0.45)";
+  ctx.lineWidth = 1.4;
+  for (let i = 0; i < 36; i++) {
+    const gx = (i * 181.3) % W;
+    const gy = GROUND_Y + 4 + (i * 29.7) % (H - GROUND_Y - 10);
+    const lean = Math.sin(t * 1.5 + i) * 2.5;
+    ctx.beginPath(); ctx.moveTo(gx, gy + 4); ctx.lineTo(gx + lean, gy - 4); ctx.stroke();
+  }
+
+  // lucioles vertes « fantômes » par temps clair
+  if (!rainy) {
+    for (let i = 0; i < 6; i++) {
+      let fx = W / 2 + Math.sin(t * (0.25 + i * 0.06) + i * 2) * (W * 0.4);
+      let fy = GROUND_Y - 50 - Math.abs(Math.sin(t * (0.4 + i * 0.08) + i)) * 100;
+      const a = 0.25 + Math.abs(Math.sin(t * 2.2 + i)) * 0.55;
+      ctx.fillStyle = "rgba(120,255,160," + (a * 0.2).toFixed(2) + ")";
+      ctx.beginPath(); ctx.arc(fx, fy, 5, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(160,255,180," + a.toFixed(2) + ")";
+      ctx.beginPath(); ctx.arc(fx, fy, 1.8, 0, Math.PI * 2); ctx.fill();
+    }
+  } else {
+    drawFog(stormy ? 1 : 0.6);
+  }
+}
+
+function drawHauntedManor(cx, baseY, t, stormy) {
+  const flash = stormy && ((t % 3.2) < 0.08 || ((t % 3.2) > 0.14 && (t % 3.2) < 0.2));
+  // corps principal
+  ctx.fillStyle = "#2a2438";
+  ctx.fillRect(cx - 90, baseY - 130, 180, 130);
+  // ailes
+  ctx.fillStyle = "#241e32";
+  ctx.fillRect(cx - 140, baseY - 95, 55, 95);
+  ctx.fillRect(cx + 85, baseY - 110, 60, 110);
+  // toits pointus
+  ctx.fillStyle = "#1a1524";
+  ctx.beginPath();
+  ctx.moveTo(cx - 100, baseY - 130);
+  ctx.lineTo(cx, baseY - 190);
+  ctx.lineTo(cx + 100, baseY - 130);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx - 145, baseY - 95);
+  ctx.lineTo(cx - 112, baseY - 140);
+  ctx.lineTo(cx - 80, baseY - 95);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx + 80, baseY - 110);
+  ctx.lineTo(cx + 115, baseY - 165);
+  ctx.lineTo(cx + 150, baseY - 110);
+  ctx.closePath();
+  ctx.fill();
+  // tour
+  ctx.fillStyle = "#2e273c";
+  ctx.fillRect(cx + 95, baseY - 175, 28, 70);
+  ctx.beginPath();
+  ctx.moveTo(cx + 90, baseY - 175);
+  ctx.lineTo(cx + 109, baseY - 210);
+  ctx.lineTo(cx + 128, baseY - 175);
+  ctx.closePath();
+  ctx.fill();
+  // fenêtres verdâtres (clignotent un peu)
+  const winCol = flash ? "rgba(220,255,200,0.85)" : "rgba(140,220,120," + (0.35 + Math.abs(Math.sin(t * 2)) * 0.35).toFixed(2) + ")";
+  ctx.fillStyle = winCol;
+  for (const [wx, wy, ww, wh] of [
+    [cx - 60, baseY - 105, 18, 22], [cx - 20, baseY - 105, 18, 22], [cx + 25, baseY - 105, 18, 22],
+    [cx - 55, baseY - 60, 16, 20], [cx + 5, baseY - 60, 16, 20], [cx + 40, baseY - 60, 16, 20],
+    [cx - 125, baseY - 70, 14, 18], [cx + 100, baseY - 80, 14, 18], [cx + 100, baseY - 155, 12, 14]
+  ]) {
+    ctx.fillRect(wx, wy, ww, wh);
+  }
+  // porte
+  ctx.fillStyle = "#1a1420";
+  ctx.fillRect(cx - 18, baseY - 48, 36, 48);
+  ctx.strokeStyle = "#3a3048";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(cx - 18, baseY - 48, 36, 48);
+  ctx.fillStyle = "#c9a84a";
+  ctx.beginPath(); ctx.arc(cx + 10, baseY - 24, 2.5, 0, Math.PI * 2); ctx.fill();
+  // chauves-souris
+  ctx.strokeStyle = "rgba(20,15,30,0.85)";
+  ctx.lineWidth = 1.6;
+  for (let i = 0; i < 4; i++) {
+    const bx = cx - 40 + i * 45 + Math.sin(t * 2 + i) * 30;
+    const by = baseY - 200 - Math.abs(Math.sin(t * 3 + i * 1.3)) * 25;
+    const flap = Math.sin(t * 10 + i) * 4;
+    ctx.beginPath();
+    ctx.moveTo(bx - 8, by + flap);
+    ctx.quadraticCurveTo(bx - 3, by - 3, bx, by);
+    ctx.quadraticCurveTo(bx + 3, by - 3, bx + 8, by + flap);
+    ctx.stroke();
+  }
+}
+
+function drawDeadTrees() {
+  const t = performance.now() / 1000;
+  ctx.strokeStyle = "#1e1830";
+  ctx.lineCap = "round";
+  for (const [tx, th] of [[55, 70], [W - 50, 80]]) {
+    const sway = Math.sin(t * 0.8 + tx) * 3;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(tx, GROUND_Y - 36);
+    ctx.quadraticCurveTo(tx + sway, GROUND_Y - 36 - th * 0.5, tx + sway * 1.2, GROUND_Y - 36 - th);
+    ctx.stroke();
+    ctx.lineWidth = 2.5;
+    for (const [ang, len] of [[-0.7, 22], [0.5, 18], [-0.2, 14]]) {
+      const tipX = tx + sway * 1.2 + Math.cos(ang - Math.PI / 2) * len;
+      const tipY = GROUND_Y - 36 - th + 10 + Math.sin(ang - Math.PI / 2) * len;
+      ctx.beginPath();
+      ctx.moveTo(tx + sway * 0.8, GROUND_Y - 36 - th + 18);
+      ctx.lineTo(tipX, tipY);
+      ctx.stroke();
+    }
+  }
+}
+
+function drawGravestones() {
+  ctx.fillStyle = "#3a3848";
+  for (const [gx, gh] of [[120, 22], [155, 18], [W - 140, 20]]) {
+    ctx.beginPath();
+    ctx.moveTo(gx - 10, GROUND_Y - 36);
+    ctx.lineTo(gx - 10, GROUND_Y - 36 - gh);
+    ctx.arc(gx, GROUND_Y - 36 - gh, 10, Math.PI, 0);
+    ctx.lineTo(gx + 10, GROUND_Y - 36);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = "rgba(0,0,0,0.25)";
+    ctx.fillRect(gx - 4, GROUND_Y - 36 - gh + 4, 8, 3);
+    ctx.fillStyle = "#3a3848";
+  }
+}
+
+// Mystery Machine : van bleu/vert fleuri (clin d'œil Scooby-Doo)
+function drawMysteryMachine(px, py, t) {
+  const bob = Math.sin(t * 1.5) * 0.6;
+  const y = py + bob;
+  ctx.save();
+  // ombre
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.beginPath(); ctx.ellipse(px, GROUND_Y - 34, 52, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+  // caisse principale (turquoise)
+  ctx.fillStyle = "#3d9e9a";
+  ctx.beginPath();
+  ctx.moveTo(px - 55, y - 18);
+  ctx.lineTo(px - 55, y - 48);
+  ctx.quadraticCurveTo(px - 50, y - 62, px - 30, y - 64);
+  ctx.lineTo(px + 35, y - 64);
+  ctx.quadraticCurveTo(px + 55, y - 62, px + 58, y - 48);
+  ctx.lineTo(px + 58, y - 18);
+  ctx.closePath();
+  ctx.fill();
+
+  // bande orange basse
+  ctx.fillStyle = "#e07a2a";
+  ctx.fillRect(px - 55, y - 28, 113, 10);
+
+  // portes / flancs verts
+  ctx.fillStyle = "#2f7a48";
+  ctx.fillRect(px - 20, y - 52, 38, 24);
+  ctx.strokeStyle = "rgba(0,0,0,0.2)";
+  ctx.lineWidth = 1.2;
+  ctx.strokeRect(px - 20, y - 52, 38, 24);
+
+  // fleurs hippies
+  for (const [fx, fy, col] of [[px - 40, y - 40, "#f0c94a"], [px + 42, y - 38, "#e85d8a"], [px + 8, y - 58, "#f0c94a"]]) {
+    ctx.fillStyle = col;
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.ellipse(fx + Math.cos(a) * 4, fy + Math.sin(a) * 4, 3.2, 2.2, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = "#fff8c8";
+    ctx.beginPath(); ctx.arc(fx, fy, 2.2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // pare-brise
+  ctx.fillStyle = "rgba(180,220,255,0.55)";
+  ctx.beginPath();
+  ctx.moveTo(px - 48, y - 48);
+  ctx.lineTo(px - 30, y - 60);
+  ctx.lineTo(px - 8, y - 60);
+  ctx.lineTo(px - 8, y - 48);
+  ctx.closePath();
+  ctx.fill();
+
+  // phares
+  ctx.fillStyle = "#ffe08a";
+  ctx.beginPath(); ctx.arc(px - 52, y - 24, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(px + 54, y - 24, 3.5, 0, Math.PI * 2); ctx.fill();
+
+  // roues
+  for (const wx of [px - 32, px + 32]) {
+    ctx.fillStyle = "#222";
+    ctx.beginPath(); ctx.arc(wx, y - 12, 11, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#888";
+    ctx.beginPath(); ctx.arc(wx, y - 12, 5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // antenne
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(px + 20, y - 64);
+  ctx.lineTo(px + 20 + Math.sin(t * 3) * 3, y - 78);
+  ctx.stroke();
+  ctx.fillStyle = "#e85d8a";
+  ctx.beginPath();
+  ctx.arc(px + 20 + Math.sin(t * 3) * 3, y - 78, 2.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
 // ---------- Terrains Belzébuth (mode caché) ----------
 function drawBgEnfer() {
   const t = performance.now() / 1000;

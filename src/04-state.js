@@ -9,6 +9,7 @@ const TERRAINS = [
   { key: "neige",   name: "Le QG du Général Frigo",   animal: 2 },
   { key: "nuit",    name: "La Mare à Slurp",          animal: 1 },
   { key: "prairie", name: "Le Ter-Ter de Jeannot",    animal: 3 },
+  { key: "manoir",  name: "Le Manoir Hanté",          animal: 6 }, // Scooby
   { key: "enfer",   name: "La Fournaise à Chibre",    animal: 4, hidden: true },
   { key: "styx",    name: "Le Marigot de Schneck",    animal: 5, hidden: true }
 ];

@@ -160,7 +160,7 @@ function handleMenuKeys(code, key) {
     }
 
   } else if (state === "selectTerrain") {
-    const slotT = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 }[code];
+    const slotT = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4 }[code];
     const visT = visibleTerrainIdx();
     const n = slotT !== undefined && slotT < visT.length ? visT[slotT] : undefined;
     if (n !== undefined) { terrain = n; commitSetup(); }

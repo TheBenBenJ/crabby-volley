@@ -48,7 +48,9 @@ const EPILOGUE = `
   setBombTime: v => { bombTime = v; }, getBombTime: () => bombTime,
   updateBall,
   ballInGuestOwnZone, packBallState, applyBallState,
-  ANIMALS, drawScooby: typeof drawScooby === "function" ? drawScooby : null,
+  ANIMALS, TERRAINS,
+  drawScooby: typeof drawScooby === "function" ? drawScooby : null,
+  drawBgManoir: typeof drawBgManoir === "function" ? drawBgManoir : null,
   consts: { W, H, NET_X, NET_W, NET_TOP, GROUND_Y, BALL_R, MAX_BALL_SPEED, GUEST_BALL_MARGIN }
 };`;
 
