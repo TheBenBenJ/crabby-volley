@@ -61,10 +61,12 @@ function collideCircle(c, blob, isHead) {
   }
 
   // langue collante de la grenouille : comme le bec, pas à tous les coups
-  // (25%, seedé). Effet tiré au sort : grosse déviation OU balle amortie.
+  // (10%, seedé) — volontairement rare pour rester lisible : un joueur qui
+  // perd un point à cause d'un aléa doit pouvoir sentir que c'est l'exception,
+  // pas la norme. Effet tiré au sort : grosse déviation OU balle amortie.
   // La langue sort et reste visible jusqu'au prochain coup / nouveau point.
   blob.tongueOut = false;
-  if (a.stick && rng() < 0.2) {
+  if (a.stick && rng() < 0.1) {
     blob.tongueOut = true;
     if (rng() < 0.5) {
       // déviation marquée
@@ -101,8 +103,10 @@ function ballBlobCollision(blob) {
     const tip = beakTip(blob);
     const dd = Math.hypot(ball.x - tip.x, ball.y - tip.y);
     const fast = Math.hypot(ball.vx, ball.vy) > 8.5;
-    // rareté seedée : même sur contact franc, ~25% de chance de crever
-    if (dd < BALL_R + tip.r && fast && rng() < 0.25) {
+    // rareté seedée : même sur contact franc, ~10% de chance de crever
+    // (même taux pour l'oiseau et le manchot — délibérément rare pour que la
+    // crevaison se lise comme un coup du sort, pas comme un risque courant)
+    if (dd < BALL_R + tip.r && fast && rng() < 0.1) {
       ball.popped = true;
       ball.frozen = true;
       ball.vx = 0; ball.vy = 0;

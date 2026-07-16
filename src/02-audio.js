@@ -3,11 +3,53 @@
 
 // ---------- Audio (bips simples) ----------
 let audioCtx = null;
+// volume général (0..1, persisté — voir loadSettings/saveSettings dans
+// 17-main.js) : tous les sons/la musique passent par ce gain unique, pour
+// qu'un seul réglage contrôle tout au lieu de recalculer chaque volume.
+let volume = 1;
+let masterGain = null;
+function ensureAudio() {
+  if (!audioCtx) {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    masterGain = audioCtx.createGain();
+    masterGain.gain.value = volume;
+    masterGain.connect(audioCtx.destination);
+  }
+  return audioCtx;
+}
+function setVolume(v) {
+  volume = Math.max(0, Math.min(1, v));
+  if (masterGain) masterGain.gain.value = volume;
+  saveSettings();
+}
+
+// ---------- Réglages persistés (son/musique/volume) ----------
+// Simple confort : sans ça, on repart à zéro (son ON, 100%) à chaque
+// rechargement de page — `muted` est déclaré plus tard (04-state.js), mais
+// ces fonctions ne s'exécutent qu'au runtime, une fois tous les modules
+// chargés, donc la référence est sûre.
+const SETTINGS_KEY = "crabbyVolleySettings";
+function saveSettings() {
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ muted, musicOn, volume }));
+  } catch (e) { /* navigation privée, quota dépassé… tant pis, pas bloquant */ }
+}
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if (typeof s.muted === "boolean") muted = s.muted;
+    if (typeof s.musicOn === "boolean") musicOn = s.musicOn;
+    if (typeof s.volume === "number") volume = Math.max(0, Math.min(1, s.volume));
+  } catch (e) { /* réglages corrompus/absents : on garde les valeurs par défaut */ }
+}
+
 // delay : départ différé (s) · freqEnd : glissando vers cette fréquence
 function beep(freq, dur = 0.07, type = "square", vol = 0.12, delay = 0, freqEnd = 0) {
   if (muted || noFx) return;
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    ensureAudio();
     const o = audioCtx.createOscillator();
     const g = audioCtx.createGain();
     const t0 = audioCtx.currentTime + delay;
@@ -16,7 +58,7 @@ function beep(freq, dur = 0.07, type = "square", vol = 0.12, delay = 0, freqEnd 
     if (freqEnd > 0) o.frequency.exponentialRampToValueAtTime(freqEnd, t0 + dur);
     g.gain.setValueAtTime(vol, t0);
     g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
-    o.connect(g); g.connect(audioCtx.destination);
+    o.connect(g); g.connect(masterGain);
     o.start(t0); o.stop(t0 + dur);
   } catch (e) { /* audio non dispo */ }
 }
@@ -25,7 +67,7 @@ function beep(freq, dur = 0.07, type = "square", vol = 0.12, delay = 0, freqEnd 
 function noiseBurst(dur = 0.05, vol = 0.14, freq = 1200, q = 0.9) {
   if (muted || noFx) return;
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    ensureAudio();
     const n = Math.floor(audioCtx.sampleRate * dur);
     const buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
     const data = buf.getChannelData(0);
@@ -33,7 +75,7 @@ function noiseBurst(dur = 0.05, vol = 0.14, freq = 1200, q = 0.9) {
     const src = audioCtx.createBufferSource(); src.buffer = buf;
     const f = audioCtx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = freq; f.Q.value = q;
     const g = audioCtx.createGain(); g.gain.value = vol;
-    src.connect(f); f.connect(g); g.connect(audioCtx.destination);
+    src.connect(f); f.connect(g); g.connect(masterGain);
     src.start();
   } catch (e) { /* audio non dispo */ }
 }
@@ -42,7 +84,7 @@ function noiseBurst(dur = 0.05, vol = 0.14, freq = 1200, q = 0.9) {
 function crowdCheer(intensity) {
   if (muted || noFx) return;
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    ensureAudio();
     const dur = 0.85 + intensity * 0.55;
     const n = Math.floor(audioCtx.sampleRate * dur);
     const buf = audioCtx.createBuffer(1, n, audioCtx.sampleRate);
@@ -54,7 +96,7 @@ function crowdCheer(intensity) {
     const src = audioCtx.createBufferSource(); src.buffer = buf;
     const f = audioCtx.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 680; f.Q.value = 0.55;
     const g = audioCtx.createGain(); g.gain.value = 0.05 + intensity * 0.07;
-    src.connect(f); f.connect(g); g.connect(audioCtx.destination);
+    src.connect(f); f.connect(g); g.connect(masterGain);
     src.start();
   } catch (e) { /* audio non dispo */ }
 }
@@ -115,7 +157,7 @@ function musicVoice(freq, dur, type, vol, t0) {
 }
 function musicTick() {
   if (!musicOn || muted || !audioCtx || audioCtx.state !== "running") return;
-  if (!musicGain) { musicGain = audioCtx.createGain(); musicGain.gain.value = 0.5; musicGain.connect(audioCtx.destination); }
+  if (!musicGain) { musicGain = audioCtx.createGain(); musicGain.gain.value = 0.5; musicGain.connect(masterGain); }
   // la musique tourne dans les menus et pendant le jeu
   const on = state !== "netError";
   if (!on) return;

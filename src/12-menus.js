@@ -27,8 +27,13 @@ function handleMenuKeys(code, key) {
   // AZERTY : la touche M y est déplacée à l'emplacement "Semicolon" (celle du
   // point-virgule QWERTY), et "KeyM" y correspond à la virgule. On accepte les
   // deux pour que "M" fonctionne, qu'on soit en QWERTY ou en AZERTY.
-  if ((code === "KeyM" || code === "Semicolon") && state !== "joinEntry") { muted = !muted; return; }
-  if (code === "KeyN" && state !== "joinEntry") { musicOn = !musicOn; return; }
+  if ((code === "KeyM" || code === "Semicolon") && state !== "joinEntry") { muted = !muted; saveSettings(); return; }
+  if (code === "KeyN" && state !== "joinEntry") { musicOn = !musicOn; saveSettings(); return; }
+
+  // clic sur un cran du slider de volume (voir drawVolumeControl) : règle le
+  // niveau et réactive le son au passage, où qu'on soit dans les menus.
+  const volMatch = /^Vol([1-5])$/.exec(code);
+  if (volMatch) { muted = false; setVolume(Number(volMatch[1]) / 5); return; }
 
   if (state === "menu") {
     // Écran d'accueil : 3 grandes catégories, chacune débouche sur ses propres
@@ -354,11 +359,36 @@ function drawOptionList(items, y0, spacing, font) {
   });
 }
 
+// petit contrôle de volume (5 crans cliquables, même langage visuel que les
+// jauges de stats des animaux) — un clic sur un cran règle le volume
+// directement à ce niveau, et réactive le son au passage s'il était coupé.
+// (x, y) = coin haut-droit (aligné à droite, comme le kicker est à gauche).
+function drawVolumeControl(x, y) {
+  ctx.textAlign = "right";
+  ctx.font = "700 10px " + UI.mono;
+  ctx.fillStyle = UI.muted;
+  ctx.fillText((muted ? "🔇" : "🔊") + " VOLUME", x, y);
+  const bw = 14, gap = 4, n = 5;
+  const totalW = n * bw + (n - 1) * gap;
+  const labelGap = 78; // place réservée au libellé à gauche des crans
+  const bx0 = x - labelGap - totalW;
+  for (let i = 0; i < n; i++) {
+    const bxi = bx0 + i * (bw + gap);
+    const code = "Vol" + (i + 1);
+    hit(bxi + bw / 2, y - 4, bw + gap, 18, code);
+    const filled = !muted && volume * n > i + 0.001;
+    ctx.fillStyle = filled ? UI.gold : "rgba(255,255,255,0.18)";
+    ctx.fillRect(bxi, y - 9, bw, 9);
+    if (isHover(code)) { ctx.strokeStyle = UI.gold; ctx.lineWidth = 1.5; ctx.strokeRect(bxi - 1, y - 10, bw + 2, 11); }
+  }
+}
+
 function drawMenu() {
   const nP = visibleAnimalIdx().length, nT = visibleTerrainIdx().length;
   menuScreenBase({ title: darkMode ? "PUSSY VOLLEY" : "CRABBY VOLLEY",
                    kicker: darkMode ? "VOLLEY DES GÉNITAUX" : "Volley des animaux · " + nP + " persos · " + nT + " terrains",
                    titleSize: 58, noEscHint: true });
+  drawVolumeControl(W - UI.mx, 82);
 
   // écran d'accueil : 3 grandes catégories + les règles, chacune débouche
   // ensuite sur ses propres sous-choix (difficulté, mode de jeu…)
@@ -563,10 +593,10 @@ function drawSelectAnimal() {
   const pcolor = darkMode ? "#ff5a3d" : "#ffd36b";
   const pdark  = darkMode ? "#7a1408" : "#d99e18";
   // en-tête éditorial compact (au-dessus de la rangée de cartes)
-  uiLabel(darkMode ? "Belzébuth · Personnage" : "Étape 3/3 · Personnage", UI.mx, 34, 11, uiAccent(), 2);
+  uiLabel(darkMode ? "Belzébuth · 3/3 · Génital" : "Étape 3/3 · Personnage", UI.mx, 34, 11, uiAccent(), 2);
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
   ctx.font = "800 26px " + UI.sans;
-  ctx.fillText("Joueur " + sideName(selPlayer) + " — choisis ton animal", UI.mx, 60);
+  ctx.fillText("Joueur " + sideName(selPlayer) + (darkMode ? " — choisis ton génital" : " — choisis ton animal"), UI.mx, 60);
 
   const vis = visibleAnimalIdx();
   const cw = W / vis.length; // largeur de carte adaptative (4, 5 ou 6 animaux…)
@@ -637,7 +667,7 @@ function drawSelectTerrain() {
   ctx.fillStyle = darkMode ? "#160303" : "#0e0f14";
   ctx.fillRect(0, 0, W, H);
   if (darkMode) drawHellVignette();
-  uiLabel(darkMode ? "Belzébuth · Terrain" : "Dernière étape · Terrain", UI.mx, 40, 11, uiAccent(), 2);
+  uiLabel(darkMode ? "Belzébuth · Bourbier" : "Dernière étape · Terrain", UI.mx, 40, 11, uiAccent(), 2);
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
   ctx.font = "800 30px " + UI.sans;
   ctx.fillText(darkMode ? "Choisis ton bourbier" : "Choisis le terrain", UI.mx, 74);

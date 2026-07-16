@@ -33,6 +33,56 @@ if (typeof canvas.addEventListener === "function") { // absent en environnement 
     const code = hitTestIn(menuHitboxesPrev, p.x, p.y);
     if (code) handleMenuKeys(code, "");
   });
+
+  // ---------- Contrôles tactiles (mobile) ----------
+  // Pilotent directement `keys{}`, exactement comme le clavier : aucun
+  // changement requis dans localInputs()/onlineLocalInput(), qui lisent déjà
+  // cet objet partagé. Le pavé tactile est UNIQUE (pas un par joueur) : sur
+  // un téléphone, un seul joueur humain tient l'appareil, donc on détermine
+  // dynamiquement QUEL jeu de touches physiques il pilote selon le contexte.
+  const hasTouch = ("ontouchstart" in window) || navigator.maxTouchPoints > 0;
+  if (hasTouch) {
+    const tc = document.getElementById("touchControls");
+    function touchKeySet() {
+      if (online) {
+        if (mySlot === 0) return { left: "KeyA", right: "KeyD", jump: "KeyW", super: "KeyS" };
+        if (mySlot === 1) return { left: "ArrowLeft", right: "ArrowRight", jump: "ArrowUp", super: "ArrowDown" };
+        return null; // 2v2 en ligne (slots 2/3) : pas pris en charge au tactile
+      }
+      if (vsAI || mode === "2v2") return { left: "KeyA", right: "KeyD", jump: "KeyW", super: "KeyS" };
+      return null; // 2 joueurs locaux sur le même appareil : peu pertinent au tactile
+    }
+    function bindTouchBtn(sel, field) {
+      const btn = tc.querySelector(sel);
+      let heldCode = null;
+      const press = e => {
+        e.preventDefault();
+        const set = touchKeySet();
+        heldCode = set && set[field];
+        if (heldCode) { keys[heldCode] = true; btn.classList.add("tc-active"); }
+      };
+      const release = e => {
+        if (e) e.preventDefault();
+        if (heldCode) keys[heldCode] = false;
+        heldCode = null;
+        btn.classList.remove("tc-active");
+      };
+      btn.addEventListener("touchstart", press, { passive: false });
+      btn.addEventListener("touchend", release, { passive: false });
+      btn.addEventListener("touchcancel", release, { passive: false });
+    }
+    bindTouchBtn('[data-tc="left"]', "left");
+    bindTouchBtn('[data-tc="right"]', "right");
+    bindTouchBtn('[data-tc="jump"]', "jump");
+    bindTouchBtn('[data-tc="super"]', "super");
+
+    // affiché uniquement pendant une manche jouable, et seulement si un jeu
+    // de touches s'applique effectivement (sinon les boutons ne feraient rien)
+    setInterval(() => {
+      const show = (state === "play" || state === "serve") && !!touchKeySet();
+      tc.classList.toggle("tc-visible", show);
+    }, 200);
+  }
 }
 
 // ---------- Manettes (Gamepad API) ----------

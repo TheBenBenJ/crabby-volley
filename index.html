@@ -29,10 +29,41 @@
     max-width: 100vw;
     max-height: 100vh;
   }
+  /* Contrôles tactiles (mobile) : superposés au canvas, pilotés depuis
+     03-input.js. Masqués par défaut — affichés en JS uniquement sur un
+     appareil tactile et pendant une manche jouable (voir touchKeySet()). */
+  #touchControls { position: absolute; inset: 0; display: none; pointer-events: none; }
+  #touchControls.tc-visible { display: block; }
+  .tc-pad, .tc-actions { position: absolute; bottom: 4%; display: flex; gap: 14px; pointer-events: auto; }
+  .tc-pad { left: 4%; }
+  .tc-actions { right: 4%; align-items: flex-end; }
+  .tc-btn {
+    width: 60px; height: 60px; border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.4);
+    background: rgba(20,20,30,0.35);
+    color: #fff; font-size: 22px; font-family: inherit;
+    display: flex; align-items: center; justify-content: center;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-touch-callout: none;
+  }
+  .tc-btn.tc-active { background: rgba(255,204,0,0.4); border-color: #ffcc00; }
+  .tc-jump { width: 72px; height: 72px; font-size: 26px; }
 </style>
 </head>
 <body>
-<div id="wrap"><canvas id="game" width="900" height="500"></canvas></div>
+<div id="wrap">
+  <canvas id="game" width="900" height="500"></canvas>
+  <div id="touchControls" aria-hidden="true">
+    <div class="tc-pad">
+      <button class="tc-btn tc-left" data-tc="left" type="button">◀</button>
+      <button class="tc-btn tc-right" data-tc="right" type="button">▶</button>
+    </div>
+    <div class="tc-actions">
+      <button class="tc-btn tc-super" data-tc="super" type="button">★</button>
+      <button class="tc-btn tc-jump" data-tc="jump" type="button">⤒</button>
+    </div>
+  </div>
+</div>
 <!-- PeerJS : signalisation cloud gratuite pour le mode en ligne (voir MULTIJOUEUR.md).
      Si le CDN est inaccessible, le jeu reste jouable hors ligne : seul le mode
      en ligne affichera un message d'erreur. -->

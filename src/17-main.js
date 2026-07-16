@@ -1,6 +1,11 @@
 // crabby-volley · boucle à pas fixe 60 Hz & amorçage
 "use strict";
 
+// réglages son/musique/volume sauvegardés d'une session à l'autre — à faire
+// avant la première frame pour que le tout premier rendu (menu) soit déjà
+// cohérent avec les préférences du joueur.
+loadSettings();
+
 // ---------- Boucle à pas fixe (60 Hz) ----------
 // La simulation avance par ticks constants, découplés du framerate :
 // prérequis pour rejouer/synchroniser des entrées en réseau.

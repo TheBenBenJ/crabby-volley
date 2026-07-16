@@ -87,9 +87,12 @@ function animOf(b) { return ANIMALS[b.animal]; }
 // "hidden" (trash/infernaux) le sont — jamais les deux à la fois.
 let darkMode = false;
 let darkSeq = "";
-// états où "666" ne doit PAS être intercepté (saisie de code de partie,
-// ou pleine partie où les chiffres n'ont de toute façon aucun usage ici)
-const MENU_LIKE_EXCLUDED = new Set(["joinEntry", "play", "serve", "point", "gameover"]);
+// états où "666" ne doit PAS être intercepté : saisie de code de partie et
+// pleine partie (chiffres sans usage ici) ; MAIS AUSSI la sélection perso/
+// terrain — là, les chiffres ont déjà un sens (choisir un slot), et basculer
+// le mode EN PLEIN CHOIX invaliderait silencieusement la sélection en cours
+// (setDarkMode() la remplace alors par un choix aléatoire, sans le dire).
+const MENU_LIKE_EXCLUDED = new Set(["joinEntry", "play", "serve", "point", "gameover", "selectAnimal", "selectTerrain"]);
 function visibleAnimalIdx() {
   const idx = [];
   for (let i = 0; i < ANIMALS.length; i++) if (!!ANIMALS[i].hidden === darkMode) idx.push(i);
@@ -164,10 +167,13 @@ const AI_LEVELS = [
   // attack : décalage derrière la balle pour viser franchement le camp adverse
   // react : anticipation (0=lent, 1=parfait) · dbl : utilise le double saut
   // aim : 1 = place ses frappes LOIN de l'adversaire (drive profond / amorti court)
+  // tous les réglages progressent de façon monotone d'un niveau à l'autre
+  // (chacun au moins aussi élevé que le précédent) — un niveau plus dur qui
+  // recule sur un critère se lit comme un oubli, pas comme un choix.
   { name: "Facile",      speedMul: 0.82, err: 40, jumpDist: 100, rush: 0.25, attack: 8,  react: 0.55, dbl: false, aim: 0 },
   { name: "Normale",     speedMul: 1.0,  err: 15, jumpDist: 118, rush: 0.5,  attack: 15, react: 0.8,  dbl: true,  aim: 0 },
   { name: "Difficile",   speedMul: 1.22, err: 3,  jumpDist: 138, rush: 0.85, attack: 24, react: 1.0,  dbl: true,  aim: 1 },
-  { name: "Impitoyable", speedMul: 1.5,  err: 0,  jumpDist: 160, rush: 0.6,  attack: 28, react: 1.0,  dbl: true,  aim: 1 }
+  { name: "Impitoyable", speedMul: 1.5,  err: 0,  jumpDist: 160, rush: 0.9,  attack: 28, react: 1.0,  dbl: true,  aim: 1 }
 ];
 let aiLevel = 1;
 let aiErr = 0, aiErrTimer = 0;  // erreur de placement volontaire de l'IA
