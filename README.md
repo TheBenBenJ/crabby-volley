@@ -35,17 +35,17 @@ propres sous-choix plutôt qu'un mur d'options :
 
 | Accueil | Puis... |
 |---------|---------|
-| **1 — Solo contre l'IA** | choix de la difficulté (Facile/Normale/Difficile/Impitoyable), puis du format : 1v1, 2v2 (toi + IA vs 2 IA), ou 💣 Bombe (1v1/2v2) |
-| **2 — Multijoueur local** | même écran/clavier (ou 2 manettes) : 1v1 classique ou 💣 Bombe |
-| **3 — Jouer en ligne** | créer une partie 1v1/2v2 (classique ou 💣 Bombe) et partager le code, ou rejoindre avec un code |
+| **1 — Solo** | choix de la difficulté (Facile/Normale/Difficile/Impitoyable), puis du format : Classique, En équipes (toi + IA vs 2 IA), ou Bombe (qui demande ensuite 1v1 ou en équipes) |
+| **2 — Multijoueur local** | même écran/clavier (ou 2 manettes) : Classique ou Bombe (1v1 uniquement, pas d'équipes en local) |
+| **3 — Multijoueur en ligne** | *Créer une partie* → même écran de format que le solo (Classique/En équipes/Bombe), puis partage le code ; ou *Rejoindre avec un code* |
 | **R — Règles** | rappel des commandes, techniques SUPER et fiche de chaque animal |
 
-> **Mode Bombe** — La balle devient une bombe à mèche (durée réglable : 5/7/10 s).
-> Elle explose au bout du délai choisi *ou* dès qu'elle touche le sol. Dans les
-> deux cas, **le camp où se trouve la bombe au moment de l'explosion perd le
-> point**. Un compte à rebours central et un voile rouge indiquent le camp en
-> danger. (Le Smash Battle est désactivé dans ce mode : la mèche, elle, ne
-> s'arrête jamais.)
+> **Mode Bombe** — La balle devient une bombe à mèche (durée réglable, 3
+> intensités). Elle explose au bout du délai choisi *ou* dès qu'elle touche
+> le sol. Dans les deux cas, **le camp où se trouve la bombe au moment de
+> l'explosion perd le point**. Un compte à rebours central et un voile rouge
+> indiquent le camp en danger. (Le Smash Battle est désactivé dans ce mode :
+> la mèche, elle, ne s'arrête jamais.)
 
 ### Commandes & navigation
 

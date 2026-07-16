@@ -67,37 +67,46 @@ function handleMenuKeys(code, key) {
     if (code === "Escape") state = "menu";
 
   } else if (state === "gameModeSelect") {
-    // Étape finale avant le choix d'animal : type de partie. La 2v2 (toi + IA
-    // coéquipière vs 2 IA) n'a de sens que côté Solo — hors-ligne, seul le
-    // slot 0 est humain (voir update()/aiInput2v2 dans 08-ai.js/13-simulation.js).
-    // La Bombe est désormais un MODIFICATEUR : dispo en 1v1 comme en 2v2.
-    // Choisir une option Bombe amène à l'écran de durée (5/7/10 s).
-    if (pendingMode.vsAI) {
-      if (code === "Digit1") { startAnimalSelect(); }                              // 1v1 classique
-      if (code === "Digit2") { pendingMode.mode2v2 = true; startAnimalSelect(); }   // 2v2 (toi + IA vs 2 IA)
-      if (code === "Digit3") { pendingMode.bomb = true; state = "bombDuration"; }   // 💣 Bombe 1v1
-      if (code === "Digit4") { pendingMode.bomb = true; pendingMode.mode2v2 = true; state = "bombDuration"; } // 💣 Bombe 2v2
+    // Étape finale avant le choix d'animal : type de partie. Le choix d'équipe
+    // (2v2 : toi + IA coéquipière vs 2 IA, en solo ; ou 2v2 hébergé, en ligne)
+    // n'a de sens QUE là où deux formats existent réellement — pas en
+    // multijoueur local, qui ne prend en charge que le 1v1 (voir
+    // update()/aiInput2v2 dans 08-ai.js/13-simulation.js, et hostStartMatch2v2
+    // dans 15-net.js). La Bombe est un MODIFICATEUR, pas un format à part :
+    // elle pose sa propre sous-question 1v1/équipes quand celle-ci a un sens
+    // (voir "bombFormat"), sinon (local) va direct à la durée de mèche.
+    const teamChoice = pendingMode.vsAI || pendingMode.online;
+    if (teamChoice) {
+      if (code === "Digit1") { startAnimalSelect(); }                       // Classique (1v1)
+      if (code === "Digit2") { setTeamMode(true); startAnimalSelect(); }     // En équipes (2v2)
+      if (code === "Digit3") { pendingMode.bomb = true; state = "bombFormat"; } // Bombe -> 1v1 ou équipes ?
     } else {
-      if (code === "Digit1") { startAnimalSelect(); }                              // 1v1 classique
-      if (code === "Digit2") { pendingMode.bomb = true; state = "bombDuration"; }   // 💣 Bombe (2 joueurs)
+      if (code === "Digit1") { startAnimalSelect(); }                       // Classique (1v1)
+      if (code === "Digit2") { pendingMode.bomb = true; state = "bombDuration"; } // Bombe (1v1 uniquement en local)
     }
-    if (code === "Escape") state = pendingMode.vsAI ? "aiDifficulty" : "menu";
+    if (code === "Escape") {
+      state = pendingMode.online ? "onlineMenu" : (pendingMode.vsAI ? "aiDifficulty" : "menu");
+    }
+
+  } else if (state === "bombFormat") {
+    // sous-question de la Bombe (uniquement quand le 1v1 ET les équipes sont
+    // tous deux possibles — solo vs IA ou hébergement en ligne)
+    if (code === "Digit1") { state = "bombDuration"; }                      // Bombe 1v1
+    if (code === "Digit2") { setTeamMode(true); state = "bombDuration"; }   // Bombe en équipes
+    if (code === "Escape") { pendingMode.bomb = false; state = "gameModeSelect"; }
 
   } else if (state === "bombDuration") {
     // durée de la mèche, commune à tous les modes (offline & hôte online)
     const d = { Digit1: 0, Digit2: 1, Digit3: 2 }[code];
     if (d !== undefined) { pendingMode.bombTime = BOMB_DURATIONS[d].ticks; startAnimalSelect(); }
-    if (code === "Escape") state = pendingMode.online ? "onlineMenu" : "gameModeSelect";
+    if (code === "Escape") state = (pendingMode.vsAI || pendingMode.online) ? "bombFormat" : "gameModeSelect";
 
   } else if (state === "rules") {
     if (code === "Escape" || code === "Enter" || code === "Space" || code === "KeyR") state = "menu";
 
   } else if (state === "onlineMenu") {
-    if (code === "Digit1") { pendingMode = { online: true }; startAnimalSelect(); }
-    if (code === "Digit3") { pendingMode = { online: true, o2v2: true }; startAnimalSelect(); }
-    if (code === "Digit4") { pendingMode = { online: true, bomb: true }; state = "bombDuration"; }             // 💣 Bombe 1v1 en ligne
-    if (code === "Digit5") { pendingMode = { online: true, o2v2: true, bomb: true }; state = "bombDuration"; }  // 💣 Bombe 2v2 en ligne
-    if (code === "Digit2") { joinCode = ""; state = "joinEntry"; }
+    if (code === "Digit1") { pendingMode = { online: true }; state = "gameModeSelect"; } // Créer une partie -> format
+    if (code === "Digit2") { joinCode = ""; state = "joinEntry"; }                        // Rejoindre avec un code
     if (code === "Escape") state = "menu";
 
   } else if (state === "hostLobby") {
@@ -184,6 +193,14 @@ function handleMenuKeys(code, key) {
 function startAnimalSelect() {
   selPlayer = 0;
   state = "selectAnimal";
+}
+
+// bascule le format "en équipes" sur le bon champ selon qu'on est en ligne
+// (o2v2 -> lobby/hébergement 2v2, voir hostStartMatch2v2 dans 15-net.js) ou
+// solo vs IA (mode2v2 -> toi + IA coéquipière vs 2 IA, voir 13-simulation.js).
+function setTeamMode(v) {
+  if (pendingMode.online) pendingMode.o2v2 = v;
+  else pendingMode.mode2v2 = v;
 }
 
 // Valide la configuration choisie (fin de selectTerrain) et lance la partie
@@ -426,9 +443,9 @@ function drawMenu() {
   // ensuite sur ses propres sous-choix (difficulté, mode de jeu…)
   const items = [
     "1  —  Solo",
-    "2  —  Local (même écran)",
-    "3  —  En ligne",
-    "R  —  Règles du jeu & animaux", // texte fixe, comme le titre de l'écran des règles
+    "2  —  Multijoueur local",
+    "3  —  Multijoueur en ligne",
+    "R  —  Règles du jeu",
     "C  —  Crédits"
   ];
   drawOptionList(items, 226, 44);
@@ -454,21 +471,27 @@ function controlsHint() {
 function controlsHintColor() { return (padConnected || hasTouch) ? "#7ed957" : UI.muted; }
 
 // ---------- Assistant de configuration : position dans le parcours ----------
-// Le nombre total d'étapes DÉPEND DU CHEMIN (IA ou non, Bombe ou non) — jamais
-// fixe — TOUJOURS affiché "X/Y" (jamais un numéro seul). Tant que le choix
-// Bombe n'est pas encore fait (Difficulté/Format), pendingMode.bomb est encore
-// absent : le total affiché suppose alors "pas de Bombe" (le cas le plus
-// courant) — pendingMode est réinitialisé à chaque entrée dans l'assistant
-// (voir "Digit1"/"Digit2" du menu et onlineMenu) pour ne jamais laisser un
-// vieux total (d'une config précédente) s'afficher par erreur.
+// Le nombre total d'étapes DÉPEND DU CHEMIN (IA ou non, Bombe ou non, en
+// ligne ou non) — jamais fixe — TOUJOURS affiché "X/Y" (jamais un numéro
+// seul). Tant que le choix Bombe n'est pas encore fait (Difficulté/Format),
+// pendingMode.bomb est encore absent : le total affiché suppose alors "pas
+// de Bombe" (le cas le plus courant) — pendingMode est réinitialisé à chaque
+// entrée dans l'assistant pour ne jamais laisser un vieux total traîner.
+// La sous-question "bombFormat" (1v1 ou équipes pour la Bombe) n'existe QUE
+// là où les deux formats sont possibles (solo vs IA, ou hébergement en
+// ligne) — pas en multijoueur local, qui ne connaît que le 1v1.
 function wizardTotal() {
-  return (pendingMode.vsAI ? 1 : 0) + 1 /* Format (ou l'écran "Jouer en ligne") */
-       + (pendingMode.bomb ? 1 : 0) + 2 /* Personnage + Terrain */;
+  const hasTeamChoice = pendingMode.vsAI || pendingMode.online;
+  return (pendingMode.vsAI ? 1 : 0)                                  /* Difficulté (solo uniquement) */
+       + 1                                                            /* Format */
+       + (pendingMode.bomb && hasTeamChoice ? 1 : 0)                  /* Bombe : 1v1 ou équipes ? */
+       + (pendingMode.bomb ? 1 : 0)                                   /* Durée de mèche */
+       + 2;                                                            /* Personnage + Terrain */
 }
 function wizardStep(idx, label) { return "Étape " + idx + "/" + wizardTotal() + " · " + label; }
 
 function drawAiDifficulty() {
-  menuScreenBase({ title: "Solo contre l'IA", kicker: wizardStep(1, "Difficulté"),
+  menuScreenBase({ title: "Solo", kicker: wizardStep(1, "Difficulté"),
                    subtitle: "Choisis la difficulté de l'adversaire" });
   const items = [
     "1  —  Facile",
@@ -480,30 +503,41 @@ function drawAiDifficulty() {
 }
 
 function drawGameModeSelect() {
-  const subtitle = pendingMode.vsAI
-    ? "Solo — " + AI_LEVELS[pendingMode.aiLevel].name + " — choisis le mode de jeu"
-    : "Multijoueur local — choisis le mode de jeu";
-  menuScreenBase({ title: "Mode de jeu", kicker: wizardStep(pendingMode.vsAI ? 2 : 1, "Format"), subtitle: subtitle });
+  const teamChoice = pendingMode.vsAI || pendingMode.online;
+  const ctxLabel = pendingMode.online ? "En ligne"
+    : pendingMode.vsAI ? "Solo — " + AI_LEVELS[pendingMode.aiLevel].name
+    : "Multijoueur local";
+  menuScreenBase({ title: "Mode de jeu", kicker: wizardStep(pendingMode.vsAI ? 2 : 1, "Format"),
+                   subtitle: ctxLabel + " — choisis le mode de jeu" });
 
-  const items = pendingMode.vsAI ? [
-    "1  —  1v1 classique",
-    "2  —  2v2 : toi + IA vs 2 IA",
-    "3  —  💣 Bombe 1v1",
-    "4  —  💣 Bombe 2v2"
+  const items = teamChoice ? [
+    "1  —  Classique",
+    "2  —  En équipes",
+    "3  —  Bombe"
   ] : [
-    "1  —  1v1 classique",
-    "2  —  💣 Bombe 1v1"
+    "1  —  Classique",
+    "2  —  Bombe"
   ];
   drawOptionList(items, 236, 48);
 }
 
+function drawBombFormat() {
+  menuScreenBase({ title: "Mode Bombe", kicker: wizardStep(wizardTotal() - 3, "Format"),
+                   subtitle: "1v1, ou en équipes ?" });
+  const items = [
+    "1  —  1v1",
+    "2  —  En équipes"
+  ];
+  drawOptionList(items, 238, 50);
+}
+
 function drawBombDuration() {
-  menuScreenBase({ title: "Mode Bombe", kicker: wizardStep(wizardTotal() - 2, "💣 Durée de mèche"),
+  menuScreenBase({ title: "Mode Bombe", kicker: wizardStep(wizardTotal() - 2, "Durée de mèche"),
                    subtitle: "Renvoie la bombe avant la fin de la mèche" });
   const items = [
-    "1  —  5 secondes   ·   nerveux",
-    "2  —  7 secondes   ·   équilibré",
-    "3  —  10 secondes   ·   posé"
+    "1  —  Nerveux",
+    "2  —  Équilibré",
+    "3  —  Posé"
   ];
   drawOptionList(items, 240, 52);
 }
@@ -651,6 +685,10 @@ function drawCredits() {
 
   h("Licence");
   p("MIT — voir le fichier LICENSE du dépôt");
+  y += 10;
+
+  h("Version");
+  m(GAME_VERSION);
 }
 
 // texte multi-lignes aligné à gauche
@@ -718,7 +756,10 @@ function drawSelectAnimal() {
       // sélection dans tout le jeu (voir drawOptionList/drawSelectTerrain)
       ctx.strokeStyle = UI.gold;
       ctx.lineWidth = 3;
-      ctx.strokeRect(cw * slot + 8, 72, cw - 16, 336);
+      ctx.beginPath();
+      const rx = cw * slot + 8, ry = 72, rw = cw - 16, rh = 336;
+      if (ctx.roundRect) ctx.roundRect(rx, ry, rw, rh, 10); else ctx.rect(rx, ry, rw, rh);
+      ctx.stroke();
     }
     const preview = {
       x: cx, y: 168, groundY: 168,
@@ -792,7 +833,7 @@ function drawSelectTerrain() {
     // aperçu réduit du terrain (le vrai rendu, animé)
     ctx.save();
     ctx.beginPath();
-    ctx.rect(px, py, pw, ph);
+    if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 10); else ctx.rect(px, py, pw, ph);
     ctx.clip();
     ctx.translate(px, py);
     ctx.scale(pw / W, ph / H);
@@ -808,7 +849,9 @@ function drawSelectTerrain() {
     const sel = (padConnected && navIdx === slot) || isHover(code);
     ctx.strokeStyle = sel ? UI.gold : "rgba(255,255,255,0.6)"; // or : seule couleur de sélection, partout
     ctx.lineWidth = sel ? 4 : 2;
-    ctx.strokeRect(px, py, pw, ph);
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 10); else ctx.rect(px, py, pw, ph);
+    ctx.stroke();
 
     // index mono + nom du terrain, centrés sous la vignette
     ctx.textAlign = "center";

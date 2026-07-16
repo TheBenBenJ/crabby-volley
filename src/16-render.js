@@ -100,6 +100,7 @@ function render() {
   if (state === "menu") { drawMenu(); return; }
   if (state === "aiDifficulty") { drawAiDifficulty(); return; }
   if (state === "gameModeSelect") { drawGameModeSelect(); return; }
+  if (state === "bombFormat") { drawBombFormat(); return; }
   if (state === "bombDuration") { drawBombDuration(); return; }
   if (state === "rules") { drawRules(); return; }
   if (state === "credits") { drawCredits(); return; }
@@ -154,6 +155,9 @@ function render() {
   drawBall();
   if (battle.active) drawBattleFx();
   drawParticles();
+  // banderole de la crabette : vraiment au premier plan (devant joueurs et
+  // filet), pas juste dans la même passe que le décor (voir drawCrab/10-scenery.js)
+  if (TERRAINS[terrain].key === "plage") drawCrabBanner();
   ctx.restore();
   drawBallMarker();
   drawHUD();

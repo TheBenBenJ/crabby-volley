@@ -24,7 +24,7 @@ function freshRally(seed) {
 
 console.log("crabby-volley — tests");
 
-test("les 17 modules se chargent et exposent l'API", () => {
+test("les 18 modules se chargent et exposent l'API", () => {
   const g = loadGame();
   assert.strictEqual(typeof g.stepGame, "function");
   assert.strictEqual(typeof g.getSnapshot, "function");

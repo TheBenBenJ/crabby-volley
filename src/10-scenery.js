@@ -395,9 +395,9 @@ function drawCrab() {
   ctx.beginPath(); ctx.arc(0, -2, 5, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke();
   ctx.restore();
 
-  // banderole dessinée juste après le crabe (même plan) : les mâts sont
-  // désormais reliés au corps, plus de panneau flottant dans le vide.
-  drawCrabBanner();
+  // la banderole n'est PLUS dessinée ici : elle doit passer devant les
+  // joueurs/le filet, donc son tracé est déclenché séparément, après eux
+  // (voir render() dans 16-render.js).
 }
 
 // ---------- Course du soleil / de la lune ----------

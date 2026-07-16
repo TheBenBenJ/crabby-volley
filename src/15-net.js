@@ -1001,17 +1001,14 @@ function netScreenBase(title, kicker, subtitle) {
 function drawOnlineMenu() {
   netScreenBase("Jouer en ligne", "En ligne · Créer ou rejoindre",
                 "Connexion directe entre navigateurs (WebRTC)");
-  // ordre numérique visuel = ordre de navOptions("onlineMenu") : [1,2,3,4,5]
-  // (drawOptionList gère déjà le clic/survol souris, voir 12-menus.js)
+  // "Créer une partie" amène au même écran de format que le solo (1v1/en
+  // équipes/Bombe, voir drawGameModeSelect) — plus de doublons à plat ici.
   const opts = [
-    "1  —  Créer une partie 1v1",
-    "2  —  Rejoindre avec un code",
-    "3  —  Créer une partie 2v2",
-    "4  —  💣 Créer une partie Bombe 1v1",
-    "5  —  💣 Créer une partie Bombe 2v2"
+    "1  —  Créer une partie",
+    "2  —  Rejoindre avec un code"
   ];
-  drawOptionList(opts, 224, 40);
-  uiLabel("L'hôte partage son code · 2v2 : places libres tenues par l'IA", UI.mx, H - 70, 10, UI.muted, 1);
+  drawOptionList(opts, 224, 44);
+  uiLabel("L'hôte partage son code · en équipes : places libres tenues par l'IA", UI.mx, H - 70, 10, UI.muted, 1);
 }
 
 // gros code de partie, calé à gauche sous l'en-tête

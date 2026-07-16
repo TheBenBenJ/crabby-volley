@@ -3,6 +3,13 @@ name: Deploy
 # Déploiement continu : à chaque push sur main, on lance les tests puis, s'ils
 # passent, on synchronise index.html + src/ vers la racine web du serveur.
 # Le déploiement peut aussi être déclenché à la main (workflow_dispatch).
+#
+# Versionnage (SemVer x.y.z, voir package.json + src/00-version.js) : le job
+# "deploy" incrémente automatiquement le PATCH à chaque push et repousse ce
+# commit sur main — le message contient "[skip ci]" pour ne pas redéclencher
+# une passe de test/déploiement sur ce commit-là (sinon boucle infinie). Les
+# incréments MINOR/MAJOR restent manuels (bump à la main dans package.json
+# selon l'ampleur du changement, comme n'importe quel projet SemVer).
 on:
   push:
     branches: [main]
@@ -16,6 +23,7 @@ concurrency:
 
 jobs:
   test:
+    if: ${{ !contains(github.event.head_commit.message || '', '[skip ci]') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,8 +34,11 @@ jobs:
         run: npm test
 
   deploy:
+    if: ${{ !contains(github.event.head_commit.message || '', '[skip ci]') }}
     needs: test            # pas de déploiement si les tests échouent
     runs-on: ubuntu-latest
+    permissions:
+      contents: write      # pour repousser le commit de version
     # secrets/paramètres du serveur (voir README → Déploiement continu)
     env:
       DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -35,6 +46,28 @@ jobs:
       WEB_ROOT: ${{ secrets.DEPLOY_WEB_ROOT }}
     steps:
       - uses: actions/checkout@v4
+
+      - name: Incrémente la version (patch) — package.json + src/00-version.js
+        run: |
+          node -e "
+            const fs = require('fs');
+            const pkg = require('./package.json');
+            const parts = pkg.version.split('.').map(Number);
+            parts[2]++;
+            pkg.version = parts.join('.');
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+            fs.writeFileSync('src/00-version.js',
+              '// crabby-volley · version du jeu (générée automatiquement au déploiement\n' +
+              '// — voir .github/workflows/deploy.yml — ne pas éditer à la main)\n' +
+              '\"use strict\";\n' +
+              'const GAME_VERSION = \"' + pkg.version + '\";\n');
+            console.log('Nouvelle version : ' + pkg.version);
+          "
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add package.json src/00-version.js
+          git commit -m "chore: bump version to $(node -p "require('./package.json').version") [skip ci]"
+          git push
 
       - name: Anti-cache des scripts (?v=DEV → SHA du commit)
         run: sed -i "s/?v=DEV/?v=${GITHUB_SHA::8}/g" index.html
