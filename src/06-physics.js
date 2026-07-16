@@ -264,9 +264,15 @@ function updateBall() {
     if (holder) {
       const tip = beakTip(holder);
       ball.x = tip.x; ball.y = tip.y;
-      if (state === "play" || state === "serve") {
-        awardPoint(1 - holder.side, "Balle crevée !");
-      }
+    }
+    if (state === "play" || state === "serve") {
+      // Sans holder (désync soft-own : popped reçu sans hasBall) on marque
+      // quand même — sinon la partie reste bloquée à jamais.
+      const loser = holder ? holder.side
+        : (ball.lastTouchSide === 0 || ball.lastTouchSide === 1)
+          ? ball.lastTouchSide
+          : (ball.x < NET_X ? 0 : 1);
+      awardPoint(1 - loser, "Balle crevée !");
     }
     return;
   }

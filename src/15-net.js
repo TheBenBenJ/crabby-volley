@@ -750,10 +750,19 @@ function netUpdate() {
           tickSuper(me);
         }
         if (state === "serve" && !ball.frozen) state = "play";
+        // Crevaison : la collision pose popped en FIN de updateBall, le point
+        // ne tombe qu'au tick suivant. Si on libère l'autorité sur `popped`
+        // tout de suite, ce tick n'arrive jamais → pas de `pt` → partie bloquée.
+        if (ball.popped && !pendingNetPoint && (state === "play" || state === "serve")) {
+          const holder = activeBlobs.find(b => b.hasBall);
+          if (holder) awardPoint(1 - holder.side, "Balle crevée !");
+        }
         netDeferScore = false;
         ballPkt = packBallState(true);
-        // Libération : basée sur la simu LOCALE, une seule fois
-        if (!ballInGuestOwnZone(ball.x) || ball.popped || battle.active) {
+        // Libération : zone / battle. Garder l'autorité tant que crevée + pt
+        // en vol (renvoi jusqu'à ce que l'hôte passe en "point").
+        if (battle.active ||
+            (!ball.popped && !pendingNetPoint && !ballInGuestOwnZone(ball.x))) {
           guestBallAuthority = false;
           guestBallHold = GUEST_BALL_HOLD;
           guestCoast = { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, angle: ball.angle };

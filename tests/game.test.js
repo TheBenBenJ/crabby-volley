@@ -281,6 +281,21 @@ test("soft ownership : skipBall avance les corps sans bouger la balle", () => {
   assert.ok(g.blobL.x !== x0 || g.blobL.vx !== 0, "les corps avancent quand même");
 });
 
+test("balle crevée : sans holder local, le point tombe quand même", () => {
+  // Régression soft-own : popped reçu sans hasBall bloquait la partie.
+  const g = loadGame();
+  g.setVsAI(true); g.setAiLevel(1);
+  g.newGame(42);
+  g.setState("play"); g.setServeCountdown(0);
+  g.ball.frozen = false;
+  g.ball.popped = true;
+  g.ball.lastTouchSide = 1; // Vert a crevé → point pour Rouge
+  g.blobL.hasBall = false; g.blobR.hasBall = false;
+  g.updateBall();
+  assert.strictEqual(g.getState(), "point", "un point doit être marqué");
+  assert.strictEqual(g.scores[0], 1, "le camp opposé au lastTouch marque");
+});
+
 test("soft ownership : pack/applyBallState round-trip", () => {
   const g = loadGame();
   g.newGame(2);
