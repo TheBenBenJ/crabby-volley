@@ -923,15 +923,19 @@ function drawBombHUD() {
   const col = frac > 0.5 ? "#7ed957" : frac > 0.25 ? "#ffcc00" : "#ff4030";
   const blink = low && Math.floor(performance.now() / 140) % 2 === 0;
   ctx.save();
-  ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(20,20,40,0.62)";
-  ctx.fillRect(NET_X - 62, 24, 124, 42);
+  const bx = NET_X - 56, by = 18, bw = 112, bh = 44;
+  ctx.fillStyle = "rgba(10,12,18,0.72)";
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 8);
+  else ctx.rect(bx, by, bw, bh);
+  ctx.fill();
   ctx.strokeStyle = blink ? "#fff" : col;
-  ctx.lineWidth = 2;
-  ctx.strokeRect(NET_X - 62, 24, 124, 42);
-  ctx.font = "bold 26px 'Inter', system-ui, sans-serif";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  ctx.textAlign = "center";
   ctx.fillStyle = blink ? "#fff" : col;
-  ctx.fillText("💣 " + secs + "s", NET_X, 55);
+  ctx.font = "800 24px " + (typeof UI !== "undefined" ? UI.sans : "'Inter', system-ui, sans-serif");
+  ctx.fillText(secs + "s", NET_X, by + 32);
   ctx.restore();
 }
 
@@ -1006,16 +1010,16 @@ function drawHUD() {
       ctx.fillStyle = (Math.sin(t * 6) > 0) ? "#ffd93d" : "#fff2a0";
     } else ctx.fillStyle = col;
     ctx.fillRect(bx, by, bw * frac, 7);
-    // libellé
+    // libellé mono
     ctx.textAlign = "center";
-    ctx.font = "bold 11px 'Inter', system-ui, sans-serif";
     if (ready) {
       ctx.fillStyle = "#ffd93d";
-      const key = (s === 0 ? blobL : blobR);
-      ctx.fillText("★ SUPER PRÊT — " + (s === 0 ? "S" : "↓") + " ★", cx, by + 22);
+      ctx.font = "700 10px " + MONO;
+      ctx.fillText("SUPER — " + (s === 0 ? "S" : "↓"), cx, by + 22);
     } else {
-      ctx.fillStyle = "rgba(255,255,255,0.75)";
-      ctx.fillText("combo " + (streak[s] % SUPER_NEED) + "/" + SUPER_NEED, cx, by + 22);
+      ctx.fillStyle = "rgba(255,255,255,0.65)";
+      ctx.font = "700 10px " + MONO;
+      ctx.fillText("COMBO " + (streak[s] % SUPER_NEED) + "/" + SUPER_NEED, cx, by + 22);
     }
   }
 
@@ -1067,16 +1071,25 @@ function drawHUD() {
 }
 
 function overlay(title, subtitle) {
-  ctx.fillStyle = "rgba(20,20,40,0.65)";
+  // voile éditorial + plaque centrée (même grammaire que les menus)
+  ctx.fillStyle = "rgba(8,9,14,0.72)";
   ctx.fillRect(0, 0, W, H);
+  const pw = 520, ph = 160, px = (W - pw) / 2, py = (H - ph) / 2 - 8;
+  ctx.fillStyle = "rgba(10,12,18,0.88)";
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 12);
+  else ctx.rect(px, py, pw, ph);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.12)"; ctx.lineWidth = 1; ctx.stroke();
+  uiLabel("Crabby Volley", W / 2, py + 28, 10, uiAccent(), 2, "center");
   ctx.textAlign = "center";
-  ctx.fillStyle = "#fff";
-  ctx.font = "bold 44px 'Inter', system-ui, sans-serif";
-  ctx.fillText(title, W / 2, H / 2 - 20);
+  ctx.fillStyle = UI.ink;
+  ctx.font = "800 36px " + UI.sans;
+  ctx.fillText(title, W / 2, py + 78);
   if (subtitle) {
-    ctx.font = "20px 'Inter', system-ui, sans-serif";
-    ctx.fillStyle = "rgba(255,255,255,0.85)";
-    ctx.fillText(subtitle, W / 2, H / 2 + 20);
+    ctx.font = "400 15px " + UI.sans;
+    ctx.fillStyle = "rgba(255,255,255,0.72)";
+    ctx.fillText(subtitle, W / 2, py + 118);
   }
 }
 

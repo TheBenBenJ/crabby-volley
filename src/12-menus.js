@@ -398,33 +398,46 @@ function drawRules() {
   ctx.fillText((darkMode ? "😈 " : "") + (darkMode ? "Règles des Enfers" : "Règles du jeu"), UI.mx, 54);
   uiRule(UI.mx, W - UI.mx, 66, UI.faint);
 
-  // colonne gauche : règles générales
+  // colonne gauche : règles générales (bornée pour ne jamais mordre sur la droite)
   const lx = UI.mx;
+  const leftMaxW = W / 2 - UI.mx - 16;
   const hCol = darkMode ? "#ff6a4d" : "#7ed957";
   ctx.textAlign = "left";
   let y = 78;
-  const h = (txt, c) => { ctx.fillStyle = c || hCol; ctx.font = "bold 17px 'Inter', system-ui, sans-serif"; ctx.fillText(txt, lx, y); y += 22; };
-  const p = (txt) => { ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.font = "14px 'Inter', system-ui, sans-serif"; ctx.fillText(txt, lx, y); y += 19; };
+  const h = (txt, c) => { ctx.fillStyle = c || hCol; ctx.font = "700 15px " + UI.sans; ctx.fillText(txt, lx, y); y += 20; };
+  const p = (txt) => {
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
+    ctx.font = "13px " + UI.sans;
+    const words = txt.split(" ");
+    let line = "";
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      if (ctx.measureText(test).width > leftMaxW && line) {
+        ctx.fillText(line, lx, y); y += 17; line = w;
+      } else line = test;
+    }
+    if (line) { ctx.fillText(line, lx, y); y += 17; }
+  };
 
   h("But du jeu");
   p("Faire tomber la balle dans le camp adverse.");
   p("Premier à " + WIN_SCORE + " points avec 2 points d'écart gagne.");
   p("Maximum " + MAX_TOUCHES + " touches par camp avant de renvoyer.");
-  y += 8;
+  y += 6;
   h("Commandes");
   p("Gauche : Q/D bouger, Z ou Espace sauter.");
   p("Droite : ← → bouger, ↑ sauter. (en ligne : les deux)");
   p("Manette : stick bouger, A sauter, B/gâchette SUPER.");
-  p("SUPER : Gauche = S, Droite = ↓. Double saut : réappuie en l'air.");
-  p("P : pause  •  M : son  •  N : musique  •  Échap : menu");
-  y += 8;
+  p("SUPER : Gauche = S · Droite = ↓");
+  p("Double saut : réappuie en l'air.");
+  p("P pause · M son · N musique · Échap menu");
+  y += 6;
   h("★ Techniques SUPER", "#ffd93d");
   p("3 points d'affilée chargent ta jauge de SUPER.");
-  p("Une fois prête, déclenche la technique de ton animal");
-  p("(voir la fiche de chacun à droite). À toi de bien la placer !");
-  y += 6;
+  p("Une fois prête, déclenche la technique de ton animal (fiche à droite).");
+  y += 4;
   h(darkMode ? "Météo & Duel infernal" : "Météo & Smash Battle", darkMode ? "#ff9a4d" : "#4db3ff");
-  p("Intempérie : sol glissant, balle plus lourde (tous terrains).");
+  p("Intempérie : sol glissant, balle plus lourde.");
   p("Deux au filet, balle proche : duel de martelage → smash !");
 
   // colonne droite : animaux + stats + traits

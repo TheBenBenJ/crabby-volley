@@ -34,39 +34,44 @@ function drawBattleHUD() {
   if (!battle.active) return;
   const blink = Math.sin(performance.now() / 70) > 0;
   ctx.save();
+  const bx = W / 2 - 320, by = 112, bw = 640, bh = 132;
+  ctx.fillStyle = "rgba(10,12,18,0.78)";
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 10);
+  else ctx.rect(bx, by, bw, bh);
+  ctx.fill();
+  ctx.strokeStyle = blink ? "#ffcc00" : "rgba(255,204,0,0.45)";
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+
+  uiLabel("Duel au filet", W / 2, by + 22, 10, blink ? "#ffcc00" : "#ff9800", 2.5, "center");
   ctx.textAlign = "center";
+  ctx.fillStyle = UI.ink;
+  ctx.font = "800 28px " + UI.sans;
+  ctx.fillText("SMASH BATTLE", W / 2, by + 54);
+  ctx.fillStyle = "rgba(255,255,255,0.72)";
+  ctx.font = "400 13px " + UI.sans;
+  ctx.fillText("Martelez SAUT le plus vite possible", W / 2, by + 76);
 
-  ctx.fillStyle = "rgba(20,20,40,0.6)";
-  ctx.fillRect(W / 2 - 330, 118, 660, 140);
-  ctx.strokeStyle = "#ffcc00";
-  ctx.lineWidth = 2;
-  ctx.strokeRect(W / 2 - 330, 118, 660, 140);
-
-  ctx.fillStyle = blink ? "#ffcc00" : "#ff9800";
-  ctx.font = "bold 42px 'Inter', system-ui, sans-serif";
-  ctx.fillText("⚡ SMASH BATTLE ! ⚡", W / 2, 162);
-  ctx.fillStyle = "rgba(255,255,255,0.92)";
-  ctx.font = "bold 17px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Martelez SAUT le plus vite possible !", W / 2, 188);
-
-  // jauges de martelage, dos à dos depuis le centre
+  // jauges de martelage, dos à dos depuis le centre + gros chiffres
   const maxC = Math.max(10, battle.count[0], battle.count[1]);
+  const barY = by + 90;
   for (const s of [0, 1]) {
-    const w = 250 * (battle.count[s] / maxC);
+    const w = 240 * (battle.count[s] / maxC);
     ctx.fillStyle = sideColor(s);
-    ctx.fillRect(s === 0 ? W / 2 - 20 - w : W / 2 + 20, 202, w, 18);
-    ctx.font = "bold 16px 'Inter', system-ui, sans-serif";
-    ctx.fillText(battle.count[s], s === 0 ? W / 2 - 295 : W / 2 + 295, 216);
+    ctx.fillRect(s === 0 ? W / 2 - 16 - w : W / 2 + 16, barY, w, 14);
+    ctx.font = "800 18px " + UI.sans;
+    ctx.fillText(String(battle.count[s]), s === 0 ? W / 2 - 280 : W / 2 + 280, barY + 13);
   }
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.fillRect(W / 2 - 2, 198, 4, 26);
+  ctx.fillStyle = "rgba(255,255,255,0.55)";
+  ctx.fillRect(W / 2 - 1.5, barY - 2, 3, 18);
 
   // barre de temps restant
-  const tw = 400 * battle.t / BATTLE_TICKS;
-  ctx.fillStyle = "rgba(255,255,255,0.25)";
-  ctx.fillRect(W / 2 - 200, 236, 400, 8);
+  const tw = 360 * battle.t / BATTLE_TICKS;
+  ctx.fillStyle = "rgba(255,255,255,0.18)";
+  ctx.fillRect(W / 2 - 180, by + bh - 14, 360, 5);
   ctx.fillStyle = "#ffcc00";
-  ctx.fillRect(W / 2 - tw / 2, 236, tw, 8);
+  ctx.fillRect(W / 2 - tw / 2, by + bh - 14, tw, 5);
   ctx.restore();
 }
 
@@ -151,30 +156,33 @@ function render() {
   if (online && netConnected) drawNetHUD();
 
   if (state === "point") {
+    const pw = 480, ph = 64, px = (W - pw) / 2, py = H / 2 - 32;
+    ctx.fillStyle = "rgba(10,12,18,0.82)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 10);
+    else ctx.rect(px, py, pw, ph);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,204,0,0.35)"; ctx.lineWidth = 1; ctx.stroke();
     ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(20,20,40,0.75)";
-    ctx.font = "bold 30px 'Inter', system-ui, sans-serif";
-    ctx.fillRect(W / 2 - 260, H / 2 - 45, 520, 70);
     ctx.fillStyle = "#ffcc00";
-    ctx.fillText(pointMsg, W / 2, H / 2);
+    ctx.font = "800 26px " + UI.sans;
+    ctx.fillText(pointMsg, W / 2, H / 2 + 8);
   } else if (state === "gameover") {
     if (online) {
       const mySide = netRole === "host" ? 0 : (mode === "2v2" ? (mySlot < 2 ? 0 : 1) : 1);
       const win = (scores[0] > scores[1] ? 0 : 1) === mySide;
       overlay(pointMsg, win ? "Victoire !" : "Défaite…");
-      ctx.font = "18px 'Inter', system-ui, sans-serif";
-      ctx.fillStyle = "rgba(255,255,255,0.85)";
       let line;
       if (mode === "2v2") {
-        line = netRole === "host" ? "Entrée : rejouer    •    Échap : quitter"
-                                  : "En attente de l'hôte…    •    Échap : quitter";
+        line = netRole === "host" ? "Entrée · rejouer    ·    Échap · quitter"
+                                  : "En attente de l'hôte…    ·    Échap · quitter";
       } else {
-        line = "R : revanche";
-        if (rematchMe) line += " ✓ (toi)";
-        if (rematchPeer) line += " ✓ (adversaire)";
-        line += "    •    Échap : quitter";
+        line = "R · revanche";
+        if (rematchMe) line += " ✓ toi";
+        if (rematchPeer) line += " ✓ adversaire";
+        line += "    ·    Échap · quitter";
       }
-      ctx.fillText(line, W / 2, H / 2 + 58);
+      uiLabel(line, W / 2, H / 2 + 88, 11, "rgba(255,255,255,0.7)", 1, "center");
     } else {
       overlay(pointMsg, "Espace ou Entrée pour revenir au menu");
     }
