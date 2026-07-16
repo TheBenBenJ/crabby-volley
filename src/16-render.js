@@ -152,7 +152,14 @@ function render() {
       b.draw();
     }
   }
-  drawBall();
+  // Invité : lissage balle au handoff filet (soft ownership ↔ snaps)
+  if (online && netRole === "guest" && (guestBallSmoothX || guestBallSmoothY)) {
+    ball.x += guestBallSmoothX; ball.y += guestBallSmoothY;
+    drawBall();
+    ball.x -= guestBallSmoothX; ball.y -= guestBallSmoothY;
+  } else {
+    drawBall();
+  }
   if (battle.active) drawBattleFx();
   drawParticles();
   // banderole de la crabette : vraiment au premier plan (devant joueurs et

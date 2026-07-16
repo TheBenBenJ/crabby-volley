@@ -24,6 +24,7 @@ const NET_TIMEOUT = 2500;      // ms de silence → pause "connexion instable"
 const RECONCILE_SNAP = 60;     // px d'écart au-delà desquels on téléporte
 const BALL_STALE_MS = 200;     // sans paquet balle invité → l'hôte reprend
 const GUEST_BALL_HOLD = 8;     // ticks de renvoi balle après sortie de zone
+const NET_BALL_DELAY = 1.25;   // délai d'interp balle près du filet (ticks)
 const CODE_LEN = 5;
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sans I/O/0/1
 const PEER_PREFIX = "vda26-";  // espace de noms sur le cloud PeerJS
@@ -73,6 +74,9 @@ let lastGuestBallAt = 0;       // horodatage de ce paquet
 let lastGuestPtSeq = 0;        // dernier point différé consommé (idempotence)
 let guestBallHold = 0;         // invité : renvoi balle après sortie de zone
 let guestOwningBall = false;   // invité : front montant → seed depuis le dernier snap
+let guestBallSmoothX = 0, guestBallSmoothY = 0; // lissage visuel handoff filet
+let guestBallHandoffPend = false; // capturer l'écart local→snap à la sortie
+let guestBallHandoffX = 0, guestBallHandoffY = 0;
 
 // --- 2v2 en ligne ---
 // L'hôte accepte jusqu'à 3 invités. Chaque joueur occupe un « slot » = son
@@ -385,6 +389,8 @@ function guestResetMatch() {
   netPtSeq = 0;
   guestBallHold = 0;
   guestOwningBall = false;
+  guestBallSmoothX = guestBallSmoothY = 0;
+  guestBallHandoffPend = false;
   ballScoreLock = false;
 }
 
@@ -665,8 +671,16 @@ function netUpdate() {
     // tête de lecture : avance de 1 tick, se recale en douceur ~INTERP_DELAY
     // ticks derrière le dernier instantané, sans jamais sortir du tampon
     if (snapBuf.length) {
-      const latestTick = snapBuf[snapBuf.length - 1].tick;
-      const target = latestTick - interpDelay;
+      const latest = snapBuf[snapBuf.length - 1];
+      const latestTick = latest.tick;
+      // Près du filet (hors ownership) : lire plus près du présent pour
+      // que le bascule local→hôte ne « gèle » pas la balle ~100 ms en arrière.
+      let delay = interpDelay;
+      if (!guestOwnsBall() && latest.ball &&
+          Math.abs(latest.ball.x - NET_X) < NET_SNAP_ZONE) {
+        delay = Math.min(interpDelay, NET_BALL_DELAY);
+      }
+      const target = latestTick - delay;
       renderTick += 1;
       // rattrapage : doux près de la cible, ferme si on a décroché (anti-lag
       // qui s'accumule) — évite que l'invité prenne du retard permanent
@@ -678,6 +692,7 @@ function netUpdate() {
                             Math.min(renderTick, latestTick + EXTRAP_MAX));
     }
     guestSmoothX *= 0.75; guestSmoothY *= 0.75; // le lissage s'estompe
+    guestBallSmoothX *= 0.72; guestBallSmoothY *= 0.72;
 
     if (state === "play" || state === "serve") {
       const input = onlineLocalInput();
@@ -690,7 +705,11 @@ function netUpdate() {
         // Soft ownership : hits locaux instantanés dans le camp droit
         if (!guestOwningBall) {
           guestOwningBall = true;
+          const ox = ball.x, oy = ball.y;
           guestSeedBallFromSnap(); // anti-chute : sync sur le présent hôte
+          // lissage visuel si le seed saute (interp retardée → snap frais)
+          guestBallSmoothX = ox - ball.x;
+          guestBallSmoothY = oy - ball.y;
         }
         guestSyncRemoteBlobs();
         netDeferScore = true;
@@ -709,8 +728,14 @@ function netUpdate() {
         netDeferScore = false;
         ballPkt = packBallState(true);
         if (!guestOwnsBall()) {
+          // Sortie de zone : on N'arrête PAS l'affichage (sinon freeze ~130 ms).
+          // Hold = uniquement des paquets own:0 pour l'hôte ; la vue reprend
+          // l'interp immédiatement avec un lissage depuis la pose locale.
           guestOwningBall = false;
-          guestBallHold = GUEST_BALL_HOLD; // sortie de zone
+          guestBallHold = GUEST_BALL_HOLD;
+          guestBallHandoffPend = true;
+          guestBallHandoffX = ball.x;
+          guestBallHandoffY = ball.y;
         }
       } else if (!battle.active) {
         guestOwningBall = false;
@@ -773,6 +798,8 @@ function applyDiscrete(d) {
     ballScoreLock = false;
     guestBallHold = 0;
     guestOwningBall = false;
+    guestBallSmoothX = guestBallSmoothY = 0;
+    guestBallHandoffPend = false;
     ball.x = d.ball.x; ball.y = d.ball.y;
     ball.vx = d.ball.vx; ball.vy = d.ball.vy;
     ball.angle = d.ball.angle;
@@ -903,8 +930,9 @@ function guestApplyView() {
   const n = snapBuf.length;
   if (!n) return;
   const last = snapBuf[n - 1];
-  // Soft ownership : balle déjà simulée en local — n'interpoler que l'adversaire
-  const iOwnBall = guestOwnsBall() || guestBallHold > 0;
+  // Soft ownership : balle simulée en local — n'interpoler que l'adversaire.
+  // NB : guestBallHold ne fige PLUS l'affichage (c'était le freeze au filet).
+  const iOwnBall = guestOwnsBall();
 
   // --- extrapolation (dead reckoning AVEC filet) ---
   // Sans collision filet ici, la balle traversait le poteau entre deux snaps
@@ -917,6 +945,11 @@ function guestApplyView() {
       const pb = predictBallMotion(last.ball.x, last.ball.y, last.ball.vx, last.ball.vy, dt);
       ball.x = pb.x; ball.y = pb.y;
       ball.angle = last.ball.angle + ((pb.vx + last.ball.vx) * 0.5) * 0.03 * dt;
+      if (guestBallHandoffPend) {
+        guestBallSmoothX = guestBallHandoffX - ball.x;
+        guestBallSmoothY = guestBallHandoffY - ball.y;
+        guestBallHandoffPend = false;
+      }
     }
     activeBlobs.forEach((b, i) => {
       if (i === mySlot) return;
@@ -970,6 +1003,12 @@ function guestApplyView() {
           ball.x = ball.x < NET_X ? leftC : rightC;
         }
       }
+    }
+    // Sortie soft-own → snap : résorber l'écart en douceur (anti-freeze)
+    if (guestBallHandoffPend) {
+      guestBallSmoothX = guestBallHandoffX - ball.x;
+      guestBallSmoothY = guestBallHandoffY - ball.y;
+      guestBallHandoffPend = false;
     }
   }
   // tous les joueurs sauf le sien (prédit localement) : position interpolée
