@@ -51,7 +51,12 @@ let joinCode = "";             // saisie du code (invité)
 let netErrorMsg = "";
 let netErrorDetail = "";       // diagnostic technique (état ICE/canaux) affiché en petit sous l'erreur
 let matchId = 0;               // n° de manche : ignore les paquets périmés
-const CONNECT_TIMEOUT = 12000; // ms max pour établir les 2 canaux avant d'abandonner
+// ms max pour établir les 2 canaux avant d'abandonner. 20s (pas moins) : une
+// négociation ICE qui doit basculer sur le relais TURN (direct/STUN en échec)
+// peut légitimement prendre 15-20s avant d'aboutir ou d'échouer pour de bon —
+// un ancien essai à 12s a coupé une connexion encore "checking", donc pas
+// forcément vouée à l'échec.
+const CONNECT_TIMEOUT = 20000;
 let connectTimer = null;       // garde-fou : évite de rester bloqué sur "Recherche…"
 
 // --- côté hôte ---

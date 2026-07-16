@@ -369,7 +369,7 @@ function drawMenu() {
   // bloc d'infos technique (au-dessus du folio pour ne pas se chevaucher)
   uiLabel("Gauche  Q/D + Z/Espace · S super        Droite  ← → + ↑ · ↓ super", UI.mx, H - 58, 10, UI.muted, 1);
   uiLabel(padConnected ? "🎮 Manette — stick/croix choisir · A valider · B retour"
-                       : "Premier à " + WIN_SCORE + " · 2 pts d'écart · " + MAX_TOUCHES + " touches max · P M N",
+                       : "Premier à " + WIN_SCORE + " · 2 pts d'écart · " + MAX_TOUCHES + " touches max · P pause · M son · N musique",
           UI.mx, H - 26, 10, padConnected ? "#7ed957" : UI.muted, 1);
 }
 
