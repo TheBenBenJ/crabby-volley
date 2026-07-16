@@ -15,6 +15,7 @@ const SPRITES = {
   samyWalk: [],
   mysteryVan: null,
   manoirBg: null,        // fond plat Le Manoir Hanté
+  manoirBgSharp: null,   // version accentuée (unsharp mask) — anti-flou upscale
 };
 
 function loadSprite(path) {
@@ -25,6 +26,74 @@ function loadSprite(path) {
 
 function spriteReady(img) {
   return !!(img && img.complete && img.naturalWidth > 0);
+}
+
+// ---------- Accentuation (unsharp mask) ----------
+// Un PNG de fond ~1000 px affiché à ~2000 px (rétina) est mou : aucun rendu ne
+// « recrée » du détail absent. On atténue toutefois la mollesse perçue par un
+// masque flou : sharp = orig + amount·(orig − flou). Fait UNE fois au chargement
+// sur un canvas hors-écran, dont on se sert ensuite comme source de drawImage.
+
+// box blur séparable (référence de flou pour l'unsharp) — O(n), rayon r
+function boxBlurRGB(data, w, h, r) {
+  const tmp = new Float32Array(data.length);
+  const out = new Float32Array(data.length);
+  const win = r * 2 + 1;
+  const clamp = (v, hi) => (v < 0 ? 0 : v > hi ? hi : v);
+  for (let y = 0; y < h; y++) {
+    for (let k = 0; k < 3; k++) {
+      let sum = 0;
+      for (let x = -r; x <= r; x++) sum += data[(y * w + clamp(x, w - 1)) * 4 + k];
+      for (let x = 0; x < w; x++) {
+        tmp[(y * w + x) * 4 + k] = sum / win;
+        sum += data[(y * w + clamp(x + r + 1, w - 1)) * 4 + k]
+             - data[(y * w + clamp(x - r, w - 1)) * 4 + k];
+      }
+    }
+  }
+  for (let x = 0; x < w; x++) {
+    for (let k = 0; k < 3; k++) {
+      let sum = 0;
+      for (let y = -r; y <= r; y++) sum += tmp[(clamp(y, h - 1) * w + x) * 4 + k];
+      for (let y = 0; y < h; y++) {
+        out[(y * w + x) * 4 + k] = sum / win;
+        sum += tmp[(clamp(y + r + 1, h - 1) * w + x) * 4 + k]
+             - tmp[(clamp(y - r, h - 1) * w + x) * 4 + k];
+      }
+    }
+  }
+  return out;
+}
+
+function sharpenToCanvas(img, amount, radius) {
+  const w = img.naturalWidth, h = img.naturalHeight;
+  const cv = document.createElement("canvas");
+  cv.width = w; cv.height = h;
+  const c = cv.getContext("2d");
+  c.drawImage(img, 0, 0);
+  let src;
+  try { src = c.getImageData(0, 0, w, h); } catch (e) { return cv; } // repli : image brute
+  const a = src.data;
+  const blur = boxBlurRGB(a, w, h, radius);
+  for (let i = 0; i < a.length; i += 4) {
+    for (let k = 0; k < 3; k++) {
+      const v = a[i + k] + amount * (a[i + k] - blur[i + k]);
+      a[i + k] = v < 0 ? 0 : v > 255 ? 255 : v;
+    }
+  }
+  c.putImageData(src, 0, 0);
+  return cv;
+}
+
+// prépare (async) la version accentuée d'un fond ; sans effet en test headless
+// (Image stubée : ni addEventListener ni pixels) ou si le canvas est absent.
+function prepareSharpBg(img, dstKey, amount, radius) {
+  if (!img || typeof document === "undefined" || !document.createElement) return;
+  const build = () => {
+    if (spriteReady(img)) SPRITES[dstKey] = sharpenToCanvas(img, amount, radius);
+  };
+  if (img.complete && img.naturalWidth > 0) build();
+  else if (typeof img.addEventListener === "function") img.addEventListener("load", build, { once: true });
 }
 
 function scoobyWalkReady() {
@@ -40,6 +109,7 @@ function initSprites() {
   SPRITES.scoobyPounce = loadSprite(base + "pounce.png");
   SPRITES.mysteryVan = loadSprite(base + "van.png");
   SPRITES.manoirBg = loadSprite("assets/manoir/bg.png");
+  prepareSharpBg(SPRITES.manoirBg, "manoirBgSharp", 0.7, 2); // accentuation légère anti-flou
   SPRITES.scoobyWalk = [];
   for (let i = 0; i < 8; i++) {
     SPRITES.scoobyWalk.push(loadSprite(base + "walk" + i + ".png"));

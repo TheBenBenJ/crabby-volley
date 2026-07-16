@@ -564,11 +564,13 @@ function drawBgManoir() {
   // Fond PNG plat (intérieur manoir) si chargé ; sinon fallback canvas extérieur
   const manoirPng = typeof spriteReady === "function" && spriteReady(SPRITES.manoirBg);
   if (manoirPng) {
-    const img = SPRITES.manoirBg;
+    // version accentuée (unsharp mask) si prête, sinon le PNG brut
+    const img = SPRITES.manoirBgSharp || SPRITES.manoirBg;
+    const sw = img.naturalWidth || img.width, sh = img.naturalHeight || img.height;
     // Aligne le bas du décor sur la ligne de sol du jeu
     const drawH = GROUND_Y;
     const drawW = W;
-    ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0, 0, drawW, drawH);
+    ctx.drawImage(img, 0, 0, sw, sh, 0, 0, drawW, drawH);
   } else {
     // Fallback vectoriel (ancien rendu)
     const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
