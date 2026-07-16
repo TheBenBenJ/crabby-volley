@@ -22,7 +22,11 @@ function packBallState() {
     lts: ball.lastTouchSide, ltt: ball.lastTouchTick,
     t0: ball.touches[0], t1: ball.touches[1],
     own: ballOwner, rs: rngSeed,
-    pt: pendingNetPoint ? [pendingNetPoint.side, pendingNetPoint.reason] : null
+    sc: serveCountdown, // le propriétaire de la balle pilote AUSSI le décompte
+    // point différé : renvoyé dans CHAQUE paquet jusqu'à validation hôte
+    // (canal non fiable → un paquet peut se perdre). Le n° de séquence rend
+    // la consommation idempotente côté hôte (fini le multi-score).
+    pt: pendingNetPoint ? [pendingNetPoint.side, pendingNetPoint.reason, pendingNetPoint.seq | 0] : null
   };
 }
 
@@ -37,6 +41,9 @@ function applyBallState(b) {
   ball.touches = [b.t0 | 0, b.t1 | 0];
   if (b.own === 0 || b.own === 1) ballOwner = b.own;
   if (b.rs !== undefined) rngSeed = b.rs;
+  // décompte de service répliqué depuis le propriétaire (l'hôte ne décrémente
+  // pas le sien quand la balle est chez l'invité — voir stepGame/skipBall)
+  if (b.sc !== undefined && state === "serve") serveCountdown = b.sc;
 }
 
 function getSnapshot() {

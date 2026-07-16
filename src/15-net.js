@@ -67,7 +67,14 @@ let lastPeerMsg = 0;           // horodatage du dernier message reçu
 let netFrozen = false;         // simulation gelée (invité silencieux)
 let guestBall = null;          // dernier état balle reçu de l'invité (ownership)
 let lastGuestBallAt = 0;       // horodatage de ce paquet
-const BALL_STALE_MS = 200;     // sans balle invité → l'hôte reprend la main
+const BALL_STALE_MS = 250;     // sans balle invité → l'hôte reprend la main
+let lastGuestPtSeq = 0;        // dernier point différé consommé (idempotence)
+let ownerSince = 0;            // hôte : début de la possession invité (anti ping-pong)
+// invité : après un handoff 1→0, on continue d'émettre l'état balle quelques
+// ticks (fiabilise le transfert si un paquet se perd) et on garde l'affichage
+// local le temps que les snapshots hôte rattrapent (anti rubber-band).
+let guestBallHold = 0;
+const BALL_HOLD_TICKS = 12;    // ~200 ms, couvre un aller-retour réseau typique
 
 // --- 2v2 en ligne ---
 // L'hôte accepte jusqu'à 3 invités. Chaque joueur occupe un « slot » = son
@@ -347,6 +354,7 @@ function hostStartMatch() {
   guestInSeq = 0;
   guestIn = { left: false, right: false, jump: false };
   guestBall = null; lastGuestBallAt = 0;
+  lastGuestPtSeq = 0; ownerSince = 0;
   netFrame = 0;
   const seed = (Math.random() * 2 ** 31) | 0;
   sendRel({ t: "start", m: matchId, seed, terrain, a: [blobL.animal, blobR.animal],
@@ -368,6 +376,8 @@ function guestResetMatch() {
   interpDelay = INTERP_DELAY;
   lastSnapArrival = 0; snapGapEMA = 0; snapJitterEMA = 0;
   pendingNetPoint = null;
+  netPtSeq = 0;
+  guestBallHold = 0;
 }
 
 // Hôte 1v1 : la balle est-elle confiée à l'invité (paquet frais) ?
@@ -378,12 +388,17 @@ function hostUsesGuestBall() {
 
 // Pose l'état balle invité (avant stepBodies/tickBomb). Le point différé
 // est consommé APRÈS le step pour ne pas couper la frame en cours.
+// IDEMPOTENT par n° de séquence : l'invité renvoie le même pt dans chaque
+// paquet (anti-perte) et des paquets périmés traînent après le startRally —
+// sans ce garde-fou, chaque rediffusion marquait un point (score 0→4 en 4 s).
 function hostTakeGuestBallPoint() {
   if (!guestBall || !guestBall.pt || !Array.isArray(guestBall.pt)) return;
   const side = guestBall.pt[0] | 0;
   const reason = guestBall.pt[1] || "";
+  const seq = guestBall.pt[2] | 0;
   guestBall.pt = null;
-  pendingNetPoint = null;
+  if (seq <= lastGuestPtSeq) return;      // déjà consommé (ou paquet périmé)
+  lastGuestPtSeq = seq;
   if (state === "play" || state === "serve") awardPoint(side, reason);
 }
 
@@ -569,17 +584,31 @@ function netUpdate() {
         // Ownership : si la balle est à droite et que l'invité envoie un
         // état frais → on pose SA balle, on simule les corps (+ mèche bombe),
         // puis on valide un point différé éventuel.
-        if (hostUsesGuestBall()) {
+        // début de possession invité : on note l'instant. La reprise "invité
+        // muet" se mesure DEPUIS ce moment — sinon, au handoff, lastGuestBallAt
+        // date du rally précédent et l'hôte reprenait la balle immédiatement
+        // (ping-pong d'ownership : l'invité ne recevait jamais la main).
+        if (ballOwner === 1 && !ownerSince) ownerSince = now;
+        if (ballOwner !== 1) ownerSince = 0;
+
+        if (hostUsesGuestBall() && lastGuestBallAt >= ownerSince) {
           applyBallState(guestBall);
           stepGame(onlineLocalInput(), guestIn, null, { skipBall: true });
           ballOwner = resolveBallOwner(1);
           hostTakeGuestBallPoint();
         } else {
-          if (ballOwner === 1 && (!guestBall || now - lastGuestBallAt >= BALL_STALE_MS)) {
-            // invité muet sur la balle → l'hôte reprend pour éviter le gel
+          if (ballOwner === 1 && now - Math.max(lastGuestBallAt, ownerSince) >= BALL_STALE_MS) {
+            // invité muet sur la balle depuis le début de sa possession →
+            // l'hôte reprend pour éviter le gel du rally
             ballOwner = 0;
+            ownerSince = 0;
           }
-          stepGame(onlineLocalInput(), guestIn);
+          stepGame(onlineLocalInput(), guestIn, null,
+                   // possession invité mais paquet pas encore arrivé (fenêtre
+                   // d'un aller réseau) : l'hôte continue de simuler la balle
+                   // pour la continuité — l'invité écrasera avec son état dès
+                   // son premier paquet de possession.
+                   undefined);
         }
       }
     }
@@ -622,10 +651,12 @@ function netUpdate() {
       let ballPkt = null;
       if (iOwnBall) {
         guestSyncRemoteBlobs();
-        pendingNetPoint = null;
+        // NB : on ne touche PAS à pendingNetPoint ici — le point armé est
+        // renvoyé dans chaque paquet jusqu'à ce que l'hôte change d'état
+        // (applyDiscrete le libère). L'idempotence est garantie par son seq.
         netDeferScore = true;
         const me = activeBlobs[mySlot];
-        if (serveCountdown > 0) {
+        if (state === "serve" && serveCountdown > 0) {
           me.update({ left: input.left, right: input.right, jump: false });
           serveCountdown--;
           ball.y += Math.sin(tick / 18) * 0.3;
@@ -636,14 +667,22 @@ function netUpdate() {
           tickSuper(me);
         }
         if (state === "serve" && !ball.frozen) state = "play";
+        const prevOwn = ballOwner;
         ballOwner = resolveBallOwner(1);
+        if (prevOwn === 1 && ballOwner === 0) guestBallHold = BALL_HOLD_TICKS; // handoff → grâce
         netDeferScore = false;
         ballPkt = packBallState();
-        // on garde pendingNetPoint tant que l'hôte n'a pas basculé en "point"
-        // (sinon on renverrait un pt à chaque frame → multi-score)
       } else if (!battle.active) {
         // prédiction perso seule (balle = vue hôte via guestApplyView)
         activeBlobs[mySlot].update(input);
+        // grâce post-handoff : on répète l'état balle final (own:0) quelques
+        // ticks — si LE paquet de transfert se perdait, l'hôte restait figé
+        // 250 ms puis repartait d'un état périmé. L'hôte ignore les doublons
+        // (son ballOwner est déjà repassé à 0).
+        if (guestBallHold > 0) {
+          guestBallHold--;
+          ballPkt = packBallState();
+        }
       }
 
       const msg = { t: "in", m: matchId, s: inputSeq,
@@ -708,10 +747,24 @@ function applyDiscrete(d) {
   if (!iOwnBall) tick = d.tick;
   if (!iOwnBall) serveCountdown = d.serveCountdown || 0;
   scores[0] = d.scores[0]; scores[1] = d.scores[1];
-  // l'hôte a validé le point → on relâche le verrou local
+  // l'hôte a validé le point / relancé un rally → on relâche le verrou local
+  // ET on adopte ENTIÈREMENT la balle de l'hôte. Sans ça, l'invité qui doit
+  // servir « possède » encore sa balle périmée du rally précédent (dégelée,
+  // dans le mauvais camp) → service impossible et ping-pong d'ownership :
+  // c'était le blocage "state serve éternel" observé au 2e rally.
   if (prevState !== d.state && (d.state === "point" || d.state === "gameover" || d.state === "serve")) {
     pendingNetPoint = null;
     ballScoreLock = false;
+    guestBallHold = 0;
+    ball.x = d.ball.x; ball.y = d.ball.y;
+    ball.vx = d.ball.vx; ball.vy = d.ball.vy;
+    ball.angle = d.ball.angle;
+    ball.frozen = d.ball.frozen; ball.popped = !!d.ball.popped;
+    ball.smash = d.ball.smash || 0;
+    ball.lastTouchSide = d.ball.lastTouchSide;
+    ball.touches = [d.ball.touches[0], d.ball.touches[1]];
+    ball.trail.length = 0;
+    if (d.serveCountdown !== undefined) serveCountdown = d.serveCountdown;
   }
   if (d.streak) { streak[0] = d.streak[0]; streak[1] = d.streak[1]; }
   if (d.superCharge) { superCharge[0] = d.superCharge[0]; superCharge[1] = d.superCharge[1]; }
@@ -828,8 +881,10 @@ function guestApplyView() {
   const last = snapBuf[n - 1];
   // Si on possède la balle, elle est déjà à jour en local — on n'interpole
   // que les adversaires (sinon rubber-band sur nos propres hits).
-  const iOwnBall = mode === "1v1" && ballOwner === 1 && !battle.active &&
-                   (state === "play" || state === "serve");
+  const iOwnBall = (mode === "1v1" && ballOwner === 1 && !battle.active &&
+                    (state === "play" || state === "serve")) ||
+                   guestBallHold > 0; // grâce post-handoff : garde la balle locale
+                                      // le temps que les snapshots hôte rattrapent
 
   // --- extrapolation (dead reckoning) ---
   // Si la tête de lecture a dépassé le dernier snapshot (paquet en retard),

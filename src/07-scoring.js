@@ -8,7 +8,9 @@ function awardPoint(side, reason) {
   // validera le point à partir du paquet balle (anti-divergence). On verrouille
   // la physique pour ne pas renvoyer le même point à chaque tick.
   if (netDeferScore) {
-    if (!pendingNetPoint) pendingNetPoint = { side, reason: reason || "" };
+    // seq monotone : l'hôte ne consommera ce point qu'UNE fois, même si le
+    // paquet est répété (renvoi anti-perte) ou traîne dans le réseau.
+    if (!pendingNetPoint) pendingNetPoint = { side, reason: reason || "", seq: ++netPtSeq };
     ballScoreLock = true;
     ball.vx = 0; ball.vy = 0;
     return;

@@ -181,7 +181,12 @@ function stepGame(inL, inR, ins, opts) {
     ballOwner = 0; // duel : l'hôte reste autoritaire
     return; // le monde est figé pendant le duel (1v1 uniquement)
   }
-  if (serveCountdown > 0) {
+  // IMPORTANT : condition sur l'ÉTAT et pas seulement le compteur. En ligne,
+  // quand l'autre camp possède la balle (skipBall), notre compteur local ne
+  // décrémente pas ; sans le test d'état on resterait bloqué dans cette
+  // branche pendant tout le rally une fois passé en "play" (impossible de
+  // sauter, plus de collisions) — c'était LE bug qui gelait l'hôte.
+  if (state === "serve" && serveCountdown > 0) {
     // pendant le décompte : on peut se déplacer mais pas sauter ni servir
     if (ins) {
       activeBlobs.forEach((b, i) => b.update({ left: ins[i].left, right: ins[i].right, jump: false }));

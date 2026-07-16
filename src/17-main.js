@@ -34,10 +34,13 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 
-// Onglet masqué : requestAnimationFrame s'arrête, mais l'hôte d'une partie
-// en ligne doit continuer à simuler et à diffuser (voir MULTIJOUEUR.md).
+// Onglet masqué : requestAnimationFrame s'arrête, mais TOUT client en ligne
+// doit continuer à simuler — l'hôte diffuse le monde, et avec l'ownership de
+// balle par camp, l'INVITÉ simule aussi (son perso + la balle quand elle est
+// chez lui). Sans ce fallback, un invité qui passe sa fenêtre en arrière-plan
+// avec la balle dans son camp gèle le match pour les deux joueurs.
 setInterval(() => {
-  if (document.hidden && online && netRole === "host" && netConnected) {
+  if (document.hidden && online && netConnected) {
     advance(performance.now());
   }
 }, 50);

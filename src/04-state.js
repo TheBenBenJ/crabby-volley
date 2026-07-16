@@ -373,8 +373,9 @@ let ballOwner = 0;
 // Quand l'invité simule la balle, awardPoint est différé : on empile le point
 // pour que l'hôte le valide (évite les scores qui divergent).
 let netDeferScore = false;
-let pendingNetPoint = null;       // { side, reason } | null
+let pendingNetPoint = null;       // { side, reason, seq } | null
 let ballScoreLock = false;        // invité : point déjà armé, on arrête la physique balle
+let netPtSeq = 0;                 // n° de séquence des points différés (invité, monotone)
 let bombTime = BOMB_TIME;         // durée de mèche choisie (ticks) : 5/7/10 s
 // options du menu « Durée de la bombe » (300/420/600 ticks à 60 Hz)
 const BOMB_DURATIONS = [
