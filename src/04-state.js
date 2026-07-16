@@ -75,6 +75,15 @@ const ANIMALS = [
     speed: 1.12, jump: 1.05, power: 0.85, control: 0.98,
     trait: "Chatte agile et précise : contrôle parfait, mais frappe tout en finesse.",
     superName: "Retombée de chat", superDesc: "Défie la gravité : sauts illimités et vol plané un court instant."
+  },
+  {
+    key: "scooby", name: "Scooby",
+    color: "#c4a35a", darkColor: "#8b6914",   // brun scooby
+    stats: { vitesse: 4, detente: 4, puissance: 2, controle: 2 },
+    speed: 1.18, jump: 1.15, power: 0.88, control: 0.72,
+    slip: true, tired: true,
+    trait: "Lâche et goofy : dérape à l'arrêt, mais panique très vite.",
+    superName: "Scooby Snack", superDesc: "Peur bleue : vitesse décuplée et sauts illimités un instant."
   }
 ];
 function animOf(b) { return ANIMALS[b.animal]; }
@@ -215,10 +224,11 @@ const battle = {
 //   Turbo-Jeannot → "Turbo-bond" : vitesse décuplée + sauts illimités pendant ~1,6 s
 //   Monsieur Chibre → "Coup de boutoir" : la frappe suivante part en boulet rasant
 //   Madame Schneck → "Retombée de chat" : sauts illimités + vol plané (gravité réduite)
+//   Scooby → "Scooby Snack" : panique turbo (comme le lapin) pendant ~1,5 s
 const SUPER_NEED = 3;
 const streak = [0, 0];        // points d'affilée par camp
 const superCharge = [0, 0];   // 0 = vide, 1 = super prête
-const SUPER_DUR = { oiseau: 40, grenouille: 24, manchot: 60, lapin: 100, chibre: 55, chneck: 110 };
+const SUPER_DUR = { oiseau: 40, grenouille: 24, manchot: 60, lapin: 100, chibre: 55, chneck: 110, scooby: 90 };
 let superFlash = "";          // libellé "SUPER !" affiché brièvement
 let superFlashT = 0;
 
@@ -272,7 +282,7 @@ class Blob {
     if (this.hasBall) { this.vx = 0; if (!this.onGround) this.vy += GRAV_BLOB; this.y += this.vy; if (this.y >= GROUND_Y) { this.y = GROUND_Y; this.vy = 0; this.onGround = true; } return; }
 
     const grip = groundGrip(); // 1 par temps sec, <1 sur sol détrempé
-    const turbo = a.key === "lapin" && this.superT > 0; // Turbo-bond
+    const turbo = (a.key === "lapin" || a.key === "scooby") && this.superT > 0; // Turbo-bond / Scooby Snack
     const cat = a.key === "chneck" && this.superT > 0;  // Retombée de chat : vol plané
     this.vx = 0;
     const sp = BLOB_SPEED * this.speedMul * a.speed * grip * (turbo ? 1.7 : 1);

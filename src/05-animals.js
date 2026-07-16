@@ -13,13 +13,14 @@ function drawAnimal(b) {
   if (A.color) { b.color = A.color; b.darkColor = A.darkColor; }
   const key = A.key;
   drawSuperAura(b);                         // halo derrière l'animal
-  // pendant le Turbo-bond du lapin : traînée d'images fantômes
-  if (b.superT > 0 && key === "lapin") drawTurboGhosts(b, key);
+  // pendant Turbo-bond / Scooby Snack : traînée d'images fantômes
+  if (b.superT > 0 && (key === "lapin" || key === "scooby")) drawTurboGhosts(b, key);
   if (key === "oiseau") drawOiseau(b);
   else if (key === "grenouille") drawGrenouille(b);
   else if (key === "manchot") drawManchot(b);
   else if (key === "chibre") drawChibre(b);
   else if (key === "chneck") drawChneck(b);
+  else if (key === "scooby") drawScooby(b);
   else drawLapin(b);
   drawSuperOverlay(b, key);                 // langue-grappin, charge de smash…
   drawEmote(b);                             // bulle d'émotion
@@ -41,6 +42,7 @@ function faceMood(b) {
   // (sa détente énorme la rend toujours sûre d'elle).
   const key = animOf(b).key;
   if (key === "lapin") return "sad";
+  if (key === "scooby") return "shock"; // perpétuellement inquiet (Ruh-roh !)
   if (key === "manchot") return "fierce";
   if (key === "oiseau") return "shock";
   if (key === "grenouille") return "happy";
@@ -1352,3 +1354,156 @@ function drawLapin(b) {
   ctx.restore();
 }
 
+// Scooby : grand chien brun goofy (oreilles molles, collier, museau long)
+function drawScooby(b) {
+  const s = Math.max(0, b.squash);
+  const bx = b.x, by = b.y;
+  const dir = b.side === 0 ? 1 : -1;
+  const fatigueT = (b.fatigue || 0) / FATIGUE_MAX;
+  const headY = by - 62 + s * 1.5 + fatigueT * 5;
+  ctx.save();
+  drawShadow(b);
+  drawLegs(b, dir, s, "#a8843e", "paws");
+
+  // queue en croissant
+  ctx.strokeStyle = b.darkColor;
+  ctx.lineWidth = 5;
+  ctx.lineCap = "round";
+  ctx.beginPath();
+  ctx.moveTo(bx - dir * 26, by - 28 + s);
+  ctx.quadraticCurveTo(bx - dir * 38, by - 42 + s, bx - dir * 34, by - 52 + s);
+  ctx.stroke();
+
+  // corps
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.ellipse(bx, by - 28 + s, 32, 27 - s * 0.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+  outline();
+
+  // ventre plus clair
+  ctx.fillStyle = "rgba(245, 230, 190, 0.7)";
+  ctx.beginPath();
+  ctx.ellipse(bx + dir * 4, by - 22 + s, 17, 13, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // petites pattes avant
+  ctx.fillStyle = "#a8843e";
+  ctx.strokeStyle = "rgba(0,0,0,0.2)";
+  ctx.lineWidth = 1.2;
+  for (let pi = 0; pi < 2; pi++) {
+    const bob = (b.onGround && b.vx !== 0)
+      ? Math.max(0, Math.sin(b.walkPhase + pi * Math.PI)) * 2 : 0;
+    ctx.beginPath();
+    ctx.arc(bx + dir * (5 + pi * 8), by - 17 + s - bob, 4.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  // oreilles molles (pendent ; encore plus à la fatigue)
+  const earHang = 0.95 + fatigueT * 0.35;
+  for (const side of [-1, 1]) {
+    ctx.save();
+    ctx.translate(bx + side * 14, headY - 6);
+    ctx.rotate(side * earHang + (b.onGround ? 0 : -dir * 0.15));
+    ctx.fillStyle = b.darkColor;
+    ctx.beginPath();
+    ctx.ellipse(0, 14, 8, 18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#d4a86a";
+    ctx.beginPath();
+    ctx.ellipse(0, 12, 4.5, 12, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // tête
+  ctx.fillStyle = b.color;
+  ctx.beginPath();
+  ctx.arc(bx, headY, 20, 0, Math.PI * 2);
+  ctx.fill();
+  outline();
+
+  // museau allongé
+  ctx.fillStyle = "#e8d5a8";
+  ctx.beginPath();
+  ctx.ellipse(bx + dir * 16, headY + 4, 14, 9, dir * 0.1, 0, Math.PI * 2);
+  ctx.fill();
+  outline();
+
+  // truffe noire
+  ctx.fillStyle = "#2a2a2a";
+  ctx.beginPath();
+  ctx.ellipse(bx + dir * 26, headY + 2, 5, 3.8, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // bouche / langue si effort ou fatigue
+  {
+    const mo = mouthOpen(b);
+    if (mo >= 0.55 || fatigueT > 0.35) {
+      const tongue = Math.max(mo, fatigueT);
+      ctx.fillStyle = "#3a2020";
+      ctx.beginPath();
+      ctx.ellipse(bx + dir * 18, headY + 10, 6, 2 + tongue * 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#ff6f91";
+      ctx.beginPath();
+      ctx.ellipse(bx + dir * 18 + Math.sin(performance.now() / 140) * 1.5,
+                  headY + 14 + tongue * 4, 3.5, 4 + tongue * 5, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // collier bleu + médaille
+  ctx.strokeStyle = "#2b6cb0";
+  ctx.lineWidth = 3.5;
+  ctx.beginPath();
+  ctx.arc(bx, headY + 14, 16, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+  ctx.fillStyle = "#f6c945";
+  ctx.beginPath();
+  ctx.moveTo(bx + dir * 2, headY + 22);
+  ctx.lineTo(bx + dir * 8, headY + 28);
+  ctx.lineTo(bx + dir * 2, headY + 34);
+  ctx.lineTo(bx - dir * 4, headY + 28);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.25)";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // yeux
+  const gzx = bx + dir * 8, gzy = headY - 5;
+  drawTrackingEye(bx + dir * 2, headY - 5, 5.8, 2.7, gzx, gzy);
+  drawTrackingEye(bx + dir * 12, headY - 5, 5.8, 2.7, gzx, gzy);
+  drawBrows(bx + dir * 2, bx + dir * 12, headY - 5, 5.8, faceMood(b));
+
+  // paupières fatigue
+  if (fatigueT > 0.1) {
+    const lidH = Math.min(11, (fatigueT - 0.1) / 0.9 * 11);
+    ctx.fillStyle = b.color;
+    for (const ex of [bx + dir * 2, bx + dir * 12]) {
+      ctx.fillRect(ex - 6, headY - 11, 12, lidH);
+    }
+  }
+
+  // sueur de panique
+  if (fatigueT > 0.08) {
+    const nDrops = Math.min(8, Math.ceil(fatigueT * 8));
+    ctx.strokeStyle = "rgba(60,120,180,0.55)";
+    ctx.lineWidth = 0.8;
+    for (let d = 0; d < nDrops; d++) {
+      const dropSize = 4 + fatigueT * 3;
+      const dx = bx + dir * (20 + (d % 3) * 3) * (d % 2 === 0 ? 1 : -1);
+      const dy = headY - 22 + Math.floor(d / 2) * 9 + Math.sin(performance.now() / 180 + d) * 1.5;
+      ctx.fillStyle = "rgba(140,205,255," + (0.7 + fatigueT * 0.25).toFixed(2) + ")";
+      ctx.beginPath();
+      ctx.moveTo(dx, dy - dropSize);
+      ctx.quadraticCurveTo(dx + dropSize * 0.7, dy + dropSize * 0.2, dx, dy + dropSize);
+      ctx.quadraticCurveTo(dx - dropSize * 0.7, dy + dropSize * 0.2, dx, dy - dropSize);
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}

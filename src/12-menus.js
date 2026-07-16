@@ -134,7 +134,7 @@ function handleMenuKeys(code, key) {
     if (code === "Escape" || code === "Enter" || code === "Space") state = "menu";
 
   } else if (state === "selectAnimal") {
-    const slot = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4, Digit6: 5 }[code];
+    const slot = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4, Digit6: 5, Digit7: 6 }[code];
     const vis = visibleAnimalIdx();
     const n = slot !== undefined && slot < vis.length ? vis[slot] : undefined;
     if (n !== undefined) {

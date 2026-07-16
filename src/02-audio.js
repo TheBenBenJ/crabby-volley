@@ -127,6 +127,11 @@ function animalHitSound(a) {
       beep(620, 0.09, "sawtooth", 0.13, 0, 880);
       beep(840, 0.14, "sawtooth", 0.12, 0.08, 520);
       break;
+    case "scooby":     // "Ruh-roh !" : jappement grave qui remonte en panique
+      beep(180, 0.1, "sawtooth", 0.16, 0, 320);
+      beep(320, 0.12, "sawtooth", 0.14, 0.08, 520);
+      beep(140, 0.1, "triangle", 0.1, 0.16, 100);
+      break;
     default:           // lapin : gros "BOI-OING" élastique (monte puis redescend)
       beep(240, 0.14, "sine", 0.24, 0, 760);
       beep(760, 0.18, "sine", 0.2, 0.09, 240);

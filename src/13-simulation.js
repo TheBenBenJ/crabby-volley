@@ -102,7 +102,7 @@ function maybeActivateSuper(blob, input) {
     blob.vy = BLOB_JUMP * a.jump * 0.9; // Retombée de chat : bond félin d'entrée
     blob.onGround = false; blob.jumpsUsed = 1;
   }
-  // lapin/chatte : l'effet agit pendant superT (voir Blob.update : turbo / cat)
+  // lapin/scooby/chatte : l'effet agit pendant superT (voir Blob.update)
 }
 
 function frogTongueGrab(blob) {
@@ -136,6 +136,7 @@ function superSound(key) {
   if (key === "manchot") beep(150, 0.28, "sawtooth", 0.18, 0.05, 90);
   if (key === "oiseau")  beep(1500, 0.12, "square", 0.1, 0.14, 2100);
   if (key === "lapin")   beep(300, 0.22, "sine", 0.14, 0.05, 950);
+  if (key === "scooby")  { beep(220, 0.1, "sawtooth", 0.14, 0, 480); beep(480, 0.18, "sine", 0.13, 0.08, 180); }
   if (key === "grenouille") beep(240, 0.16, "sawtooth", 0.15, 0.1, 130);
   if (key === "chibre")  beep(110, 0.26, "sine", 0.16, 0.05, 700);
   if (key === "chneck")  { beep(700, 0.14, "sine", 0.12, 0.04, 1050); beep(520, 0.16, "triangle", 0.1, 0.12, 380); }

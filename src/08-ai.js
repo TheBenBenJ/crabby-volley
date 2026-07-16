@@ -208,7 +208,7 @@ function aiInput2v2(me, lvlOverride) {
     } else if (key === "oiseau" || key === "manchot" || key === "chibre") {
       if (onMySide && nearHit) input.super = true;
     } else if (onMySide && (side === 0 ? ball.vx < 0 : ball.vx > 0)) {
-      input.super = true; // lapin : turbo dès que la balle arrive vers soi
+      input.super = true; // lapin / scooby : turbo dès que la balle arrive vers soi
     }
   }
   return input;

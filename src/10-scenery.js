@@ -139,6 +139,21 @@ function drawCrowdCritter(species, x, hy, col, excited, glow) {
       ctx.beginPath(); ctx.ellipse(0, -6, 1.7, 6, 0, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
     }
+  } else if (species === "scooby") {
+    // petit chien brun : oreilles molles + collier
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(x, hy + 4, 5.2, 5.5, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, hy - 2, 3.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#8b6914";
+    for (const side of [-1, 1]) {
+      ctx.beginPath(); ctx.ellipse(x + side * 3.2, hy + 2, 2.2, 4.5, side * 0.4, 0, Math.PI * 2); ctx.fill();
+    }
+    ctx.strokeStyle = "#2b6cb0"; ctx.lineWidth = 1.4;
+    ctx.beginPath(); ctx.arc(x, hy + 1, 3.2, 0.2 * Math.PI, 0.8 * Math.PI); ctx.stroke();
+    if (excited) {
+      ctx.fillStyle = "#f6c945";
+      ctx.beginPath(); ctx.arc(x, hy + 5, 1.4, 0, Math.PI * 2); ctx.fill();
+    }
   } else if (species === "demon") {
     // petit diablotin : corps teinté, cornes, yeux qui brillent dans le noir
     ctx.fillStyle = col;

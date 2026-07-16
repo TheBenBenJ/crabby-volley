@@ -163,7 +163,7 @@ function navOptions() {
     case "gameModeSelect": return pendingMode && (pendingMode.vsAI || pendingMode.online)
       ? ["Digit1", "Digit2", "Digit3"] : ["Digit1", "Digit2"];
     case "onlineMenu":    return ["Digit1", "Digit2"];
-    case "selectAnimal":  return ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6"].slice(0, visibleAnimalIdx().length);
+    case "selectAnimal":  return ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7"].slice(0, visibleAnimalIdx().length);
     case "selectTerrain": return ["Digit1", "Digit2", "Digit3", "Digit4"].slice(0, visibleTerrainIdx().length);
     default: return null;
   }

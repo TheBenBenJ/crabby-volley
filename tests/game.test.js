@@ -296,6 +296,19 @@ test("balle crevée : sans holder local, le point tombe quand même", () => {
   assert.strictEqual(g.scores[0], 1, "le camp opposé au lastTouch marque");
 });
 
+test("Scooby : animal visible avec dessin et super turbo", () => {
+  const g = loadGame();
+  const scooby = g.ANIMALS.find(a => a.key === "scooby");
+  assert.ok(scooby, "entrée ANIMALS scooby");
+  assert.strictEqual(scooby.hidden, undefined);
+  assert.ok(scooby.slip && scooby.tired, "traits slip + tired");
+  assert.ok(typeof g.drawScooby === "function", "drawScooby défini");
+  const idx = g.ANIMALS.indexOf(scooby);
+  assert.ok(idx >= 6, "append en fin de tableau (pas de casse d'indices terrain)");
+  g.blobL.animal = idx;
+  assert.strictEqual(g.blobL.animal, idx);
+});
+
 test("soft ownership : pack/applyBallState round-trip", () => {
   const g = loadGame();
   g.newGame(2);
