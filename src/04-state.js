@@ -305,10 +305,14 @@ class Blob {
       // le lapin pédale frénétiquement en permanence dès qu'il court (pas
       // seulement quand la vitesse réelle est en retard sur la consigne) :
       // c'est sa signature, Turbo-Jeannot ne trottine jamais tranquillement.
+      // Scooby : encore plus paniqué (galop cartoon + poussière).
       const scrambling = a.slip;
+      const scoobyPanic = a.key === "scooby";
       this.scramble = scrambling ? 1 : 0;
-      this.walkPhase += scrambling ? 0.9 : 0.3;
-      if (Math.random() < (scrambling ? 0.35 : 0.1)) spawnSand(this.x - Math.sign(this.vx) * 12, GROUND_Y, 1);
+      this.walkPhase += scrambling ? (scoobyPanic ? 1.15 : 0.9) : 0.3;
+      if (Math.random() < (scrambling ? (scoobyPanic ? 0.48 : 0.35) : 0.1)) {
+        spawnSand(this.x - Math.sign(this.vx || moveVx) * 12, GROUND_Y, scoobyPanic ? 2 : 1);
+      }
     } else {
       this.scramble = 0;
     }

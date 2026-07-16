@@ -178,6 +178,9 @@ function drawSuperAura(b) {
 }
 
 function drawTurboGhosts(b, key) {
+  if (key === "scooby" && typeof drawScoobyTurboGhosts === "function" && drawScoobyTurboGhosts(b)) {
+    return;
+  }
   ctx.save();
   for (let i = 1; i <= 3; i++) {
     ctx.globalAlpha = 0.12 * (4 - i);
@@ -1354,43 +1357,9 @@ function drawLapin(b) {
   ctx.restore();
 }
 
-// Scooby : sprites PNG si chargés, sinon rendu canvas (oreilles, collier…)
+// Scooby : masterclass d'anim (sprites) — sinon canvas animé
 function drawScooby(b) {
-  const s = Math.max(0, b.squash);
-  const bx = b.x, by = b.y;
-  const dir = b.side === 0 ? 1 : -1;
-  const fatigueT = (b.fatigue || 0) / FATIGUE_MAX;
-  const spr = scoobySpriteFor(b);
-  if (spriteReady(spr)) {
-    ctx.save();
-    drawShadow(b);
-    // hauteur ~ silhouette des autres blobs ; squash + fatigue tassent un peu
-    const drawH = 78 - s * 1.2 - fatigueT * 6;
-    const bob = (b.onGround && b.vx !== 0)
-      ? Math.sin(b.walkPhase || 0) * 1.5 : 0;
-    drawAnchoredSprite(spr, bx, by, dir, drawH, bob);
-    // sueur de panique par-dessus le sprite (lisibilité fatigue)
-    if (fatigueT > 0.08) {
-      const nDrops = Math.min(8, Math.ceil(fatigueT * 8));
-      const headY = by - drawH * 0.72;
-      ctx.strokeStyle = "rgba(60,120,180,0.55)";
-      ctx.lineWidth = 0.8;
-      for (let d = 0; d < nDrops; d++) {
-        const dropSize = 4 + fatigueT * 3;
-        const dx = bx + dir * (18 + (d % 3) * 3) * (d % 2 === 0 ? 1 : -1);
-        const dy = headY - 8 + Math.floor(d / 2) * 9 + Math.sin(performance.now() / 180 + d) * 1.5;
-        ctx.fillStyle = "rgba(140,205,255," + (0.7 + fatigueT * 0.25).toFixed(2) + ")";
-        ctx.beginPath();
-        ctx.moveTo(dx, dy - dropSize);
-        ctx.quadraticCurveTo(dx + dropSize * 0.7, dy + dropSize * 0.2, dx, dy + dropSize);
-        ctx.quadraticCurveTo(dx - dropSize * 0.7, dy + dropSize * 0.2, dx, dy - dropSize);
-        ctx.fill();
-        ctx.stroke();
-      }
-    }
-    ctx.restore();
-    return;
-  }
+  if (typeof drawScoobySpriteMaster === "function" && drawScoobySpriteMaster(b)) return;
   drawScoobyCanvas(b);
 }
 
@@ -1399,31 +1368,45 @@ function drawScoobyCanvas(b) {
   const bx = b.x, by = b.y;
   const dir = b.side === 0 ? 1 : -1;
   const fatigueT = (b.fatigue || 0) / FATIGUE_MAX;
-  const headY = by - 62 + s * 1.5 + fatigueT * 5;
+  const moveVx = (b.dispVx != null) ? b.dispVx : (b.vx || 0);
+  const t = (b.walkPhase || 0) + performance.now() / 1000 * (b.onGround && Math.abs(moveVx) < 0.3 ? 3 : 0);
+  const gait = Math.sin((b.walkPhase || t) * 1.2);
+  const bodyBob = b.onGround
+    ? (Math.abs(moveVx) > 0.3 ? gait * 4 : Math.sin(performance.now() / 220) * 1.5)
+    : Math.sin(performance.now() / 90) * 1.5;
+  const lean = Math.max(-0.4, Math.min(0.4, moveVx * 0.05));
+  const headY = by - 62 + s * 1.5 + fatigueT * 5 + bodyBob;
   ctx.save();
   drawShadow(b);
+  ctx.translate(bx, by + bodyBob);
+  ctx.rotate(lean * dir);
+  ctx.translate(-bx, -(by + bodyBob));
   drawLegs(b, dir, s, "#a8843e", "paws");
 
-  // queue en croissant
+  // queue qui fouette
+  const tailWag = Math.sin(performance.now() / 90 + (b.walkPhase || 0)) * (0.5 + Math.abs(moveVx) * 0.08);
   ctx.strokeStyle = b.darkColor;
   ctx.lineWidth = 5;
   ctx.lineCap = "round";
   ctx.beginPath();
-  ctx.moveTo(bx - dir * 26, by - 28 + s);
-  ctx.quadraticCurveTo(bx - dir * 38, by - 42 + s, bx - dir * 34, by - 52 + s);
+  ctx.moveTo(bx - dir * 26, by - 28 + s + bodyBob);
+  ctx.quadraticCurveTo(
+    bx - dir * (38 + tailWag * 8), by - 48 + s + bodyBob + tailWag * 6,
+    bx - dir * (30 - tailWag * 10), by - 56 + s + bodyBob);
   ctx.stroke();
 
-  // corps
+  // corps (squash course)
+  const bodySquash = b.onGround && Math.abs(moveVx) > 0.3 ? 1 - Math.max(0, -gait) * 0.12 : 1;
   ctx.fillStyle = b.color;
   ctx.beginPath();
-  ctx.ellipse(bx, by - 28 + s, 32, 27 - s * 0.8, 0, 0, Math.PI * 2);
+  ctx.ellipse(bx, by - 28 + s + bodyBob, 32 / bodySquash * 0.95, (27 - s * 0.8) * bodySquash, 0, 0, Math.PI * 2);
   ctx.fill();
   outline();
 
   // ventre plus clair
   ctx.fillStyle = "rgba(245, 230, 190, 0.7)";
   ctx.beginPath();
-  ctx.ellipse(bx + dir * 4, by - 22 + s, 17, 13, 0, 0, Math.PI * 2);
+  ctx.ellipse(bx + dir * 4, by - 22 + s + bodyBob, 17, 13, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // petites pattes avant
@@ -1431,20 +1414,21 @@ function drawScoobyCanvas(b) {
   ctx.strokeStyle = "rgba(0,0,0,0.2)";
   ctx.lineWidth = 1.2;
   for (let pi = 0; pi < 2; pi++) {
-    const bob = (b.onGround && b.vx !== 0)
-      ? Math.max(0, Math.sin(b.walkPhase + pi * Math.PI)) * 2 : 0;
+    const bob = (b.onGround && moveVx !== 0)
+      ? Math.max(0, Math.sin((b.walkPhase || 0) + pi * Math.PI)) * 3.5 : 0;
     ctx.beginPath();
-    ctx.arc(bx + dir * (5 + pi * 8), by - 17 + s - bob, 4.5, 0, Math.PI * 2);
+    ctx.arc(bx + dir * (5 + pi * 8), by - 17 + s + bodyBob - bob, 4.5, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
   }
 
-  // oreilles molles (pendent ; encore plus à la fatigue)
+  // oreilles molles qui claquent
   const earHang = 0.95 + fatigueT * 0.35;
+  const earFlap = Math.sin(performance.now() / 70 + (b.walkPhase || 0)) * (b.onGround ? 0.25 : 0.55);
   for (const side of [-1, 1]) {
     ctx.save();
     ctx.translate(bx + side * 14, headY - 6);
-    ctx.rotate(side * earHang + (b.onGround ? 0 : -dir * 0.15));
+    ctx.rotate(side * earHang + earFlap * side + (b.onGround ? 0 : -dir * 0.2));
     ctx.fillStyle = b.darkColor;
     ctx.beginPath();
     ctx.ellipse(0, 14, 8, 18, 0, 0, Math.PI * 2);

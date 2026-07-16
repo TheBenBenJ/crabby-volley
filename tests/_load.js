@@ -61,6 +61,7 @@ const EPILOGUE = `
   ANIMALS, TERRAINS,
   SPRITES: typeof SPRITES !== "undefined" ? SPRITES : null,
   spriteReady: typeof spriteReady === "function" ? spriteReady : () => false,
+  drawScoobySpriteMaster: typeof drawScoobySpriteMaster === "function" ? drawScoobySpriteMaster : null,
   drawScooby: typeof drawScooby === "function" ? drawScooby : null,
   drawBgManoir: typeof drawBgManoir === "function" ? drawBgManoir : null,
   consts: { W, H, NET_X, NET_W, NET_TOP, GROUND_Y, BALL_R, MAX_BALL_SPEED, GUEST_BALL_MARGIN }
