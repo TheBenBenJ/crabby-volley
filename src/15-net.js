@@ -37,6 +37,8 @@ let netCode = "";              // code de la partie (hôte)
 let joinCode = "";             // saisie du code (invité)
 let netErrorMsg = "";
 let matchId = 0;               // n° de manche : ignore les paquets périmés
+const CONNECT_TIMEOUT = 12000; // ms max pour établir les 2 canaux avant d'abandonner
+let connectTimer = null;       // garde-fou : évite de rester bloqué sur "Recherche…"
 
 // --- côté hôte ---
 let guestIn = { left: false, right: false, jump: false }; // dernière entrée reçue (1v1)
@@ -130,6 +132,14 @@ function initGuestPeer(code) {
   });
   peer.on("error", onPeerError);
   peer.on("disconnected", () => { if (peer && !peer.destroyed) peer.reconnect(); });
+  // garde-fou : si la négociation WebRTC directe n'aboutit jamais (NAT strict,
+  // pare-feu…), le code peut être valide (pas de "peer-unavailable") mais la
+  // connexion réelle ne s'établit jamais — sans ça, l'écran restait bloqué
+  // sur "Recherche de la partie…" indéfiniment, sans aucun message.
+  clearTimeout(connectTimer);
+  connectTimer = setTimeout(() => {
+    if (!netConnected) netFail("Connexion impossible — vérifie le code, ou la connexion réseau de ton ami.");
+  }, CONNECT_TIMEOUT);
 }
 
 function hookConn(c) {
@@ -137,13 +147,19 @@ function hookConn(c) {
   c.on("data", onNetData);
   c.on("open", checkBothOpen);
   c.on("close", onConnClosed);
-  c.on("error", () => {});
+  // un échec explicite du canal ne doit pas être avalé en silence : sans
+  // connexion établie, on abandonne tout de suite (au lieu d'attendre le
+  // garde-fou CONNECT_TIMEOUT) ; déjà connecté, "close" gère la déconnexion.
+  c.on("error", () => {
+    if (!netConnected) netFail("Connexion impossible — vérifie le code, ou la connexion réseau de ton ami.");
+  });
   if (c.open) checkBothOpen();
 }
 
 function checkBothOpen() {
   if (netConnected || !connRel || !connRel.open || !connFast || !connFast.open) return;
   netConnected = true;
+  clearTimeout(connectTimer); connectTimer = null;
   lastPeerMsg = lastSnapTime = performance.now();
   startPinging();
   if (netRole === "guest") {
@@ -187,6 +203,7 @@ function teardownNet() {
   online = false; netRole = null; netConnected = false;
   peerReady = false; netFrozen = false;
   if (pingTimer) { clearInterval(pingTimer); pingTimer = null; }
+  clearTimeout(connectTimer); connectTimer = null;
   const p = peer;
   peer = connRel = connFast = null;
   if (p) { try { p.destroy(); } catch (e) {} }
