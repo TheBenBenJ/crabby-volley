@@ -301,9 +301,8 @@ function samyWalkFrame(b) {
   if (!samyWalkReady()) {
     return spriteReady(SPRITES.samyRun) ? SPRITES.samyRun : null;
   }
-  // Cycle lisible et calme, même cadence que Scooby (0.18) : transitions douces
-  // contact → passage (jambes jointes) → contact. Trop rapide (0.32) = saccadé.
-  const idx = Math.floor(Math.abs(b.walkPhase || 0) * 0.18) % frames.length;
+  // Cadence lente (0.10) : cycle lisible, pas de course frénétique des jambes
+  const idx = Math.floor(Math.abs(b.walkPhase || 0) * 0.10) % frames.length;
   return frames[idx];
 }
 
@@ -366,7 +365,7 @@ function drawSamySpriteMaster(b) {
     lean = Math.max(-0.12, Math.min(0.12, moveVx * 0.015));
     if (turbo) bobY = Math.sin(now * 20) * 1.2;
   } else if (moving) {
-    const phase = Math.abs(b.walkPhase || 0) * 0.18; // synchro avec samyWalkFrame
+    const phase = Math.abs(b.walkPhase || 0) * 0.10; // synchro avec samyWalkFrame
     bobY = Math.sin(phase * Math.PI) * 1.6;
     lean = Math.max(-0.08, Math.min(0.08, moveVx * 0.01));
   } else {
