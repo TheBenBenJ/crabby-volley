@@ -9,7 +9,6 @@ function handleMenuKeys(code, key) {
   if (state !== "joinEntry" && /^Numpad[0-9]$/.test(code)) code = "Digit" + code.slice(-1);
   if (code === "NumpadEnter") code = "Enter"; // Entrée du pavé numérique = Entrée
   // (c'était le « je remplis le code et rien ne se passe » des claviers à pavé)
-  if (code === "NumpadEnter") code = "Enter";
 
   // suite de touches "6-6-6" : marche sur tous les écrans de menu (accueil,
   // règles, difficulté, choix du mode, sélection perso/terrain, lobby en
