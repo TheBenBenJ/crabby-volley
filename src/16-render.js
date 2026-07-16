@@ -106,6 +106,7 @@ function render() {
   if (state === "credits") { drawCredits(); return; }
   if (state === "selectAnimal") { drawSelectAnimal(); return; }
   if (state === "selectTerrain") { drawSelectTerrain(); return; }
+  if (state === "selectBall") { drawSelectBall(); return; }
   if (state === "onlineMenu") { drawOnlineMenu(); return; }
   if (state === "joinEntry") { drawJoinEntry(); return; }
   if (state === "hostWait") { drawHostWait(); return; }

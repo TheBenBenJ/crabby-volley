@@ -309,6 +309,7 @@ function onNetData(m) {
       if (netRole !== "guest") break;
       matchId = m.m;
       terrain = Math.max(0, Math.min(TERRAINS.length - 1, m.terrain | 0));
+      ballSkin = Math.max(0, Math.min(BALL_SKINS.length - 1, m.ballSkin | 0));
       bombMode = !!m.bomb;                          // l'hôte décide de la règle Bombe…
       bombTime = m.bt || BOMB_TIME;                 // …et de la durée de mèche
       guestResetMatch();
@@ -370,7 +371,7 @@ function hostStartMatch() {
   guestBall = null; lastGuestBallAt = 0; lastGuestPtSeq = 0;
   guestBallGen = 0; appliedGuestBallGen = -1;
   const seed = (Math.random() * 2 ** 31) | 0;
-  sendRel({ t: "start", m: matchId, seed, terrain, a: [blobL.animal, blobR.animal],
+  sendRel({ t: "start", m: matchId, seed, terrain, ballSkin, a: [blobL.animal, blobR.animal],
             bomb: bombMode ? 1 : 0, bt: bombTime });
   vsAI = false;
   setMode("1v1"); mySlot = 0; // hôte 1v1 = Rouge (slot 0)
@@ -612,7 +613,7 @@ function hostStartMatch2v2() {
   });
   for (const g of guests) {
     if (g.rel && g.rel.open) {
-      g.rel.send({ t: "start", m: matchId, mode: "2v2", slot: g.slot, seed, terrain, a: anims,
+      g.rel.send({ t: "start", m: matchId, mode: "2v2", slot: g.slot, seed, terrain, ballSkin, a: anims,
                    bomb: bombMode ? 1 : 0, bt: bombTime });
     }
   }

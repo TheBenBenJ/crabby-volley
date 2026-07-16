@@ -15,6 +15,13 @@ const TERRAINS = [
 ];
 let terrain = 0;
 
+// Skins de balle : 0 = classique (dessin canvas), les autres pointent vers un sprite PNG.
+const BALL_SKINS = [
+  { key: "classic", name: "Classique", sprite: null },
+  { key: "purple",  name: "Violet",    sprite: "ballPurple" },
+];
+let ballSkin = 0;
+
 const ANIMALS = [
   // stats affichées sur 5 (Vitesse/Détente/Puissance/Contrôle) + multiplicateurs moteur.
   // speed : vitesse au sol · jump : force de saut · power : force de frappe
@@ -111,7 +118,7 @@ let darkSeq = "";
 // terrain — là, les chiffres ont déjà un sens (choisir un slot), et basculer
 // le mode EN PLEIN CHOIX invaliderait silencieusement la sélection en cours
 // (setDarkMode() la remplace alors par un choix aléatoire, sans le dire).
-const MENU_LIKE_EXCLUDED = new Set(["joinEntry", "play", "serve", "point", "gameover", "selectAnimal", "selectTerrain"]);
+const MENU_LIKE_EXCLUDED = new Set(["joinEntry", "play", "serve", "point", "gameover", "selectAnimal", "selectTerrain", "selectBall"]);
 function visibleAnimalIdx() {
   const idx = [];
   for (let i = 0; i < ANIMALS.length; i++) if (!!ANIMALS[i].hidden === darkMode) idx.push(i);
@@ -167,11 +174,11 @@ function sideColor(side) {
 
 // ---------- État du jeu ----------
 // state: "menu" | "aiDifficulty" | "gameModeSelect"
-//        | "selectAnimal" | "selectTerrain" | "serve" | "play" | "point" | "gameover"
+//        | "selectAnimal" | "selectTerrain" | "selectBall" | "serve" | "play" | "point" | "gameover"
 //        | états du mode en ligne : "onlineMenu" | "joinEntry" | "hostWait"
 //          | "connecting" | "netWait" | "netError"
 // Flux du menu : menu → (Solo IA : aiDifficulty → gameModeSelect) | (Local : gameModeSelect direct)
-//                     → selectAnimal → selectTerrain → partie
+//                     → selectAnimal → selectTerrain → selectBall → partie
 let state = "menu";
 let vsAI = true;
 let pointTimer = 0;

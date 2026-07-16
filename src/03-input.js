@@ -165,6 +165,7 @@ function navOptions() {
     case "onlineMenu":    return ["Digit1", "Digit2"];
     case "selectAnimal":  return ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7"].slice(0, visibleAnimalIdx().length);
     case "selectTerrain": return ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5"].slice(0, visibleTerrainIdx().length);
+    case "selectBall":    return ["Digit1", "Digit2"].slice(0, BALL_SKINS.length);
     default: return null;
   }
 }
@@ -172,7 +173,7 @@ function navOptions() {
 function handlePadMenu() {
   const opts = navOptions();
   if (opts) {
-    const horiz = state === "selectAnimal" || state === "selectTerrain";
+    const horiz = state === "selectAnimal" || state === "selectTerrain" || state === "selectBall";
     if (navIdx >= opts.length) navIdx = 0;
     if (padEdge(horiz ? "right" : "down")) { navIdx = (navIdx + 1) % opts.length; beep(500, 0.03, "square", 0.05); }
     if (padEdge(horiz ? "left" : "up"))    { navIdx = (navIdx - 1 + opts.length) % opts.length; beep(500, 0.03, "square", 0.05); }

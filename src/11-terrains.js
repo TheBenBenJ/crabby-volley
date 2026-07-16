@@ -1173,23 +1173,30 @@ function drawBall() {
   ctx.save();
   ctx.translate(ball.x, ball.y);
   ctx.rotate(ball.angle);
-  // volume : dégradé radial éclairé en haut-gauche + liseré
-  const bgrad = ctx.createRadialGradient(-4, -5, 2, 0, 0, BALL_R);
-  bgrad.addColorStop(0, "#ffe98a");
-  bgrad.addColorStop(0.65, "#ffcc00");
-  bgrad.addColorStop(1, "#dfa300");
-  ctx.fillStyle = bgrad;
-  ctx.beginPath(); ctx.arc(0, 0, BALL_R, 0, Math.PI * 2); ctx.fill();
-  ctx.strokeStyle = "#c78f00";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.arc(0, 0, BALL_R - 0.5, 0, Math.PI * 2); ctx.stroke();
-  ctx.strokeStyle = "#e6a800";
-  ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.arc(0, 0, BALL_R - 1, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(0, 0, BALL_R - 1, BALL_R * 0.45, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(0, 0, BALL_R * 0.45, BALL_R - 1, 0, 0, Math.PI * 2); ctx.stroke();
-  ctx.fillStyle = "rgba(255,255,255,0.5)";
-  ctx.beginPath(); ctx.arc(-4, -5, 4, 0, Math.PI * 2); ctx.fill();
+  const skin = BALL_SKINS[ballSkin];
+  const spr = skin && skin.sprite ? SPRITES[skin.sprite] : null;
+  if (spriteReady(spr)) {
+    const d = BALL_R * 2.15; // léger débord pour que le trait noir du PNG colle au rayon physique
+    ctx.drawImage(spr, -d / 2, -d / 2, d, d);
+  } else {
+    // volume : dégradé radial éclairé en haut-gauche + liseré (ballon classique)
+    const bgrad = ctx.createRadialGradient(-4, -5, 2, 0, 0, BALL_R);
+    bgrad.addColorStop(0, "#ffe98a");
+    bgrad.addColorStop(0.65, "#ffcc00");
+    bgrad.addColorStop(1, "#dfa300");
+    ctx.fillStyle = bgrad;
+    ctx.beginPath(); ctx.arc(0, 0, BALL_R, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = "#c78f00";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(0, 0, BALL_R - 0.5, 0, Math.PI * 2); ctx.stroke();
+    ctx.strokeStyle = "#e6a800";
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, BALL_R - 1, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 0, BALL_R - 1, BALL_R * 0.45, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath(); ctx.ellipse(0, 0, BALL_R * 0.45, BALL_R - 1, 0, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.5)";
+    ctx.beginPath(); ctx.arc(-4, -5, 4, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.restore();
 }
 

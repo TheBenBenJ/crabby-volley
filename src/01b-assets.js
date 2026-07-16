@@ -16,6 +16,7 @@ const SPRITES = {
   mysteryVan: null,
   manoirBg: null,        // fond plat Le Manoir Hanté
   manoirBgSharp: null,   // version accentuée (unsharp mask) — anti-flou upscale
+  ballPurple: null,      // ballon volley violet / crème
 };
 
 function loadSprite(path) {
@@ -110,6 +111,7 @@ function initSprites() {
   SPRITES.mysteryVan = loadSprite(base + "van.png");
   SPRITES.manoirBg = loadSprite("assets/manoir/bg.png");
   prepareSharpBg(SPRITES.manoirBg, "manoirBgSharp", 0.7, 2); // accentuation légère anti-flou
+  SPRITES.ballPurple = loadSprite("assets/ball/volley_purple.png");
   SPRITES.scoobyWalk = [];
   for (let i = 0; i < 8; i++) {
     SPRITES.scoobyWalk.push(loadSprite(base + "walk" + i + ".png"));

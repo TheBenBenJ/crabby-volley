@@ -163,8 +163,16 @@ function handleMenuKeys(code, key) {
     const slotT = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4 }[code];
     const visT = visibleTerrainIdx();
     const n = slotT !== undefined && slotT < visT.length ? visT[slotT] : undefined;
-    if (n !== undefined) { terrain = n; commitSetup(); }
+    if (n !== undefined) { terrain = n; state = "selectBall"; }
     if (code === "Escape") { selPlayer = 0; state = "selectAnimal"; }
+
+  } else if (state === "selectBall") {
+    const slotB = { Digit1: 0, Digit2: 1 }[code];
+    if (slotB !== undefined && slotB < BALL_SKINS.length) {
+      ballSkin = slotB;
+      commitSetup();
+    }
+    if (code === "Escape") state = "selectTerrain";
 
   } else if (state === "gameover") {
     if (online && mode === "2v2") {
@@ -203,7 +211,7 @@ function setTeamMode(v) {
   else pendingMode.mode2v2 = v;
 }
 
-// Valide la configuration choisie (fin de selectTerrain) et lance la partie
+// Valide la configuration choisie (fin de selectBall) et lance la partie
 // ou l'hébergement en ligne. Point unique : applique bombMode + bombTime
 // (5/7/10 s) pour TOUS les modes — 1v1, 2v2 et en ligne.
 function commitSetup() {
@@ -490,7 +498,7 @@ function wizardTotal() {
        + 1                                                            /* Format */
        + (pendingMode.bomb && hasTeamChoice ? 1 : 0)                  /* Bombe : 1v1 ou équipes ? */
        + (pendingMode.bomb ? 1 : 0)                                   /* Durée de mèche */
-       + 2;                                                            /* Personnage + Terrain */
+       + 3;                                                            /* Personnage + Terrain + Ballon */
 }
 function wizardStep(idx, label) { return "Étape " + idx + "/" + wizardTotal() + " · " + label; }
 
@@ -526,7 +534,7 @@ function drawGameModeSelect() {
 }
 
 function drawBombFormat() {
-  menuScreenBase({ title: "Mode Bombe", kicker: wizardStep(wizardTotal() - 3, "Format"),
+  menuScreenBase({ title: "Mode Bombe", kicker: wizardStep(wizardTotal() - 4, "Format"),
                    subtitle: "1v1, ou en équipes ?" });
   const items = [
     "1  —  1v1",
@@ -536,7 +544,7 @@ function drawBombFormat() {
 }
 
 function drawBombDuration() {
-  menuScreenBase({ title: "Mode Bombe", kicker: wizardStep(wizardTotal() - 2, "Durée de mèche"),
+  menuScreenBase({ title: "Mode Bombe", kicker: wizardStep(wizardTotal() - 3, "Durée de mèche"),
                    subtitle: "Renvoie la bombe avant la fin de la mèche" });
   const items = [
     "1  —  Nerveux",
@@ -734,7 +742,7 @@ function drawSelectAnimal() {
   // ligne ne choisit que son personnage (l'hôte gère le terrain) : un compteur
   // d'étape n'a pas de sens pour lui, un simple libellé suffit.
   const guestPicking = pendingMode.online && netRole === "guest";
-  uiLabel(guestPicking ? "En ligne · Ton personnage" : wizardStep(wizardTotal() - 1, darkMode ? "Génital" : "Animal"),
+  uiLabel(guestPicking ? "En ligne · Ton personnage" : wizardStep(wizardTotal() - 2, darkMode ? "Génital" : "Animal"),
           UI.mx, 34, 11, uiAccent(), 2);
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
   ctx.font = "800 26px " + UI.sans;
@@ -822,7 +830,7 @@ function drawSelectTerrain() {
   ctx.fillStyle = darkMode ? "#160303" : "#0e0f14";
   ctx.fillRect(0, 0, W, H);
   if (darkMode) drawHellVignette();
-  uiLabel(wizardStep(wizardTotal(), darkMode ? "Bourbier" : "Terrain"), UI.mx, 40, 11, uiAccent(), 2);
+  uiLabel(wizardStep(wizardTotal() - 1, darkMode ? "Bourbier" : "Terrain"), UI.mx, 40, 11, uiAccent(), 2);
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
   ctx.font = "800 30px " + UI.sans;
   ctx.fillText(darkMode ? "Choisis ton bourbier" : "Choisis le terrain", UI.mx, 74);
@@ -867,6 +875,65 @@ function drawSelectTerrain() {
     ctx.fillStyle = sel ? UI.ink : "rgba(244,245,247,0.85)";
     ctx.font = (n > 3 ? "600 15px " : "600 18px ") + UI.sans;
     ctx.fillText(TERRAINS[i].name, px + pw / 2, py + ph + 44);
+  }
+
+  uiLabel("Choisis 1 – " + n + "   ·   Échap ← retour", UI.mx, 466, 10, UI.muted, 1);
+}
+
+function drawSelectBall() {
+  ctx.fillStyle = darkMode ? "#160303" : "#0e0f14";
+  ctx.fillRect(0, 0, W, H);
+  if (darkMode) drawHellVignette();
+  uiLabel(wizardStep(wizardTotal(), "Ballon"), UI.mx, 40, 11, uiAccent(), 2);
+  ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
+  ctx.font = "800 30px " + UI.sans;
+  ctx.fillText("Choisis le ballon", UI.mx, 74);
+  uiRule(UI.mx, W - UI.mx, 92, UI.faint);
+
+  const n = BALL_SKINS.length, gap = 36;
+  const pw = 200, ph = 200, py = 130;
+  const rowW = n * pw + (n - 1) * gap, startX = (W - rowW) / 2;
+  for (let i = 0; i < n; i++) {
+    const skin = BALL_SKINS[i];
+    const px = startX + i * (pw + gap);
+    const code = "Digit" + (i + 1);
+    hit(px + pw / 2, py + ph / 2, pw, ph + 40, code);
+    const sel = (padConnected && navIdx === i) || isHover(code);
+
+    ctx.fillStyle = "rgba(255,255,255,0.04)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 12); else ctx.rect(px, py, pw, ph);
+    ctx.fill();
+    ctx.strokeStyle = sel ? UI.gold : "rgba(255,255,255,0.55)";
+    ctx.lineWidth = sel ? 4 : 2;
+    ctx.stroke();
+
+    // aperçu du ballon au centre de la carte (clip : l'ombre de drawBall part au sol)
+    ctx.save();
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 12); else ctx.rect(px, py, pw, ph);
+    ctx.clip();
+    ctx.translate(px + pw / 2, py + ph / 2);
+    const prevSkin = ballSkin;
+    ballSkin = i;
+    const saved = { x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, angle: ball.angle,
+                    trail: ball.trail, smash: ball.smash, frozen: ball.frozen, popped: ball.popped };
+    ball.x = 0; ball.y = 0; ball.vx = 0; ball.vy = 0;
+    ball.angle = performance.now() / 900;
+    ball.trail = []; ball.smash = 0; ball.frozen = false; ball.popped = false;
+    ctx.scale(2.6, 2.6);
+    drawBall();
+    Object.assign(ball, saved);
+    ballSkin = prevSkin;
+    ctx.restore();
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = sel ? uiAccent() : UI.muted;
+    ctx.font = "700 12px " + UI.mono;
+    ctx.fillText(String(i + 1), px + pw / 2, py + ph + 24);
+    ctx.fillStyle = sel ? UI.ink : "rgba(244,245,247,0.85)";
+    ctx.font = "600 18px " + UI.sans;
+    ctx.fillText(skin.name, px + pw / 2, py + ph + 44);
   }
 
   uiLabel("Choisis 1 – " + n + "   ·   Échap ← retour", UI.mx, 466, 10, UI.muted, 1);
