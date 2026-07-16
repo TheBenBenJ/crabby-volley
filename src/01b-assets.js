@@ -114,7 +114,7 @@ function drawAnchoredSprite(img, bx, by, dir, drawH, opts) {
 
   ctx.save();
   ctx.globalAlpha = alpha;
-  // évite le halo flou au rescale (surtout sur les outlines)
+  // Downscale → lissage OK ; évite le flou "bouillie" sur gros upscales
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality = "high";
   ctx.translate(bx, by + bobY);
@@ -231,7 +231,8 @@ function samyWalkFrame(b) {
   if (!samyWalkReady()) {
     return spriteReady(SPRITES.samyRun) ? SPRITES.samyRun : null;
   }
-  const idx = Math.floor(Math.abs(b.walkPhase || 0) * 0.18) % frames.length;
+  // Cycle lisible : ~8–10 fps sur 8 frames (3 poses distinctes a/b/run)
+  const idx = Math.floor(Math.abs(b.walkPhase || 0) * 0.32) % frames.length;
   return frames[idx];
 }
 
@@ -247,10 +248,8 @@ function samySpriteFor(b) {
   if (typeof state === "string" && state.indexOf("select") === 0 && !moving) {
     return spriteReady(SPRITES.samyIdle) ? SPRITES.samyIdle : SPRITES.samyIdleSide;
   }
-  if (moving) {
-    if (Math.abs(moveVx) > 2.2 && spriteReady(SPRITES.samyRun)) return SPRITES.samyRun;
-    return samyWalkFrame(b);
-  }
+  // Toujours le cycle de marche au sol (ne pas figer sur "run")
+  if (moving) return samyWalkFrame(b);
   if (spriteReady(SPRITES.samyIdleSide)) return SPRITES.samyIdleSide;
   return samyWalkFrame(b) || SPRITES.samyRun;
 }
@@ -276,33 +275,38 @@ function drawSamySpriteMaster(b) {
 
   let bobY = 0, lean = 0, squashX = 1, squashY = 1;
   const walkSpr = isSamyWalkSprite(spr);
-  // Sammy est grand / filiforme : plus haut que Scooby à l'écran
-  let baseH = 108;
-  if (walkSpr) baseH = 112;
-  else if (spr === SPRITES.samyIdleSide) baseH = 108;
-  else if (spr === SPRITES.samyRun) baseH = 110;
-  else if (spr === SPRITES.samyPounce || spr === SPRITES.samyPanic) baseH = 114;
-  else if (spr === SPRITES.samyIdle) baseH = 106;
-  baseH -= fatigueT * 5;
+  // Hauteur d'affichage : sprites natifs (~290px) → scale down (plus net qu'un upscale)
+  let baseH = 100;
+  if (walkSpr) baseH = 102;
+  else if (spr === SPRITES.samyIdleSide) baseH = 100;
+  else if (spr === SPRITES.samyRun) baseH = 100;
+  else if (spr === SPRITES.samyPounce || spr === SPRITES.samyPanic) baseH = 104;
+  else if (spr === SPRITES.samyIdle) baseH = 98;
+  // Fatigue : pose "tired" éventuelle via sprite, pas un squash qui coupe la tête
+  if (fatigueT > 0.55 && spriteReady(SPRITES.samyIdleSide) && !moving && b.onGround && !turbo) {
+    // légèrement plus tassé sans rotation agressive
+    baseH -= 4;
+  }
 
   if (!b.onGround || turbo) {
-    const stretch = 1 + Math.max(-0.06, Math.min(0.12, -(b.vy || 0) * 0.01));
+    const stretch = 1 + Math.max(-0.04, Math.min(0.08, -(b.vy || 0) * 0.008));
     squashY = stretch;
     squashX = 1 / Math.sqrt(stretch);
-    lean = Math.max(-0.28, Math.min(0.28, moveVx * 0.03));
-    if (turbo) bobY = Math.sin(now * 20) * 1.8;
+    // lean discret : trop fort + sprite haut → tête hors cadre / coupée visuellement
+    lean = Math.max(-0.12, Math.min(0.12, moveVx * 0.015));
+    if (turbo) bobY = Math.sin(now * 20) * 1.2;
   } else if (moving) {
-    const phase = Math.abs(b.walkPhase || 0) * 0.18;
-    bobY = Math.sin(phase * Math.PI) * 1.4;
-    lean = moveVx * 0.018;
+    const phase = Math.abs(b.walkPhase || 0) * 0.32;
+    bobY = Math.sin(phase * Math.PI) * 1.6;
+    lean = Math.max(-0.08, Math.min(0.08, moveVx * 0.01));
   } else {
-    bobY = Math.sin(now * 2.6) * 1.0;
-    squashY = 1 + Math.sin(now * 2.6) * 0.012;
+    bobY = Math.sin(now * 2.6) * 0.8;
+    squashY = 1 + Math.sin(now * 2.6) * 0.01;
     squashX = 1 / squashY;
   }
   if (s > 0) {
-    squashY *= 1 - Math.min(0.22, s * 0.035);
-    squashX *= 1 + Math.min(0.25, s * 0.04);
+    squashY *= 1 - Math.min(0.14, s * 0.025);
+    squashX *= 1 + Math.min(0.16, s * 0.03);
   }
 
   ctx.save();
@@ -310,7 +314,7 @@ function drawSamySpriteMaster(b) {
   drawAnchoredSprite(spr, bx, by, dir, baseH, { bobY, lean, squashX, squashY });
   if (fatigueT > 0.1) {
     const nDrops = Math.min(6, Math.ceil(fatigueT * 7));
-    const headY = by - baseH * 0.78 + bobY;
+    const headY = by - baseH * 0.72 + bobY;
     for (let d = 0; d < nDrops; d++) {
       const dropSize = 3.2 + fatigueT * 2.2;
       const dx = bx + dir * (10 + (d % 3) * 3) * (d % 2 === 0 ? 1 : -0.8);

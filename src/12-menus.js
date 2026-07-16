@@ -765,8 +765,10 @@ function drawSelectAnimal() {
       if (ctx.roundRect) ctx.roundRect(rx, ry, rw, rh, 10); else ctx.rect(rx, ry, rw, rh);
       ctx.stroke();
     }
+    // Sammy/Scooby sprites plus hauts : pieds plus bas pour ne pas couper la tête
+    const tall = a.key === "samy" || a.key === "scooby";
     const preview = {
-      x: cx, y: 168, groundY: 168,
+      x: cx, y: tall ? 188 : 168, groundY: tall ? 188 : 168,
       side: selPlayer, color: pcolor, darkColor: pdark,
       onGround: true, vx: 0, walkPhase: 0, squash: 0, animal: i, molt: 0
     };
