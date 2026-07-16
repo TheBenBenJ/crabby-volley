@@ -563,6 +563,162 @@ function drawHayBale(px) {
   ctx.beginPath(); ctx.moveTo(px - 26, py); ctx.lineTo(px + 26, py); ctx.stroke();
 }
 
+// ---------- Terrains Belzébuth (mode caché) ----------
+function drawBgEnfer() {
+  const t = performance.now() / 1000;
+  const storm = weather === "storm";
+  const active = weather === "rain" || storm; // éruption plus intense
+
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  sky.addColorStop(0, "#0a0000");
+  sky.addColorStop(1, active ? "#5a0f0f" : "#3a0808");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, GROUND_Y);
+
+  // lueur pulsante (soleil infernal)
+  const pulse = 0.5 + Math.sin(t * (storm ? 3 : 1.2)) * 0.25;
+  const glow = ctx.createRadialGradient(W / 2, 70, 10, W / 2, 70, 170);
+  glow.addColorStop(0, "rgba(255,90,20," + (0.55 * pulse).toFixed(2) + ")");
+  glow.addColorStop(1, "rgba(255,90,20,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, GROUND_Y);
+
+  drawHillLayer(GROUND_Y - 100, "#1a0505", 0.12,
+    [[100, GROUND_Y - 150], [260, GROUND_Y - 190], [420, GROUND_Y - 140], [600, GROUND_Y - 200], [800, GROUND_Y - 150]]);
+  drawHillLayer(GROUND_Y - 90, "#2a0808", 0.3,
+    [[170, GROUND_Y - 120], [370, GROUND_Y - 160], [560, GROUND_Y - 110], [770, GROUND_Y - 150]]);
+
+  drawCrowd();
+
+  // rivière de lave au loin
+  ctx.fillStyle = "#7a1a00";
+  ctx.fillRect(0, GROUND_Y - 55, W, 18);
+  ctx.fillStyle = "rgba(255,160,40,0.5)";
+  for (let i = 0; i < 6; i++) {
+    const lx = (i * 160 + Math.sin(t + i) * 20 + W) % W;
+    ctx.fillRect(lx, GROUND_Y - 54, 30, 3);
+  }
+
+  // croûte noire fissurée, lueur orange dans les fissures
+  ctx.fillStyle = "#120404";
+  ctx.fillRect(0, GROUND_Y - 37, W, H - GROUND_Y + 37);
+  ctx.strokeStyle = "rgba(255,110,30,0.55)";
+  ctx.lineWidth = 2;
+  for (let i = 0; i < 10; i++) {
+    const cx2 = (i * 97.3) % W, cy2 = GROUND_Y + 6 + (i * 23) % (H - GROUND_Y - 10);
+    ctx.globalAlpha = 0.4 + Math.abs(Math.sin(t * 2 + i)) * 0.5;
+    ctx.beginPath();
+    ctx.moveTo(cx2 - 14, cy2); ctx.lineTo(cx2, cy2 - 4); ctx.lineTo(cx2 + 14, cy2 + 3);
+    ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+
+  // braises montantes
+  ctx.fillStyle = "#ff6a2e";
+  for (let i = 0; i < 40; i++) {
+    const cyc = (t * (30 + (i % 7) * 8) + i * 41) % (H + 40);
+    const ex = (i * 67.7) % W + Math.sin(t * 1.6 + i) * 10;
+    const ey = H - cyc;
+    ctx.globalAlpha = Math.max(0, 1 - cyc / (H + 40)) * 0.85;
+    ctx.beginPath(); ctx.arc(ex, ey, 1.4 + (i % 3), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  drawSkullPole(60);
+  if (storm) {
+    const cyc = t % 2.4;
+    if (cyc < 0.08) { ctx.fillStyle = "rgba(255,60,20,0.35)"; ctx.fillRect(0, 0, W, GROUND_Y); }
+  }
+}
+
+function drawSkullPole(px) {
+  const baseY = GROUND_Y - 4;
+  ctx.strokeStyle = "#3a1a10"; ctx.lineWidth = 6; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(px, baseY); ctx.lineTo(px, baseY - 90); ctx.stroke();
+  ctx.fillStyle = "#e8e2d0";
+  ctx.beginPath(); ctx.arc(px, baseY - 104, 14, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#1a0a05";
+  ctx.beginPath(); ctx.arc(px - 5, baseY - 106, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(px + 5, baseY - 106, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.fillRect(px - 3, baseY - 98, 6, 5);
+}
+
+function drawBgStyx() {
+  const t = performance.now() / 1000;
+  const foggy = weather === "rain" || weather === "storm";
+
+  const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+  sky.addColorStop(0, "#0a1208");
+  sky.addColorStop(1, foggy ? "#233a1e" : "#162412");
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, GROUND_Y);
+
+  const mx = W * 0.8, my = 90;
+  ctx.fillStyle = "rgba(150,255,140,0.18)";
+  ctx.beginPath(); ctx.arc(mx, my, 46, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#9fce7a";
+  ctx.beginPath(); ctx.arc(mx, my, 30, 0, Math.PI * 2); ctx.fill();
+
+  drawHillLayer(GROUND_Y - 95, "#0d160a", 0.12,
+    [[110, GROUND_Y - 140], [300, GROUND_Y - 110], [500, GROUND_Y - 150], [700, GROUND_Y - 115], [850, GROUND_Y - 140]]);
+  drawHillLayer(GROUND_Y - 82, "#131f0e", 0.3,
+    [[180, GROUND_Y - 112], [380, GROUND_Y - 96], [580, GROUND_Y - 118], [790, GROUND_Y - 100]]);
+
+  drawCrowd();
+
+  // le Styx : eau sombre, reflet verdâtre de la lune
+  ctx.fillStyle = "#0c1a10";
+  ctx.fillRect(0, GROUND_Y - 55, W, 18);
+  ctx.fillStyle = "rgba(150,255,140,0.12)";
+  for (let i = 0; i < 5; i++) {
+    const rw = 26 - i * 4;
+    ctx.fillRect(mx - rw / 2 + Math.sin(t * 2 + i) * 6, GROUND_Y - 54 + i * 3.4, rw, 2);
+  }
+
+  // rive boueuse
+  const mud = ctx.createLinearGradient(0, GROUND_Y - 38, 0, H);
+  mud.addColorStop(0, "#2a2314");
+  mud.addColorStop(1, "#181206");
+  ctx.fillStyle = mud;
+  ctx.fillRect(0, GROUND_Y - 37, W, H - GROUND_Y + 37);
+
+  drawDeadTree(60);
+  drawDeadTree(840);
+
+  // feux follets
+  for (let i = 0; i < 6; i++) {
+    const fx = W / 2 + Math.sin(t * (0.3 + i * 0.07) + i * 2.4) * (W * 0.42);
+    const fy = GROUND_Y - 70 - Math.abs(Math.sin(t * (0.5 + i * 0.1) + i)) * 100;
+    const a = 0.35 + Math.abs(Math.sin(t * 2 + i * 1.7)) * 0.65;
+    ctx.fillStyle = "rgba(150,255,140," + (a * 0.25).toFixed(2) + ")";
+    ctx.beginPath(); ctx.arc(fx, fy, 6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "rgba(190,255,170," + a.toFixed(2) + ")";
+    ctx.beginPath(); ctx.arc(fx, fy, 2, 0, Math.PI * 2); ctx.fill();
+  }
+
+  if (foggy) {
+    ctx.fillStyle = "rgba(180,220,180,0.08)";
+    for (let i = 0; i < 3; i++) {
+      const fy2 = GROUND_Y - 10 - i * 8;
+      ctx.beginPath();
+      ctx.ellipse(((t * 20 + i * 300) % (W + 200)) - 100, fy2, 160, 14, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+}
+
+function drawDeadTree(px) {
+  ctx.strokeStyle = "#1a1508"; ctx.lineWidth = 7; ctx.lineCap = "round";
+  ctx.beginPath(); ctx.moveTo(px, GROUND_Y - 6); ctx.lineTo(px - 4, GROUND_Y - 70); ctx.stroke();
+  ctx.lineWidth = 4;
+  for (const [dx, dy, ang] of [[-4, -70, -0.6], [-4, -70, 0.5], [-10, -50, -0.9]]) {
+    ctx.beginPath();
+    ctx.moveTo(px + dx, GROUND_Y + dy);
+    ctx.lineTo(px + dx + Math.cos(ang) * 30, GROUND_Y + dy + Math.sin(ang) * 30 - 10);
+    ctx.stroke();
+  }
+}
+
 function drawNet() {
   // ombre au sol du poteau
   ctx.fillStyle = "rgba(0,0,0,0.15)";

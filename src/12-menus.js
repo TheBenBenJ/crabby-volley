@@ -8,6 +8,19 @@ function handleMenuKeys(code, key) {
   // de partie (joinEntry gère déjà Numpad lui-même, plus bas).
   if (state !== "joinEntry" && /^Numpad[0-9]$/.test(code)) code = "Digit" + code.slice(-1);
 
+  // suite de touches "6-6-6" : marche sur tous les écrans de menu (accueil,
+  // règles, difficulté, choix du mode, sélection perso/terrain, lobby en
+  // ligne…) — seulement pas pendant la saisie d'un code de partie ni en
+  // pleine partie, où les chiffres ont un autre sens.
+  if (!MENU_LIKE_EXCLUDED.has(state)) {
+    if (code === "Digit6") {
+      darkSeq = (darkSeq + "6").slice(-3);
+      if (darkSeq === "666") { setDarkMode(!darkMode); darkSeq = ""; beep(darkMode ? 140 : 90, 0.3, "sawtooth", 0.2, 0, 60); }
+    } else if (/^Digit[0-9]$/.test(code)) darkSeq = "";
+  } else {
+    darkSeq = "";
+  }
+
   // M coupe le son — sauf pendant la saisie d'un code (M peut en faire partie)
   if (code === "KeyM" && state !== "joinEntry") { muted = !muted; return; }
   if (code === "KeyN" && state !== "joinEntry") { musicOn = !musicOn; return; }
@@ -82,7 +95,9 @@ function handleMenuKeys(code, key) {
     if (code === "Escape" || code === "Enter" || code === "Space") state = "menu";
 
   } else if (state === "selectAnimal") {
-    const n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4, Digit6: 5 }[code];
+    const slot = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3, Digit5: 4, Digit6: 5 }[code];
+    const vis = visibleAnimalIdx();
+    const n = slot !== undefined && slot < vis.length ? vis[slot] : undefined;
     if (n !== undefined) {
       (selPlayer === 0 ? blobL : blobR).animal = n;
       if (pendingMode.online) {
@@ -96,7 +111,7 @@ function handleMenuKeys(code, key) {
       } else if (selPlayer === 0 && !pendingMode.vsAI) {
         selPlayer = 1; // au joueur vert de choisir
       } else {
-        if (pendingMode.vsAI) blobR.animal = Math.floor(Math.random() * ANIMALS.length);
+        if (pendingMode.vsAI) blobR.animal = randomAnimalIdx();
         state = "selectTerrain";
       }
     }
@@ -106,7 +121,9 @@ function handleMenuKeys(code, key) {
     }
 
   } else if (state === "selectTerrain") {
-    const n = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 }[code];
+    const slotT = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 }[code];
+    const visT = visibleTerrainIdx();
+    const n = slotT !== undefined && slotT < visT.length ? visT[slotT] : undefined;
     if (n !== undefined) {
       terrain = n;
       if (pendingMode.online) {
@@ -165,7 +182,7 @@ function newGame(seed) {
     // (En ligne, l'hôte fixe animaux et vitesses — voir hostStartMatch2v2.)
     const sm = AI_LEVELS[aiLevel].speedMul;
     blob2L.speedMul = sm; blobR.speedMul = sm; blob2R.speedMul = sm;
-    for (const b of [blob2L, blobR, blob2R]) b.animal = Math.floor(Math.random() * ANIMALS.length);
+    for (const b of [blob2L, blobR, blob2R]) b.animal = randomAnimalIdx();
     blob2L._aiT = blobR._aiT = blob2R._aiT = 0; // timers IA neutres
   }
   particles.length = 0;
@@ -188,18 +205,45 @@ function menuScreenBase(title, subtitle, titleSize) {
   drawNet();
   blobL.draw();
   blobR.draw();
-  ctx.fillStyle = "rgba(20,20,40,0.68)";
+  ctx.fillStyle = darkMode ? "rgba(35,0,0,0.72)" : "rgba(20,20,40,0.68)";
   ctx.fillRect(0, 0, W, H);
+  if (darkMode) drawHellVignette();
 
   ctx.textAlign = "center";
-  ctx.fillStyle = "#ffcc00";
+  ctx.fillStyle = darkMode ? "#ff2e2e" : "#ffcc00";
   ctx.font = "bold " + (titleSize || 46) + "px 'Trebuchet MS', sans-serif";
-  ctx.fillText(title, W / 2, 92);
+  ctx.fillText((darkMode ? "😈 " : "") + title, W / 2, 92);
   if (subtitle) {
     ctx.fillStyle = "rgba(255,255,255,0.75)";
     ctx.font = "17px 'Trebuchet MS', sans-serif";
     ctx.fillText(subtitle, W / 2, 122);
   }
+  if (darkMode) {
+    ctx.fillStyle = "rgba(255,110,80,0.85)";
+    ctx.font = "bold 13px 'Trebuchet MS', sans-serif";
+    ctx.fillText("— M O D E   B E L Z É B U T H —", W / 2, (titleSize || 46) > 46 ? 118 : 108);
+  }
+}
+
+// petite ambiance "Belzébuth" superposée aux écrans de menu concernés :
+// vignette rouge sur les bords + braises qui remontent.
+function drawHellVignette() {
+  const t = performance.now() / 1000;
+  const g = ctx.createRadialGradient(W / 2, H / 2, H * 0.25, W / 2, H / 2, H * 0.8);
+  g.addColorStop(0, "rgba(0,0,0,0)");
+  g.addColorStop(1, "rgba(140,0,0,0.5)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  for (let i = 0; i < 26; i++) {
+    const cyc = (t * (24 + (i % 5) * 5) + i * 53) % (H + 40);
+    const ex = (i * 97.3) % W + Math.sin(t * 2 + i) * 14;
+    const ey = H - cyc;
+    ctx.globalAlpha = Math.max(0, 1 - cyc / (H + 40)) * 0.85;
+    ctx.fillStyle = i % 3 === 0 ? "#ffcf3d" : "#ff5a2e";
+    ctx.beginPath(); ctx.arc(ex, ey, 1.5 + (i % 3), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
 }
 
 // liste verticale d'options, navigable au clavier comme à la manette
@@ -275,18 +319,20 @@ function drawGameModeSelect() {
 
 function drawRules() {
   // fond sombre
-  ctx.fillStyle = "#14142a";
+  ctx.fillStyle = darkMode ? "#1a0505" : "#14142a";
   ctx.fillRect(0, 0, W, H);
+  if (darkMode) drawHellVignette();
   ctx.textAlign = "center";
-  ctx.fillStyle = "#ffcc00";
+  ctx.fillStyle = darkMode ? "#ff2e2e" : "#ffcc00";
   ctx.font = "bold 30px 'Trebuchet MS', sans-serif";
-  ctx.fillText("Règles du jeu", W / 2, 40);
+  ctx.fillText((darkMode ? "😈 " : "") + (darkMode ? "Règles des Enfers" : "Règles du jeu"), W / 2, 40);
 
   // colonne gauche : règles générales
   const lx = 40;
+  const hCol = darkMode ? "#ff6a4d" : "#7ed957";
   ctx.textAlign = "left";
   let y = 78;
-  const h = (txt, c) => { ctx.fillStyle = c || "#7ed957"; ctx.font = "bold 17px 'Trebuchet MS', sans-serif"; ctx.fillText(txt, lx, y); y += 22; };
+  const h = (txt, c) => { ctx.fillStyle = c || hCol; ctx.font = "bold 17px 'Trebuchet MS', sans-serif"; ctx.fillText(txt, lx, y); y += 22; };
   const p = (txt) => { ctx.fillStyle = "rgba(255,255,255,0.85)"; ctx.font = "14px 'Trebuchet MS', sans-serif"; ctx.fillText(txt, lx, y); y += 19; };
 
   h("But du jeu");
@@ -306,28 +352,30 @@ function drawRules() {
   p("Une fois prête, déclenche la technique de ton animal");
   p("(voir la fiche de chacun à droite). À toi de bien la placer !");
   y += 6;
-  h("Météo & Smash Battle", "#4db3ff");
+  h(darkMode ? "Météo & Duel infernal" : "Météo & Smash Battle", darkMode ? "#ff9a4d" : "#4db3ff");
   p("Intempérie : sol glissant, balle plus lourde (tous terrains).");
   p("Deux au filet, balle proche : duel de martelage → smash !");
 
   // colonne droite : animaux + stats + traits
   const rx = W / 2 + 20;
   ctx.textAlign = "left";
-  ctx.fillStyle = "#7ed957";
+  ctx.fillStyle = hCol;
   ctx.font = "bold 17px 'Trebuchet MS', sans-serif";
-  ctx.fillText("Les animaux", rx, 78);
+  ctx.fillText(darkMode ? "Les damnés" : "Les animaux", rx, 78);
   ctx.font = "11px 'Trebuchet MS', sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.6)";
   ctx.fillText("V=Vitesse  D=Détente  P=Puissance  C=Contrôle", rx, 96);
 
   const cellW = (W / 2 - 60) / 2;
+  const visR = visibleAnimalIdx();
   // 5 animaux → 3 rangées : on resserre l'espacement pour ne pas déborder
-  const compact = ANIMALS.length > 4;
+  const compact = visR.length > 4;
   const rowH = compact ? 120 : 168;
   const ay0 = compact ? 104 : 118;
-  for (let i = 0; i < ANIMALS.length; i++) {
+  for (let slot = 0; slot < visR.length; slot++) {
+    const i = visR[slot];
     const a = ANIMALS[i];
-    const col = i % 2, row = Math.floor(i / 2);
+    const col = slot % 2, row = Math.floor(slot / 2);
     const ax = rx + col * (cellW + 20);
     const ay = ay0 + row * rowH;
 
@@ -394,27 +442,35 @@ function drawStatGauge(x, y, label, val) {
 function drawSelectAnimal() {
   drawBackground();
   drawNet();
-  ctx.fillStyle = "rgba(20,20,40,0.72)";
+  ctx.fillStyle = darkMode ? "rgba(35,0,0,0.82)" : "rgba(20,20,40,0.72)";
   ctx.fillRect(0, 0, W, H);
+  if (darkMode) drawHellVignette();
 
   // couleurs indicatives (le vrai rendu de l'aperçu prend la couleur naturelle
   // de l'animal via drawAnimal) : on garde juste un ton neutre pour l'en-tête.
-  const pcolor = "#ffd36b";
-  const pdark  = "#d99e18";
+  const pcolor = darkMode ? "#ff5a3d" : "#ffd36b";
+  const pdark  = darkMode ? "#7a1408" : "#d99e18";
   ctx.textAlign = "center";
-  ctx.fillStyle = pcolor;
+  ctx.fillStyle = darkMode ? "#ff2e2e" : pcolor;
   ctx.font = "bold 30px 'Trebuchet MS', sans-serif";
-  ctx.fillText("Choisis ton animal — Joueur " + sideName(selPlayer), W / 2, 52);
+  ctx.fillText((darkMode ? "😈 " : "") + "Choisis ton animal — Joueur " + sideName(selPlayer), W / 2, 52);
+  if (darkMode) {
+    ctx.fillStyle = "rgba(255,110,80,0.85)";
+    ctx.font = "bold 13px 'Trebuchet MS', sans-serif";
+    ctx.fillText("— M O D E   B E L Z É B U T H —", W / 2, 70);
+  }
 
-  const cw = W / ANIMALS.length; // largeur de carte adaptative (4 ou 5 animaux…)
-  for (let i = 0; i < ANIMALS.length; i++) {
-    const cx = cw * i + cw / 2;
+  const vis = visibleAnimalIdx();
+  const cw = W / vis.length; // largeur de carte adaptative (4, 5 ou 6 animaux…)
+  for (let slot = 0; slot < vis.length; slot++) {
+    const i = vis[slot];
+    const cx = cw * slot + cw / 2;
     const a = ANIMALS[i];
-    if (padConnected && navIdx === i) {
+    if (padConnected && navIdx === slot) {
       // carte surlignée à la manette
       ctx.strokeStyle = "#ffcc00";
       ctx.lineWidth = 3;
-      ctx.strokeRect(cw * i + 8, 72, cw - 16, 336);
+      ctx.strokeRect(cw * slot + 8, 72, cw - 16, 336);
     }
     const preview = {
       x: cx, y: 168, groundY: 168,
@@ -425,8 +481,8 @@ function drawSelectAnimal() {
     ctx.textAlign = "center";
     ctx.fillStyle = "#fff";
     // police du nom adaptée au nombre de cartes (plus serré à 5-6 animaux)
-    ctx.font = "bold " + (ANIMALS.length >= 6 ? 14 : ANIMALS.length === 5 ? 16 : 20) + "px 'Trebuchet MS', sans-serif";
-    ctx.fillText((i + 1) + " — " + a.name, cx, 205);
+    ctx.font = "bold " + (vis.length >= 6 ? 14 : vis.length === 5 ? 16 : 20) + "px 'Trebuchet MS', sans-serif";
+    ctx.fillText((slot + 1) + " — " + a.name, cx, 205);
 
     // jauges de stats
     const gx = cx - 68, gy0 = 232;
@@ -454,7 +510,7 @@ function drawSelectAnimal() {
   ctx.font = "16px 'Trebuchet MS', sans-serif";
   ctx.textAlign = "center";
   ctx.fillText("Technique : 3 points d'affilée chargent le SUPER (S / ↓)", W / 2, 452);
-  ctx.fillText("Appuie sur 1 – " + ANIMALS.length + "      •      Échap : retour", W / 2, 474);
+  ctx.fillText("Appuie sur 1 – " + vis.length + "      •      Échap : retour", W / 2, 474);
 }
 
 // utilitaire : texte multi-lignes centré
@@ -471,19 +527,21 @@ function wrapText(text, cx, y, maxW, lh) {
 }
 
 function drawSelectTerrain() {
-  ctx.fillStyle = "#14142a";
+  ctx.fillStyle = darkMode ? "#1a0303" : "#14142a";
   ctx.fillRect(0, 0, W, H);
   ctx.textAlign = "center";
-  ctx.fillStyle = "#ffcc00";
+  ctx.fillStyle = darkMode ? "#ff3b3b" : "#ffcc00";
   ctx.font = "bold 34px 'Trebuchet MS', sans-serif";
-  ctx.fillText("Choisis le terrain", W / 2, 75);
+  ctx.fillText(darkMode ? "Choisis ton bourbier" : "Choisis le terrain", W / 2, 75);
 
+  const visT = visibleTerrainIdx();
   // largeur de vignette adaptée au nombre de terrains (tient sur 900px de large)
-  const n = TERRAINS.length, gap = 20;
+  const n = visT.length, gap = 20;
   const pw = Math.min(250, Math.floor((W - 40 - (n - 1) * gap) / n)), ph = 170, py = 130;
   const rowW = n * pw + (n - 1) * gap, startX = (W - rowW) / 2;
-  for (let i = 0; i < n; i++) {
-    const px = startX + i * (pw + gap);
+  for (let slot = 0; slot < n; slot++) {
+    const i = visT[slot];
+    const px = startX + slot * (pw + gap);
     // aperçu réduit du terrain (le vrai rendu, animé)
     ctx.save();
     ctx.beginPath();
@@ -498,14 +556,14 @@ function drawSelectTerrain() {
     terrain = saved;
     ctx.restore();
 
-    const sel = padConnected && navIdx === i;
-    ctx.strokeStyle = sel ? "#ffcc00" : "rgba(255,255,255,0.6)";
+    const sel = padConnected && navIdx === slot;
+    ctx.strokeStyle = sel ? (darkMode ? "#ff3b3b" : "#ffcc00") : "rgba(255,255,255,0.6)";
     ctx.lineWidth = sel ? 4 : 2;
     ctx.strokeRect(px, py, pw, ph);
 
     ctx.fillStyle = "#fff";
     ctx.font = "bold " + (n > 3 ? 16 : 20) + "px 'Trebuchet MS', sans-serif";
-    ctx.fillText((i + 1) + "  —  " + TERRAINS[i].name, px + pw / 2, py + ph + 35);
+    ctx.fillText((slot + 1) + "  —  " + TERRAINS[i].name, px + pw / 2, py + ph + 35);
   }
 
   ctx.fillStyle = "rgba(255,255,255,0.7)";

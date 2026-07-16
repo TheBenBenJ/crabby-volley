@@ -364,7 +364,7 @@ function drawChibreSpray(tipX, tipY, dir) {
   ctx.restore();
 }
 
-// Madame Chneck : effet « mouillé » — une goutte perle au bas puis tombe,
+// Madame Schneck : effet « mouillé » — une goutte perle au bas puis tombe,
 // avec un filet humide au départ. Reflets brillants ajoutés dans le tracé.
 function drawChneckWet(bx, botY) {
   const T = 1400;
@@ -469,7 +469,7 @@ function drawChibre(b) {
   ctx.restore();
 }
 
-// Madame Chneck : chatte agile — corps rond couleur d'équipe, oreilles pointues,
+// Madame Schneck : chatte agile — corps rond couleur d'équipe, oreilles pointues,
 // museau à moustaches, queue qui ondule. Pendant "Retombée de chat" (superT),
 // de petites étincelles d'apesanteur pétillent autour d'elle.
 function drawChneck(b) {
@@ -481,7 +481,7 @@ function drawChneck(b) {
   ctx.save();
   drawShadow(b);
 
-  // ---- corps en amande : caricature de vulve (le gag de « Madame Chneck ») ----
+  // ---- corps en amande : caricature de vulve (le gag de « Madame Schneck ») ----
   const cy = by - 38 + s;              // centre du corps
   const HH = 48 - s * 0.7;             // demi-hauteur de l'amande
   const WW = 30;                       // demi-largeur (lèvres externes)

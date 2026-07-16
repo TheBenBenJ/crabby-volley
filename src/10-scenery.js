@@ -24,7 +24,10 @@ function drawClouds(color) {
 function drawCrowd() {
   const t = performance.now() / 1000;
   const key = TERRAINS[terrain].key;
-  const species = ANIMALS[TERRAINS[terrain].animal].key;
+  const hell = key === "enfer" || key === "styx";
+  // en enfer, le public est fait de petits diablotins — pas l'animal du
+  // terrain (Chibre/Schneck), pour rester sobre à cette échelle miniature.
+  const species = hell ? "demon" : ANIMALS[TERRAINS[terrain].animal].key;
   const top = GROUND_Y - 118, bot = GROUND_Y - 78;
   let stand, rail, pal, glow = false;
   if (key === "neige") {
@@ -36,6 +39,9 @@ function drawCrowd() {
   } else if (key === "prairie") {
     stand = "#8fae52"; rail = "#6b8a3a";
     pal = ["#ff6f61", "#ffd93d", "#7ed957", "#4db3ff", "#c07bff", "#ffffff"];
+  } else if (hell) {
+    stand = "#2a0808"; rail = "#160303"; glow = true;
+    pal = ["#ff3b3b", "#ff8a3d", "#ffcf3d", "#ff5a2e", "#c62828", "#ff7a59"];
   } else {
     stand = "#b98a4b"; rail = "#8f6a38";
     pal = ["#ff6f61", "#ffd93d", "#4db3ff", "#7ed957", "#c07bff", "#ffffff"];
@@ -132,6 +138,29 @@ function drawCrowdCritter(species, x, hy, col, excited, glow) {
       ctx.fillStyle = col;
       ctx.beginPath(); ctx.ellipse(0, -6, 1.7, 6, 0, 0, Math.PI * 2); ctx.fill();
       ctx.restore();
+    }
+  } else if (species === "demon") {
+    // petit diablotin : corps teinté, cornes, yeux qui brillent dans le noir
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.ellipse(x, hy + 4, 5, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x, hy - 3, 3.6, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#2a0a0a";
+    for (const side of [-1, 1]) {
+      ctx.beginPath();
+      ctx.moveTo(x + side * 1.5, hy - 6);
+      ctx.lineTo(x + side * 4.5, hy - 11);
+      ctx.lineTo(x + side * 3, hy - 5);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.fillStyle = "rgba(255,225,80,0.16)";
+    ctx.beginPath(); ctx.arc(x, hy - 3, 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffe14d";
+    ctx.beginPath(); ctx.arc(x - 1.3, hy - 3, 1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(x + 1.3, hy - 3, 1, 0, Math.PI * 2); ctx.fill();
+    if (excited) { // petite fourche brandie
+      ctx.strokeStyle = col; ctx.lineWidth = 1.6; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(x - 4, hy + 3); ctx.lineTo(x - 7, hy - 5); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(x + 4, hy + 3); ctx.lineTo(x + 7, hy - 5); ctx.stroke();
     }
   } else {
     // oiseau (piou-piou) : petit corps teinté, bec orange, ailes qui s'agitent
@@ -482,6 +511,8 @@ function drawBackground() {
   if (key === "plage") drawBgPlage();
   else if (key === "neige") drawBgNeige();
   else if (key === "nuit") drawBgNuit();
-  else drawBgPrairie();
+  else if (key === "prairie") drawBgPrairie();
+  else if (key === "enfer") drawBgEnfer();
+  else drawBgStyx();
 }
 

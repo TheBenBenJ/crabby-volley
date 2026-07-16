@@ -8,7 +8,9 @@ const TERRAINS = [
   { key: "plage",   name: "La Zone de Piou-Piou",     animal: 0 },
   { key: "neige",   name: "Le QG du Général Frigo",   animal: 2 },
   { key: "nuit",    name: "La Mare à Slurp",          animal: 1 },
-  { key: "prairie", name: "Le Ter-Ter de Jeannot",    animal: 3 }
+  { key: "prairie", name: "Le Ter-Ter de Jeannot",    animal: 3 },
+  { key: "enfer",   name: "La Fournaise à Chibre",    animal: 4, hidden: true },
+  { key: "styx",    name: "Le Marigot de Schneck",    animal: 5, hidden: true }
 ];
 let terrain = 0;
 
@@ -58,7 +60,7 @@ const ANIMALS = [
     superName: "Turbo-bond", superDesc: "Vitesse décuplée et sauts illimités pendant un instant."
   },
   {
-    key: "chibre", name: "Monsieur Chibre",
+    key: "chibre", name: "Monsieur Chibre", hidden: true,
     color: "#e7b28d", darkColor: "#cd8f68",   // teinte chair
     stats: { vitesse: 3, detente: 5, puissance: 5, controle: 1 },
     speed: 0.95, jump: 1.3, power: 1.2, control: 0.58,
@@ -66,7 +68,7 @@ const ANIMALS = [
     superName: "Coup de boutoir", superDesc: "Se raidit : la frappe suivante part comme un boulet rasant."
   },
   {
-    key: "chneck", name: "Madame Chneck",
+    key: "chneck", name: "Madame Schneck", hidden: true,
     color: "#e7a48c", darkColor: "#b76a62",   // teinte chair rosée
     stats: { vitesse: 4, detente: 3, puissance: 2, controle: 5 },
     speed: 1.12, jump: 1.05, power: 0.85, control: 0.98,
@@ -75,6 +77,49 @@ const ANIMALS = [
   }
 ];
 function animOf(b) { return ANIMALS[b.animal]; }
+
+// ---------- Mode Belzébuth ----------
+// Activé/désactivé en tapant "666" au clavier sur l'écran d'accueil ou de
+// sélection des personnages (voir la détection dans handleMenuKeys,
+// 12-menus.js). Bascule EXCLUSIVE : en mode normal, seuls les animaux/
+// terrains "normaux" sont proposés ; en mode Belzébuth, seuls les
+// "hidden" (trash/infernaux) le sont — jamais les deux à la fois.
+let darkMode = false;
+let darkSeq = "";
+// états où "666" ne doit PAS être intercepté (saisie de code de partie,
+// ou pleine partie où les chiffres n'ont de toute façon aucun usage ici)
+const MENU_LIKE_EXCLUDED = new Set(["joinEntry", "play", "serve", "point", "gameover"]);
+function visibleAnimalIdx() {
+  const idx = [];
+  for (let i = 0; i < ANIMALS.length; i++) if (!!ANIMALS[i].hidden === darkMode) idx.push(i);
+  return idx;
+}
+function visibleTerrainIdx() {
+  const idx = [];
+  for (let i = 0; i < TERRAINS.length; i++) if (!!TERRAINS[i].hidden === darkMode) idx.push(i);
+  return idx;
+}
+function randomAnimalIdx() {
+  // choix de menu, hors simulation : Math.random() (pas le rng seedé du jeu)
+  const idx = visibleAnimalIdx();
+  return idx[Math.floor(Math.random() * idx.length)];
+}
+// bascule le mode Belzébuth ET rattrape aussitôt tout ce qui serait
+// incohérent avec le nouveau mode : le fond animé des menus (terrain +
+// personnages affichés derrière l'écran courant) doit montrer un vrai
+// visuel du mode qu'on vient d'activer, pas rester sur l'ancien.
+function setDarkMode(on) {
+  darkMode = on;
+  if (visibleTerrainIdx().indexOf(terrain) === -1) terrain = visibleTerrainIdx()[0];
+  if (visibleAnimalIdx().indexOf(blobL.animal) === -1) blobL.animal = randomAnimalIdx();
+  if (visibleAnimalIdx().indexOf(blobR.animal) === -1) blobR.animal = randomAnimalIdx();
+}
+// valide un indice d'animal reçu du réseau : dans les bornes, et cohérent
+// avec le mode (normal/Belzébuth) actif chez l'hôte.
+function clampVisibleAnimal(v) {
+  const i = Math.max(0, Math.min(ANIMALS.length - 1, v | 0));
+  return (!!ANIMALS[i].hidden === darkMode) ? i : visibleAnimalIdx()[0];
+}
 
 // ---------- Identité des camps ----------
 // Les couleurs d'équipe rouge/verte ont disparu : chaque animal a sa couleur
@@ -152,7 +197,7 @@ const battle = {
 //   Général Frigo → "Canon des glaces" : la frappe suivante est un boulet de canon glacé
 //   Turbo-Jeannot → "Turbo-bond" : vitesse décuplée + sauts illimités pendant ~1,6 s
 //   Monsieur Chibre → "Coup de boutoir" : la frappe suivante part en boulet rasant
-//   Madame Chneck → "Retombée de chat" : sauts illimités + vol plané (gravité réduite)
+//   Madame Schneck → "Retombée de chat" : sauts illimités + vol plané (gravité réduite)
 const SUPER_NEED = 3;
 const streak = [0, 0];        // points d'affilée par camp
 const superCharge = [0, 0];   // 0 = vide, 1 = super prête

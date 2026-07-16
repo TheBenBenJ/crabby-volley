@@ -232,7 +232,7 @@ function onNetData(m) {
     }
     case "hello": // hôte : l'invité a choisi son animal → on lance !
       if (netRole !== "host") break;
-      blobR.animal = Math.max(0, Math.min(ANIMALS.length - 1, m.animal | 0));
+      blobR.animal = clampVisibleAnimal(m.animal);
       hostStartMatch();
       break;
     case "start": { // invité : configuration reçue de l'hôte → départ
@@ -380,7 +380,7 @@ function onHostData(g, m) {
       break;
     }
     case "hello": // l'invité a choisi son animal (lobby)
-      g.animal = Math.max(0, Math.min(ANIMALS.length - 1, m.animal | 0));
+      g.animal = clampVisibleAnimal(m.animal);
       g.ready = true;
       break;
     case "in": // entrées de cet invité (on ne garde que la plus récente)
@@ -409,7 +409,7 @@ function hostStartMatch2v2() {
   for (let s = 0; s < 4; s++) {
     anims[s] = s === 0 ? blobL.animal
              : occ[s] ? occ[s].animal
-             : Math.floor(Math.random() * ANIMALS.length);
+             : randomAnimalIdx();
   }
   newGame(seed); // réinitialise positions/scores (n'écrase pas animal/speedMul en ligne)
   activeBlobs.forEach((b, s) => {
