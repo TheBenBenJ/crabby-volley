@@ -254,7 +254,9 @@ function drawShadow(b) {
 // PARALLÈLEMENT (fini le strabisme quand la balle est proche entre les yeux).
 // redTint (0..1) optionnel : injecte du rouge dans le blanc de l'œil (colère
 // croissante du manchot), appliqué avant la pupille pour ne pas la recouvrir.
-function drawTrackingEye(ex, ey, r, pr, gx, gy, redTint) {
+// spin (0..1) + spinDir (-1/1) optionnels : la pupille délaisse peu à peu la
+// balle pour tourner sur elle-même (folie grandissante de la grenouille).
+function drawTrackingEye(ex, ey, r, pr, gx, gy, redTint, spin, spinDir) {
   ctx.fillStyle = "#fff";
   ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
   if (redTint) {
@@ -262,10 +264,18 @@ function drawTrackingEye(ex, ey, r, pr, gx, gy, redTint) {
     ctx.beginPath(); ctx.arc(ex, ey, r, 0, Math.PI * 2); ctx.fill();
   }
   const ox = gx !== undefined ? gx : ex, oy = gy !== undefined ? gy : ey;
-  const dx = ball.x - ox, dy = ball.y - oy;
-  const d = Math.hypot(dx, dy) || 1;
+  let dx = ball.x - ox, dy = ball.y - oy;
+  let d = Math.hypot(dx, dy) || 1;
+  dx /= d; dy /= d;
+  if (spin) {
+    const ang = performance.now() / 1000 * (5 + spin * 22) * (spinDir || 1);
+    dx = dx * (1 - spin) + Math.cos(ang) * spin;
+    dy = dy * (1 - spin) + Math.sin(ang) * spin;
+    const nd = Math.hypot(dx, dy) || 1;
+    dx /= nd; dy /= nd;
+  }
   const amp = r - pr - 0.5;
-  const px = ex + dx / d * amp, py = ey + dy / d * amp;
+  const px = ex + dx * amp, py = ey + dy * amp;
   ctx.fillStyle = "#222";
   ctx.beginPath();
   ctx.arc(px, py, pr, 0, Math.PI * 2);
@@ -722,6 +732,15 @@ function drawGrenouille(b) {
   // pattes d'une teinte fixe, différente du corps (qui, lui, prend la couleur
   // du joueur) — comme les pattes de l'oiseau ou du lapin
   const LEG = "#7a4a24";
+  // folie grandissante au fil des touches (purement visuel, 0 → CRAZY_MAX) :
+  // tics/spasmes de la tête, yeux qui tournent, rictus figé, bave, langue
+  // qui frétille — remise à zéro au repos, comme le plumage/la fatigue.
+  const crazyT = (b.crazy || 0) / CRAZY_MAX;
+  const jt = performance.now() / 1000;
+  const spasmOn = crazyT > 0.08 && ((jt * (3 + crazyT * 9)) % 1) < 0.11;
+  const jx = spasmOn ? Math.sin(jt * 61 + bx) * crazyT * 7 : 0;
+  const jy = spasmOn ? Math.cos(jt * 67 + bx) * crazyT * 5 : 0;
+  const hx = bx + jx, hy = by + jy; // tête/corps (tics) — les pattes restent au sol
   ctx.save();
   drawShadow(b);
 
@@ -752,14 +771,14 @@ function drawGrenouille(b) {
   // corps massif
   ctx.fillStyle = b.color;
   ctx.beginPath();
-  ctx.ellipse(bx, by - 34 + s, 33, 30 - s * 0.8, 0, 0, Math.PI * 2);
+  ctx.ellipse(hx, hy - 34 + s, 33, 30 - s * 0.8, 0, 0, Math.PI * 2);
   ctx.fill();
   outline();
 
   // ventre clair
   ctx.fillStyle = "rgba(255,255,255,0.55)";
   ctx.beginPath();
-  ctx.ellipse(bx + dir * 4, by - 22 + s, 20, 14, 0, 0, Math.PI * 2);
+  ctx.ellipse(hx + dir * 4, hy - 22 + s, 20, 14, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // pattes avant qui marchent (balancier en alternance). Liseré sombre
@@ -807,9 +826,10 @@ function drawGrenouille(b) {
 
   // large bouche expressive (sourire / moue / grande ouverte) — grande
   // ouverte de force quand la langue traîne dehors, peu importe l'humeur
+  let mcx, mcy; // repris plus bas par le coup de langue erratique (dessiné par-dessus les yeux)
   {
     const mp = mouthParams(faceMood(b));
-    const mcx = bx + dir * 4, mcy = by - 46 + s;
+    mcx = hx + dir * 4; mcy = hy - 46 + s;
     if (mp.open >= 5 || b.tongueOut) {
       const openAmt = Math.max(mp.open, 6);
       ctx.fillStyle = "#7a2233";
@@ -823,13 +843,30 @@ function drawGrenouille(b) {
         ctx.fill();
       }
     } else {
+      // rictus de plus en plus large et crispé à mesure que la folie grandit
+      const grin = mp.curve + crazyT * 16;
       ctx.strokeStyle = b.darkColor;
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 2.5 + crazyT * 2;
       ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.moveTo(mcx - 13, mcy);
-      ctx.quadraticCurveTo(mcx, mcy + mp.curve * 1.7, mcx + 13, mcy);
+      ctx.moveTo(mcx - 13 - crazyT * 6, mcy);
+      ctx.quadraticCurveTo(mcx, mcy + grin * 1.7, mcx + 13 + crazyT * 6, mcy);
       ctx.stroke();
+    }
+    // bave : petites gouttes qui perlent aux DEUX coins de la bouche, dès
+    // que la folie devient perceptible (purement visuel)
+    if (crazyT > 0.12) {
+      const n = Math.ceil((crazyT - 0.12) / 0.88 * 5);
+      for (const side of [-1, 1]) {
+        const dcx = mcx + side * 15;
+        for (let i = 0; i < n; i++) {
+          const bob = Math.sin(jt * 4.5 + i * 2.1 + side) * 2.4;
+          ctx.fillStyle = "rgba(225,250,225,0.8)";
+          ctx.beginPath();
+          ctx.arc(dcx, mcy + 3 + i * 6 + bob, 2.2 + i * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
     }
   }
 
@@ -837,7 +874,7 @@ function drawGrenouille(b) {
   // la bouche grande ouverte et retombe en s'enroulant, avec sillon central
   // et bout arrondi — pas un amas informe.
   if (b.tongueOut) {
-    const mx = bx + dir * 4, my = by - 43 + s;
+    const mx = hx + dir * 4, my = hy - 43 + s;
     const len = 27, curl = dir * 11;
     ctx.strokeStyle = "#ff5c8a";
     ctx.lineWidth = 7;
@@ -856,20 +893,62 @@ function drawGrenouille(b) {
     ctx.beginPath(); ctx.arc(mx + curl, my + len, 3.6, 0, Math.PI * 2); ctx.fill();
   }
 
-  // yeux globuleux sur le dessus
+  // yeux globuleux sur le dessus — délaissent peu à peu la balle pour se
+  // mettre à tourner sur eux-mêmes (chaque œil dans un sens), et gonflent
+  // hors de la tête à mesure que la folie grandit
+  const eyeBulge = 1 + crazyT * 0.45;
   for (const off of [-11, 11]) {
     ctx.fillStyle = b.color;
     ctx.beginPath();
-    ctx.arc(bx + off, by - 62 + s * 1.5, 10, 0, Math.PI * 2);
+    ctx.arc(hx + off * eyeBulge, hy - 62 + s * 1.5, 10 * eyeBulge, 0, Math.PI * 2);
     ctx.fill();
-    drawTrackingEye(bx + off, by - 63 + s * 1.5, 7, 3.2);
+    drawTrackingEye(hx + off * eyeBulge, hy - 63 + s * 1.5, 7 * eyeBulge, 3.2 * eyeBulge, undefined, undefined, 0, crazyT, off > 0 ? 1 : -1);
   }
-  drawBrows(bx - 11, bx + 11, by - 63 + s * 1.5, 10, faceMood(b));
+  drawBrows(hx - 11 * eyeBulge, hx + 11 * eyeBulge, hy - 63 + s * 1.5, 10 * eyeBulge, faceMood(b));
 
   // narines
   ctx.fillStyle = b.darkColor;
-  ctx.beginPath(); ctx.arc(bx + dir * 12 - 3, by - 54 + s, 1.5, 0, Math.PI * 2); ctx.fill();
-  ctx.beginPath(); ctx.arc(bx + dir * 12 + 3, by - 54 + s, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(hx + dir * 12 - 3, hy - 54 + s, 1.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(hx + dir * 12 + 3, hy - 54 + s, 1.5, 0, Math.PI * 2); ctx.fill();
+
+  // coup de langue erratique (folie) : elle jaillit du coin de la bouche,
+  // remonte se lécher la joue/l'œil d'un grand coup, puis rentre — le
+  // "swing" pilote à la fois l'angle ET la portée, donc le mouvement est
+  // continu et lisible de bout en bout. Dessinée APRÈS les yeux/sourcils
+  // pour bien passer PAR-DESSUS le visage (sinon elle disparaît derrière).
+  // Sans rapport avec la pose figée du coup collant (qui pend et s'enroule
+  // vers le bas, tenue fixe).
+  if (!b.tongueOut && crazyT > 0.18) {
+    const cyc = (jt * (0.9 + crazyT * 2.6)) % 1;
+    if (cyc < 0.7) {
+      const p = cyc / 0.7;
+      const swing = Math.sin(p * Math.PI); // 0 → 1 → 0 : sort vers l'œil puis revient
+      const a0 = dir > 0 ? 0.15 : Math.PI - 0.15;  // repos : coin de la bouche
+      const a1 = dir > 0 ? Math.PI - 0.35 : 0.35;  // pic : par-dessus l'œil opposé
+      const ang = a0 + (a1 - a0) * swing;
+      const fcx = hx, fcy = hy - 58 + s * 1.5;      // centre du visage (repère de balayage)
+      const R = (13 + crazyT * 20) * (0.3 + 0.7 * swing);
+      const tipX = fcx + Math.cos(ang) * R;
+      const tipY = fcy - Math.sin(ang) * R * 0.85;
+      const midX = (mcx + tipX) / 2, midY = Math.min(mcy, tipY) - 6;
+      const thick = 2 + swing * 5.5;
+      ctx.strokeStyle = "#ff5c8a";
+      ctx.lineWidth = thick;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(mcx, mcy);
+      ctx.quadraticCurveTo(midX, midY, tipX, tipY);
+      ctx.stroke();
+      ctx.strokeStyle = "#d63a68";
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(mcx, mcy);
+      ctx.quadraticCurveTo(midX, midY, tipX, tipY);
+      ctx.stroke();
+      ctx.fillStyle = "#ff5c8a";
+      ctx.beginPath(); ctx.arc(tipX, tipY, 1.6 + swing * 2.6, 0, Math.PI * 2); ctx.fill();
+    }
+  }
   ctx.restore();
 }
 

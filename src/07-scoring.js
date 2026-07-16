@@ -11,9 +11,10 @@ function awardPoint(side, reason) {
   beep(side === 0 ? 660 : 550, 0.25, "sine", 0.2);
 
   // le camp qui perd le point subit sa "punition" visuelle au maximum d'un
-  // coup (oiseau déplumé, lapin épuisé, manchot fou de rage), en plus de la
-  // montée progressive au fil des touches — remis à zéro au prochain
-  // service via Blob.reset() dans startRally().
+  // coup (oiseau déplumé, lapin épuisé, manchot fou de rage, grenouille
+  // complètement dingue), en plus de la montée progressive au fil des
+  // touches — remis à zéro au prochain service via Blob.reset() dans
+  // startRally().
   for (const b of activeBlobs) {
     if (b.side !== 1 - side) continue;
     const key = animOf(b).key;
@@ -24,6 +25,8 @@ function awardPoint(side, reason) {
       b.fatigue = FATIGUE_MAX;
     } else if (key === "manchot") {
       b.anger = ANGER_MAX;
+    } else if (key === "grenouille") {
+      b.crazy = CRAZY_MAX;
     }
   }
 

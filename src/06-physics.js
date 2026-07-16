@@ -165,6 +165,9 @@ function ballBlobCollision(blob) {
     // le manchot devient de plus en plus furieux au fil des touches — même
     // logique (progressif + instantané au max en cas de point perdu).
     if (a.angry && blob.anger < ANGER_MAX) blob.anger++;
+    // la grenouille sombre progressivement dans la folie au fil des touches —
+    // même logique (progressif + instantané au max en cas de point perdu).
+    if (a.crazy && blob.crazy < CRAZY_MAX) blob.crazy++;
     if (Math.hypot(ball.vx, ball.vy) > 12) shake = Math.min(shake + 4, 9);
     if (ball.touches[blob.side] > MAX_TOUCHES) {
       awardPoint(1 - blob.side, `Plus de ${MAX_TOUCHES} touches !`);

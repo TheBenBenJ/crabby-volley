@@ -420,17 +420,21 @@ function celestialPos() {
 let weather = "clear";        // "clear" | "rain" | "storm"
 let weatherTimer = 0;         // ticks avant le prochain changement (0 = jamais planifié)
 let rainDrops = [];           // gouttes (visuel, régénéré localement)
+let sandGrains = [];          // grains soufflés (plage, visuel, régénéré localement)
+let fogPuffs = [];            // bancs de brume (marais, visuel, régénéré localement)
 
 function resetWeather() {
   weather = "clear";
   weatherTimer = 600 + Math.floor(rng() * 1200); // ~10-30 s avant 1er changement
   rainDrops = [];
+  sandGrains = [];
+  fogPuffs = [];
 }
 
 // avancé une fois par tick DANS la simulation (déterministe).
 // Même machine à états sur les 4 terrains ; seul l'habillage change :
-//  plage → averse/orage · banquise → chute de neige/blizzard
-//  marais nocturne → pluie/orage · prairie → averse/orage
+//  plage → tempête de sable · banquise → chute de neige/blizzard
+//  marais nocturne → brume qui se lève · prairie → averse/orage
 function stepWeather() {
   if (--weatherTimer > 0) return;
   const r = rng();
@@ -487,6 +491,48 @@ function drawRain(intensity) {
     d.y += d.sp; d.x -= wind * 0.4;
     if (d.y > GROUND_Y) { d.y = -d.len; d.x = Math.random() * (W + 60) - 30; }
   }
+}
+
+// tempête de sable (plage) : grains soufflés quasi à l'horizontale + voile ocre
+function drawSandstorm(intensity) {
+  const target = Math.floor(intensity * 150);
+  while (sandGrains.length < target) {
+    sandGrains.push({ x: Math.random() * (W + 80) - 40, y: Math.random() * GROUND_Y,
+                     len: 10 + Math.random() * 16, sp: 10 + Math.random() * 8 });
+  }
+  if (sandGrains.length > target) sandGrains.length = target;
+  ctx.fillStyle = "rgba(196,156,84," + (0.1 + intensity * 0.14).toFixed(2) + ")";
+  ctx.fillRect(0, 0, W, GROUND_Y);
+  ctx.strokeStyle = weather === "storm" ? "rgba(150,112,58,0.55)" : "rgba(180,145,90,0.45)";
+  ctx.lineWidth = 1.4;
+  ctx.lineCap = "round";
+  for (const g of sandGrains) {
+    ctx.beginPath();
+    ctx.moveTo(g.x, g.y);
+    ctx.lineTo(g.x - g.len, g.y + g.len * 0.28);
+    ctx.stroke();
+    g.x -= g.sp; g.y += g.sp * 0.22;
+    if (g.x < -40) { g.x = W + 40; g.y = Math.random() * GROUND_Y; }
+  }
+}
+
+// brume qui se lève (marais) : bancs translucides dérivant lentement du sol
+function drawFog(intensity) {
+  const target = Math.floor(intensity * 9) + 3;
+  while (fogPuffs.length < target) {
+    fogPuffs.push({ x: Math.random() * (W + 200) - 100, y: GROUND_Y - Math.random() * 90,
+                    r: 40 + Math.random() * 50, sp: 0.2 + Math.random() * 0.35, rise: 0.06 + Math.random() * 0.08 });
+  }
+  if (fogPuffs.length > target) fogPuffs.length = target;
+  for (const f of fogPuffs) {
+    ctx.fillStyle = "rgba(220,228,224," + (0.06 + intensity * 0.08).toFixed(2) + ")";
+    ctx.beginPath(); ctx.ellipse(f.x, f.y, f.r, f.r * 0.4, 0, 0, Math.PI * 2); ctx.fill();
+    f.x += f.sp; f.y -= f.rise;
+    if (f.x > W + 100) f.x = -100;
+    if (f.y < GROUND_Y - 130) { f.y = GROUND_Y - 10 + Math.random() * 10; f.x = Math.random() * (W + 200) - 100; }
+  }
+  ctx.fillStyle = "rgba(200,212,208," + (0.05 + intensity * 0.07).toFixed(2) + ")";
+  ctx.fillRect(0, GROUND_Y - 90, W, 90);
 }
 
 function drawRainbow() {

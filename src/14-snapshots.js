@@ -23,7 +23,7 @@ function getSnapshot() {
     blobs: activeBlobs.map(b => ({
       x: b.x, y: b.y, vx: b.vx, vy: b.vy, onGround: b.onGround,
       walkPhase: b.walkPhase, squash: b.squash,
-      animal: b.animal, molt: b.molt, fatigue: b.fatigue, anger: b.anger, hasBall: b.hasBall, tongueOut: b.tongueOut, scramble: b.scramble,
+      animal: b.animal, molt: b.molt, fatigue: b.fatigue, anger: b.anger, crazy: b.crazy, hasBall: b.hasBall, tongueOut: b.tongueOut, scramble: b.scramble,
       superT: b.superT, superKind: b.superKind, superSmash: b.superSmash,
       tongueT: b.tongueT, tongueTX: b.tongueTX, tongueTY: b.tongueTY
     }))
@@ -59,7 +59,7 @@ function applySnapshot(s) {
     b.onGround = s.blobs[i].onGround;
     b.walkPhase = s.blobs[i].walkPhase; b.squash = s.blobs[i].squash;
     if (s.blobs[i].animal !== undefined) b.animal = s.blobs[i].animal;
-    b.molt = s.blobs[i].molt || 0; b.fatigue = s.blobs[i].fatigue || 0; b.anger = s.blobs[i].anger || 0; b.hasBall = !!s.blobs[i].hasBall; b.tongueOut = !!s.blobs[i].tongueOut; b.scramble = s.blobs[i].scramble || 0;
+    b.molt = s.blobs[i].molt || 0; b.fatigue = s.blobs[i].fatigue || 0; b.anger = s.blobs[i].anger || 0; b.crazy = s.blobs[i].crazy || 0; b.hasBall = !!s.blobs[i].hasBall; b.tongueOut = !!s.blobs[i].tongueOut; b.scramble = s.blobs[i].scramble || 0;
     b.superT = s.blobs[i].superT || 0; b.superKind = s.blobs[i].superKind || ""; b.superSmash = !!s.blobs[i].superSmash;
     b.tongueT = s.blobs[i].tongueT || 0; b.tongueTX = s.blobs[i].tongueTX || 0; b.tongueTY = s.blobs[i].tongueTY || 0;
   });

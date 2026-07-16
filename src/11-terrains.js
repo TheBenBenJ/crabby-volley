@@ -29,16 +29,16 @@ function drawHillLayer(baseY, color, depth, pts) {
 function drawBgPlage() {
   const sun = celestialPos();
   const storm = weather === "storm";
-  const raining = weather === "rain" || storm;
+  const raining = weather === "rain" || storm; // tempête de sable (même impact que la pluie)
 
-  // ciel : bleu clair par beau temps, gris plombé à l'orage
+  // ciel : bleu clair par beau temps, voilé d'ocre pendant la tempête de sable
   const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
   if (storm) {
-    sky.addColorStop(0, "#3a4353");
-    sky.addColorStop(1, "#6b7684");
+    sky.addColorStop(0, "#8a6a3f");
+    sky.addColorStop(1, "#c2a367");
   } else if (raining) {
-    sky.addColorStop(0, "#6d8aa8");
-    sky.addColorStop(1, "#a9c4d8");
+    sky.addColorStop(0, "#a68a58");
+    sky.addColorStop(1, "#d8c088");
   } else {
     sky.addColorStop(0, "#4da6e8");
     sky.addColorStop(1, "#bfe6ff");
@@ -46,25 +46,22 @@ function drawBgPlage() {
   ctx.fillStyle = sky;
   ctx.fillRect(0, 0, W, GROUND_Y);
 
-  // parallaxe : collines côtières lointaine (bleutée) + intermédiaire
-  drawHillLayer(GROUND_Y - 100, storm ? "#58697b" : raining ? "#93b0c4" : "#a9d4ec", 0.12,
+  // parallaxe : collines côtières lointaine (bleutée) + intermédiaire, noyées dans le sable en l'air
+  drawHillLayer(GROUND_Y - 100, storm ? "#8f7a52" : raining ? "#b8a374" : "#a9d4ec", 0.12,
     [[110, GROUND_Y - 150], [300, GROUND_Y - 118], [470, GROUND_Y - 162], [660, GROUND_Y - 122], [820, GROUND_Y - 152]]);
-  drawHillLayer(GROUND_Y - 92, storm ? "#465868" : raining ? "#7c9db2" : "#7fbfe0", 0.3,
+  drawHillLayer(GROUND_Y - 92, storm ? "#7c6a48" : raining ? "#a08e64" : "#7fbfe0", 0.3,
     [[180, GROUND_Y - 128], [380, GROUND_Y - 104], [560, GROUND_Y - 134], [760, GROUND_Y - 108]]);
 
-  // arc-en-ciel : quand il pleut mais que le soleil reste visible
-  if (raining && sunVisible() && !storm) drawRainbow();
-
-  // soleil (dérive lente) — voilé sous la pluie, masqué à l'orage
+  // soleil (dérive lente) — voilé de sable, presque invisible pendant la tempête
   if (!storm) {
-    const halo = raining ? 0.18 : 0.35;
+    const halo = raining ? 0.15 : 0.35;
     ctx.fillStyle = "rgba(255,230,128," + halo + ")";
     ctx.beginPath(); ctx.arc(sun.x, sun.y, 52, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = raining ? "rgba(255,240,200,0.75)" : "#ffe680";
+    ctx.fillStyle = raining ? "rgba(255,225,170,0.6)" : "#ffe680";
     ctx.beginPath(); ctx.arc(sun.x, sun.y, 38, 0, Math.PI * 2); ctx.fill();
   }
 
-  drawClouds(storm ? "rgba(90,100,115,0.9)" : raining ? "rgba(200,210,220,0.85)" : "rgba(255,255,255,0.85)");
+  drawClouds(storm ? "rgba(150,120,75,0.9)" : raining ? "rgba(210,185,135,0.8)" : "rgba(255,255,255,0.85)");
 
   // tribunes (derrière la mer)
   drawCrowd();
@@ -75,7 +72,7 @@ function drawBgPlage() {
   ctx.fillStyle = "rgba(255,255,255,0.25)";
   ctx.fillRect(0, GROUND_Y - 55, W, 3);
 
-  // sable : sec (clair) ou humide (plus foncé et saturé) sous la pluie
+  // sable : clair par beau temps, terni/voilé de poussière pendant la tempête
   const sand = ctx.createLinearGradient(0, GROUND_Y - 38, 0, H);
   if (raining) {
     sand.addColorStop(0, "#c9a25a");
@@ -86,11 +83,6 @@ function drawBgPlage() {
   }
   ctx.fillStyle = sand;
   ctx.fillRect(0, GROUND_Y - 37, W, H - GROUND_Y + 37);
-  if (raining) {
-    // reflet luisant du sable mouillé
-    ctx.fillStyle = "rgba(255,255,255,0.10)";
-    ctx.fillRect(0, GROUND_Y, W, 6);
-  }
   ctx.fillStyle = "rgba(0,0,0,0.06)";
   ctx.fillRect(0, GROUND_Y, W, 2);
 
@@ -116,7 +108,7 @@ function drawBgPlage() {
   drawPalm(52, storm);
   drawSkyBirds();
   drawCrab();
-  if (raining) drawRain(storm ? 1 : 0.55);
+  if (raining) drawSandstorm(storm ? 1 : 0.55);
 }
 
 // palmier qui se balance doucement (plus fort sous l'orage)
@@ -409,7 +401,7 @@ function drawBgNuit() {
     }
   }
 
-  // lucioles (sorties seulement par temps clair) — sinon, il pleut
+  // lucioles (sorties seulement par temps clair) — sinon, la brume se lève
   if (!rainy) {
     for (let i = 0; i < 7; i++) {
       let fx = W / 2 + Math.sin(t * (0.3 + i * 0.07) + i * 2.4) * (W * 0.42);
@@ -424,7 +416,7 @@ function drawBgNuit() {
       ctx.beginPath(); ctx.arc(fx, fy, 2, 0, Math.PI * 2); ctx.fill();
     }
   } else {
-    drawRain(stormy ? 1 : 0.55);
+    drawFog(stormy ? 1 : 0.55);
   }
 }
 

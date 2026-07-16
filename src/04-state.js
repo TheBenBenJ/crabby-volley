@@ -23,6 +23,7 @@ const ANIMALS = [
   // molt : se déplume au fil des touches (8 coups), à nu d'un coup si le point est perdu
   // tired : se fatigue au fil des touches (oreilles qui tombent, sueur) — purement visuel
   // angry : de plus en plus furieux au fil des touches, au max d'un coup si le point est perdu
+  // crazy : de plus en plus folle au fil des touches, au max d'un coup si le point est perdu
   {
     key: "oiseau", name: "Piou-Piou",
     color: "#f4c531", darkColor: "#d69e18",   // canari jaune
@@ -37,8 +38,8 @@ const ANIMALS = [
     color: "#6fbf4b", darkColor: "#4e9331",   // grenouille verte
     stats: { vitesse: 2, detente: 5, puissance: 3, controle: 1 },
     speed: 0.9, jump: 1.32, power: 1.0, control: 0.62,
-    stick: true,
-    trait: "Détente énorme, mais langue collante : la balle repart de travers.",
+    stick: true, crazy: true,
+    trait: "Détente énorme, mais langue collante : la balle repart de travers. Devient dingue au fil des coups.",
     superName: "Langue-grappin", superDesc: "La langue va chercher une balle trop loin et la renvoie."
   },
   {
@@ -207,6 +208,7 @@ let superFlashT = 0;
 
 const FATIGUE_MAX = 8; // coups avant que le lapin soit visiblement épuisé
 const ANGER_MAX = 8;    // coups avant que le manchot soit au comble de la fureur
+const CRAZY_MAX = 8;    // coups avant que la grenouille soit complètement folle
 
 class Blob {
   constructor(side, color, darkColor) {
@@ -232,6 +234,7 @@ class Blob {
     this.molt = 0;        // plumes perdues par l'oiseau : 0 → MOLT_MAX
     this.fatigue = 0;     // fatigue du lapin (oreilles/sueur) : 0 → FATIGUE_MAX
     this.anger = 0;       // fureur du manchot (rougeurs, vapeur) : 0 → ANGER_MAX
+    this.crazy = 0;       // folie de la grenouille (yeux, langue, tics) : 0 → CRAZY_MAX
     this.hasBall = false; // balle crevée plantée sur le bec
     this.jumpsUsed = 0;   // 0 au sol, 1 après le saut, 2 après le double saut
     this.prevJump = false; // détection du front montant (double saut)
