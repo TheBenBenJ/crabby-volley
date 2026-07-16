@@ -389,16 +389,17 @@ function drawBombDuration() {
 
 function drawRules() {
   // fond sombre
-  ctx.fillStyle = darkMode ? "#1a0505" : "#14142a";
+  ctx.fillStyle = darkMode ? "#160303" : "#0e0f14";
   ctx.fillRect(0, 0, W, H);
   if (darkMode) drawHellVignette();
-  ctx.textAlign = "center";
-  ctx.fillStyle = darkMode ? "#ff2e2e" : "#ffcc00";
-  ctx.font = "bold 30px 'Inter', system-ui, sans-serif";
-  ctx.fillText((darkMode ? "😈 " : "") + (darkMode ? "Règles des Enfers" : "Règles du jeu"), W / 2, 40);
+  uiLabel(darkMode ? "Belzébuth · Manuel" : "Manuel du joueur", UI.mx, 30, 10, uiAccent(), 2);
+  ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
+  ctx.font = "800 24px " + UI.sans;
+  ctx.fillText((darkMode ? "😈 " : "") + (darkMode ? "Règles des Enfers" : "Règles du jeu"), UI.mx, 54);
+  uiRule(UI.mx, W - UI.mx, 66, UI.faint);
 
   // colonne gauche : règles générales
-  const lx = 40;
+  const lx = UI.mx;
   const hCol = darkMode ? "#ff6a4d" : "#7ed957";
   ctx.textAlign = "left";
   let y = 78;
@@ -479,10 +480,7 @@ function drawRules() {
     wrapText2(a.trait, ax, ay + (compact ? 106 : 116), cellW - 4, 13);
   }
 
-  ctx.textAlign = "center";
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "16px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Échap : retour au menu", W / 2, H - 12);
+  uiLabel("Échap ← Retour au menu", UI.mx, H - 14, 10, UI.muted, 1.5);
 }
 
 // texte multi-lignes aligné à gauche
@@ -512,23 +510,19 @@ function drawStatGauge(x, y, label, val) {
 function drawSelectAnimal() {
   drawBackground();
   drawNet();
-  ctx.fillStyle = darkMode ? "rgba(35,0,0,0.82)" : "rgba(20,20,40,0.72)";
-  ctx.fillRect(0, 0, W, H);
+  const gr = ctx.createLinearGradient(0, 0, 0, H);
+  gr.addColorStop(0, darkMode ? "rgba(22,0,0,0.9)" : "rgba(10,11,16,0.88)");
+  gr.addColorStop(1, darkMode ? "rgba(22,0,0,0.78)" : "rgba(10,11,16,0.72)");
+  ctx.fillStyle = gr; ctx.fillRect(0, 0, W, H);
   if (darkMode) drawHellVignette();
 
-  // couleurs indicatives (le vrai rendu de l'aperçu prend la couleur naturelle
-  // de l'animal via drawAnimal) : on garde juste un ton neutre pour l'en-tête.
   const pcolor = darkMode ? "#ff5a3d" : "#ffd36b";
   const pdark  = darkMode ? "#7a1408" : "#d99e18";
-  ctx.textAlign = "center";
-  ctx.fillStyle = darkMode ? "#ff2e2e" : pcolor;
-  ctx.font = "bold 30px 'Inter', system-ui, sans-serif";
-  ctx.fillText((darkMode ? "😈 " : "") + "Choisis ton animal — Joueur " + sideName(selPlayer), W / 2, 52);
-  if (darkMode) {
-    ctx.fillStyle = "rgba(255,110,80,0.85)";
-    ctx.font = "bold 13px 'Inter', system-ui, sans-serif";
-    ctx.fillText("— M O D E   B E L Z É B U T H —", W / 2, 70);
-  }
+  // en-tête éditorial compact (au-dessus de la rangée de cartes)
+  uiLabel(darkMode ? "Belzébuth · Personnage" : "Étape 3/3 · Personnage", UI.mx, 34, 11, uiAccent(), 2);
+  ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
+  ctx.font = "800 26px " + UI.sans;
+  ctx.fillText("Joueur " + sideName(selPlayer) + " — choisis ton animal", UI.mx, 60);
 
   const vis = visibleAnimalIdx();
   const cw = W / vis.length; // largeur de carte adaptative (4, 5 ou 6 animaux…)
@@ -576,11 +570,8 @@ function drawSelectAnimal() {
     wrapText(a.superDesc, cx, 388, cw - 26, 13);
   }
 
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "16px 'Inter', system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText("Technique : 3 points d'affilée chargent le SUPER (S / ↓)", W / 2, 452);
-  ctx.fillText("Appuie sur 1 – " + vis.length + "      •      Échap : retour", W / 2, 474);
+  uiLabel("3 points d'affilée chargent le SUPER (S / ↓)   ·   Choisis 1 – " + vis.length + "   ·   Échap ← retour",
+          UI.mx, 466, 10, UI.muted, 1);
 }
 
 // utilitaire : texte multi-lignes centré
@@ -597,12 +588,14 @@ function wrapText(text, cx, y, maxW, lh) {
 }
 
 function drawSelectTerrain() {
-  ctx.fillStyle = darkMode ? "#1a0303" : "#14142a";
+  ctx.fillStyle = darkMode ? "#160303" : "#0e0f14";
   ctx.fillRect(0, 0, W, H);
-  ctx.textAlign = "center";
-  ctx.fillStyle = darkMode ? "#ff3b3b" : "#ffcc00";
-  ctx.font = "bold 34px 'Inter', system-ui, sans-serif";
-  ctx.fillText(darkMode ? "Choisis ton bourbier" : "Choisis le terrain", W / 2, 75);
+  if (darkMode) drawHellVignette();
+  uiLabel(darkMode ? "Belzébuth · Terrain" : "Dernière étape · Terrain", UI.mx, 40, 11, uiAccent(), 2);
+  ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
+  ctx.font = "800 30px " + UI.sans;
+  ctx.fillText(darkMode ? "Choisis ton bourbier" : "Choisis le terrain", UI.mx, 74);
+  uiRule(UI.mx, W - UI.mx, 92, UI.faint);
 
   const visT = visibleTerrainIdx();
   // largeur de vignette adaptée au nombre de terrains (tient sur 900px de large)
@@ -631,13 +624,16 @@ function drawSelectTerrain() {
     ctx.lineWidth = sel ? 4 : 2;
     ctx.strokeRect(px, py, pw, ph);
 
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold " + (n > 3 ? 16 : 20) + "px 'Inter', system-ui, sans-serif";
-    ctx.fillText((slot + 1) + "  —  " + TERRAINS[i].name, px + pw / 2, py + ph + 35);
+    // index mono + nom du terrain, centrés sous la vignette
+    ctx.textAlign = "center";
+    ctx.fillStyle = sel ? uiAccent() : UI.muted;
+    ctx.font = "700 12px " + UI.mono;
+    ctx.fillText(String(slot + 1), px + pw / 2, py + ph + 24);
+    ctx.fillStyle = sel ? UI.ink : "rgba(244,245,247,0.85)";
+    ctx.font = (n > 3 ? "600 15px " : "600 18px ") + UI.sans;
+    ctx.fillText(TERRAINS[i].name, px + pw / 2, py + ph + 44);
   }
 
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "18px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Appuie sur 1 – " + n + "      •      Échap : retour", W / 2, 460);
+  uiLabel("Choisis 1 – " + n + "   ·   Échap ← retour", UI.mx, 466, 10, UI.muted, 1);
 }
 

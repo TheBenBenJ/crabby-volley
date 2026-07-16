@@ -783,19 +783,30 @@ function drawNetHUD() {
   if (stale) overlay("Connexion instable…", "La partie reprendra automatiquement");
 }
 
-function netScreenBase(title) {
-  drawBackground();
-  drawNet();
-  ctx.fillStyle = "rgba(20,20,40,0.72)";
-  ctx.fillRect(0, 0, W, H);
-  ctx.textAlign = "center";
-  ctx.fillStyle = "#ffcc00";
-  ctx.font = "bold 40px 'Inter', system-ui, sans-serif";
-  ctx.fillText(title, W / 2, 100);
+// En-tête éditorial commun aux écrans en ligne (réutilise le design-system de
+// 12-menus, disponible au runtime). kicker + titre flush-left + filet + folio.
+function netScreenBase(title, kicker, subtitle) {
+  drawBackground(); drawNet(); blobL.draw(); blobR.draw();
+  const g = ctx.createLinearGradient(0, 0, W, 0);
+  g.addColorStop(0, "rgba(10,11,16,0.90)");
+  g.addColorStop(0.6, "rgba(10,11,16,0.70)");
+  g.addColorStop(1, "rgba(10,11,16,0.46)");
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const mx = UI.mx;
+  uiLabel(kicker || "En ligne · WebRTC", mx, 82, 12, UI.accent, 3);
+  ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
+  ctx.font = "800 " + (title.length > 20 ? 36 : 42) + "px " + UI.sans;
+  ctx.fillText(title, mx, 130);
+  uiRule(mx, W - mx, 150, UI.faint);
+  if (subtitle) uiLabel(subtitle, mx, 174, 12, UI.muted, 1);
+  uiRule(mx, W - mx, H - 42, UI.faint);
+  uiLabel("Échap ← Retour", mx, H - 26, 10, UI.muted, 1.5);
+  uiLabel("Crabby Volley · En ligne", W - mx, H - 26, 10, UI.muted, 1.5, "right");
 }
 
 function drawOnlineMenu() {
-  netScreenBase("Jouer en ligne");
+  netScreenBase("Jouer en ligne", "En ligne · Créer ou rejoindre",
+                "Connexion directe entre navigateurs (WebRTC)");
   // ordre calé sur navOptions("onlineMenu") : [1,3,4,5,2]
   const opts = [
     ["1  —  Créer une partie 1v1", "#fff"],
@@ -804,145 +815,119 @@ function drawOnlineMenu() {
     ["5  —  💣 Créer une partie Bombe 2v2", "#ff7043"],
     ["2  —  Rejoindre avec un code", "#fff"]
   ];
-  ctx.font = "bold 22px 'Inter', system-ui, sans-serif";
-  opts.forEach(([txt, col], i) => {
-    const sel = padConnected && navIdx === i;
-    ctx.fillStyle = sel ? "#ffcc00" : col;
-    ctx.fillText((sel ? "▶  " : "") + txt + (sel ? "  ◀" : ""), W / 2, 178 + i * 40);
-  });
-  ctx.font = "16px 'Inter', system-ui, sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.75)";
-  ctx.fillText("L'hôte crée la partie et partage son code. 2v2 : places libres tenues par l'IA.", W / 2, 400);
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.fillText("Échap : retour", W / 2, 430);
+  drawOptionList(opts, 224, 40);
+  uiLabel("L'hôte partage son code · 2v2 : places libres tenues par l'IA", UI.mx, H - 70, 10, UI.muted, 1);
+}
+
+// gros code de partie, calé à gauche sous l'en-tête
+function drawHostCode(size, y) {
+  uiLabel("Code de la partie", UI.mx, y - 30, 11, UI.muted, 2);
+  ctx.textAlign = "left"; ctx.fillStyle = UI.gold;
+  ctx.font = "700 " + size + "px " + UI.mono;
+  ctx.fillText(peerReady ? netCode.split("").join(" ") : "· · · · ·", UI.mx, y);
 }
 
 function drawHostWait() {
-  netScreenBase("Partie en ligne — tu joues à gauche");
-  ctx.fillStyle = "#fff";
-  ctx.font = "20px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Code de la partie :", W / 2, 180);
-  ctx.fillStyle = "#ffcc00";
-  ctx.font = "bold 62px 'Space Mono', ui-monospace, monospace";
-  ctx.fillText(peerReady ? netCode.split("").join(" ") : "· · · · ·", W / 2, 255);
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = "19px 'Inter', system-ui, sans-serif";
+  netScreenBase("Partie 1v1 en ligne", "En ligne · Hôte · Tu joues à gauche");
+  drawHostCode(60, 258);
   const dots = ".".repeat(1 + Math.floor(performance.now() / 400) % 3);
+  ctx.textAlign = "left"; ctx.fillStyle = UI.ink; ctx.font = "500 18px " + UI.sans;
   ctx.fillText(
     netConnected ? "Joueur connecté ! Il choisit son animal" + dots
-    : peerReady  ? "En attente d'un joueur — envoie-lui ce code !"
+    : peerReady  ? "En attente d'un joueur — envoie-lui ce code"
     :              "Création de la partie" + dots,
-    W / 2, 320);
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.font = "17px 'Inter', system-ui, sans-serif";
-  ctx.fillText("En ligne : Q/D ou ←/→ pour bouger — Z, ↑ ou Espace pour sauter", W / 2, 390);
-  ctx.fillText("Échap : annuler", W / 2, 430);
+    UI.mx, 306);
+  uiLabel("Bouger Q/D ou ← →   ·   Sauter Z ↑ Espace", UI.mx, H - 70, 10, UI.muted, 1);
 }
 
 function drawHostLobby() {
-  netScreenBase("Partie 2v2 en ligne");
-  ctx.fillStyle = "#fff";
-  ctx.font = "18px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Code de la partie :", W / 2, 140);
-  ctx.fillStyle = "#ffcc00";
-  ctx.font = "bold 52px 'Space Mono', ui-monospace, monospace";
-  ctx.fillText(peerReady ? netCode.split("").join(" ") : "· · · · ·", W / 2, 195);
+  netScreenBase("Partie 2v2 en ligne", "En ligne · Hôte · Salon");
+  drawHostCode(44, 214);
 
   // 4 cartes de slots : 0 hôte + 1 coéquipier (gauche) ; 2 + 3 (droite)
   const occ = {}; for (const g of guests) occ[g.slot] = g;
   const labels = { 0: "Toi (hôte)", 1: "Coéquipier", 2: "Adversaire", 3: "Adversaire" };
   const cols   = { 0: "#e84545", 1: "#ff8a3d", 2: "#4caf50", 3: "#3d8bff" };
-  const order = [0, 1, 2, 3];
-  const cw = 180, gap = 16, x0 = W / 2 - (4 * cw + 3 * gap) / 2, y = 225, ch = 92;
-  ctx.textAlign = "center";
-  order.forEach((s, i) => {
+  const cw = 172, gap = 14, x0 = UI.mx, y = 250, ch = 88;
+  ctx.textAlign = "left";
+  [0, 1, 2, 3].forEach((s, i) => {
     const x = x0 + i * (cw + gap);
     const g = occ[s];
     const human = s === 0 || !!g;
-    ctx.fillStyle = "rgba(0,0,0,0.28)";
-    ctx.fillRect(x, y, cw, ch);
-    ctx.strokeStyle = cols[s]; ctx.lineWidth = 3; ctx.strokeRect(x, y, cw, ch);
-    ctx.fillStyle = cols[s];
-    ctx.font = "bold 18px 'Inter', system-ui, sans-serif";
-    ctx.fillText(labels[s], x + cw / 2, y + 28);
-    ctx.fillStyle = human ? "#fff" : "rgba(255,255,255,0.6)";
-    ctx.font = "16px 'Inter', system-ui, sans-serif";
-    let status = s === 0 ? "prêt" : g ? (g.ready ? "connecté — prêt" : "connecté…") : "IA (place libre)";
-    ctx.fillText(status, x + cw / 2, y + 54);
-    if (s !== 0) {
-      ctx.fillStyle = "rgba(255,255,255,0.45)";
-      ctx.font = "13px 'Inter', system-ui, sans-serif";
-      ctx.fillText(i < 2 ? "équipe gauche" : "équipe droite", x + cw / 2, y + 76);
-    }
+    ctx.fillStyle = "rgba(10,12,18,0.42)";
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, cw, ch, 8); ctx.fill(); }
+    else ctx.fillRect(x, y, cw, ch);
+    ctx.fillStyle = cols[s]; ctx.fillRect(x, y, 4, ch); // liseré d'équipe à gauche
+    uiLabel(i < 2 ? "Équipe gauche" : "Équipe droite", x + 16, y + 22, 9, UI.muted, 1);
+    ctx.fillStyle = cols[s]; ctx.font = "700 17px " + UI.sans; ctx.textAlign = "left";
+    ctx.fillText(labels[s], x + 16, y + 46);
+    ctx.fillStyle = human ? UI.ink : UI.muted; ctx.font = "500 14px " + UI.sans;
+    ctx.fillText(s === 0 ? "prêt" : g ? (g.ready ? "connecté — prêt" : "connecté…") : "IA (place libre)", x + 16, y + 68);
   });
 
-  ctx.fillStyle = "rgba(255,255,255,0.9)";
-  ctx.font = "19px 'Inter', system-ui, sans-serif";
   const n = guests.length;
   const dots = ".".repeat(1 + Math.floor(performance.now() / 400) % 3);
+  ctx.textAlign = "left"; ctx.fillStyle = UI.ink; ctx.font = "500 18px " + UI.sans;
   ctx.fillText(n === 0
-    ? "En attente de joueurs — envoie le code ! (jusqu'à 3)" + dots
-    : n + (n > 1 ? " joueurs connectés" : " joueur connecté") + "  •  Entrée : lancer la partie", W / 2, 360);
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.font = "16px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Les places libres seront tenues par l'IA  •  Échap : annuler", W / 2, 400);
+    ? "En attente de joueurs — envoie le code (jusqu'à 3)" + dots
+    : n + (n > 1 ? " joueurs connectés" : " joueur connecté") + "  ·  Entrée : lancer", UI.mx, 380);
+  uiLabel("Places libres tenues par l'IA", UI.mx, H - 70, 10, UI.muted, 1);
 }
 
 function drawJoinEntry() {
-  netScreenBase("Rejoindre une partie");
-  ctx.fillStyle = "#fff";
-  ctx.font = "20px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Saisis le code donné par l'hôte :", W / 2, 180);
-  const cw = 54, gap = 12, x0 = W / 2 - (CODE_LEN * cw + (CODE_LEN - 1) * gap) / 2;
+  netScreenBase("Rejoindre une partie", "En ligne · Invité", "Saisis le code donné par l'hôte");
+  const cw = 56, gap = 12, x0 = UI.mx, y = 220;
   for (let i = 0; i < CODE_LEN; i++) {
     const x = x0 + i * (cw + gap);
-    ctx.fillStyle = "rgba(255,255,255,0.12)";
-    ctx.fillRect(x, 210, cw, 64);
-    ctx.strokeStyle = i === joinCode.length ? "#ffcc00" : "rgba(255,255,255,0.4)";
-    ctx.lineWidth = i === joinCode.length ? 3 : 2;
-    ctx.strokeRect(x, 210, cw, 64);
+    ctx.fillStyle = "rgba(255,255,255,0.08)";
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, cw, 66, 8); ctx.fill(); }
+    else ctx.fillRect(x, y, cw, 66);
+    ctx.strokeStyle = i === joinCode.length ? UI.gold : "rgba(255,255,255,0.28)";
+    ctx.lineWidth = i === joinCode.length ? 2.5 : 1.5;
+    if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(x, y, cw, 66, 8); ctx.stroke(); }
+    else ctx.strokeRect(x, y, cw, 66);
     if (joinCode[i]) {
-      ctx.fillStyle = "#ffcc00";
-      ctx.font = "bold 40px 'Space Mono', ui-monospace, monospace";
-      ctx.fillText(joinCode[i], x + cw / 2, 256);
+      ctx.fillStyle = UI.gold; ctx.textAlign = "center";
+      ctx.font = "700 40px " + UI.mono;
+      ctx.fillText(joinCode[i], x + cw / 2, y + 46);
     }
   }
-  ctx.fillStyle = "rgba(255,255,255,0.85)";
-  ctx.font = "18px 'Inter', system-ui, sans-serif";
+  ctx.textAlign = "left"; ctx.fillStyle = UI.ink; ctx.font = "500 17px " + UI.sans;
   ctx.fillText(joinCode.length === CODE_LEN
     ? "Entrée : se connecter"
-    : "Lettres et chiffres — Retour arrière pour corriger", W / 2, 330);
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.font = "17px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Échap : retour", W / 2, 430);
+    : "Lettres et chiffres · Retour arrière pour corriger", UI.mx, 328);
 }
 
 function drawNetScreen(title, sub) {
-  netScreenBase(title);
-  ctx.fillStyle = "#fff";
-  ctx.font = "22px 'Inter', system-ui, sans-serif";
+  netScreenBase(title, "En ligne · Connexion");
   const dots = ".".repeat(1 + Math.floor(performance.now() / 400) % 3);
-  ctx.fillText(sub + dots, W / 2, 240);
-  ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.font = "17px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Échap : annuler", W / 2, 430);
+  ctx.textAlign = "left"; ctx.fillStyle = UI.ink; ctx.font = "500 20px " + UI.sans;
+  ctx.fillText(sub + dots, UI.mx, 236);
 }
 
 function drawNetError() {
-  netScreenBase("Oups !");
-  ctx.fillStyle = "#ff8a8a";
-  ctx.font = "bold 22px 'Inter', system-ui, sans-serif";
-  ctx.fillText(netErrorMsg, W / 2, 230);
-  // diagnostic technique (état des canaux/ICE) : à nous remonter tel quel si
-  // le problème persiste, ça évite de deviner à l'aveugle où ça bloque.
+  netScreenBase("Oups", "En ligne · Erreur");
+  ctx.textAlign = "left"; ctx.fillStyle = "#ff8a8a"; ctx.font = "600 20px " + UI.sans;
+  ctx.fillText(netErrorMsg, UI.mx, 236);
+  // diagnostic technique (état des canaux/ICE) : à remonter tel quel si
+  // le problème persiste — évite de deviner où ça bloque.
+  let hintY = 272;
   if (netErrorDetail) {
     ctx.fillStyle = "rgba(255,255,255,0.45)";
-    ctx.font = "13px 'Space Mono', ui-monospace, monospace";
-    ctx.fillText(netErrorDetail, W / 2, 260);
+    ctx.font = "12px " + UI.mono;
+    const maxW = W - UI.mx * 2;
+    const words = String(netErrorDetail).split(" ");
+    let line = "", y = 268;
+    for (const w of words) {
+      const test = line ? line + " " + w : w;
+      if (ctx.measureText(test).width > maxW && line) {
+        ctx.fillText(line, UI.mx, y); y += 16; line = w;
+      } else line = test;
+    }
+    if (line) { ctx.fillText(line, UI.mx, y); y += 16; }
+    hintY = y + 16;
   }
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "18px 'Inter', system-ui, sans-serif";
-  ctx.fillText("Entrée ou Échap : retour au menu", W / 2, 320);
+  uiLabel("Entrée / Échap — retour au menu", UI.mx, hintY, 10, UI.muted, 1);
 }
 
 
