@@ -36,6 +36,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Anti-cache des scripts (?v=DEV → SHA du commit)
+        run: sed -i "s/?v=DEV/?v=${GITHUB_SHA::8}/g" index.html
+
       - name: Configurer la clé SSH de déploiement
         env:
           # clé PRIVÉE encodée en base64 (évite tout problème de retours à la

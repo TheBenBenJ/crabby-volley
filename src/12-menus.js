@@ -7,6 +7,7 @@ function handleMenuKeys(code, key) {
   // (sélection d'animal/terrain, difficulté, etc.) — sauf en saisie de code
   // de partie (joinEntry gère déjà Numpad lui-même, plus bas).
   if (state !== "joinEntry" && /^Numpad[0-9]$/.test(code)) code = "Digit" + code.slice(-1);
+  if (code === "NumpadEnter") code = "Enter";
 
   // suite de touches "6-6-6" : marche sur tous les écrans de menu (accueil,
   // règles, difficulté, choix du mode, sélection perso/terrain, lobby en
@@ -298,6 +299,28 @@ function drawHellVignette() {
   ctx.restore();
 }
 
+// ---------- Souris : clic pour naviguer dans les menus ----------
+// Chaque écran de menu enregistre ses zones cliquables via hit() pendant son
+// tracé. menuHitboxes (en construction cette frame) devient menuHitboxesPrev
+// au tout début du prochain render() — ainsi hover/clic testent toujours des
+// zones correspondant à ce qui est RÉELLEMENT affiché à l'écran (pas de zone
+// à moitié construite), avec un décalage d'une seule frame, imperceptible.
+let menuHitboxes = [];
+let menuHitboxesPrev = [];
+function hit(cx, cy, w, h, code) {
+  menuHitboxes.push({ x: cx - w / 2, y: cy - h / 2, w, h, code });
+}
+function hitTestIn(list, x, y) {
+  for (let i = list.length - 1; i >= 0; i--) {
+    const b = list[i];
+    if (x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) return b.code;
+  }
+  return null;
+}
+function isHover(code) {
+  return mouseActive && hitTestIn(menuHitboxesPrev, mouseX, mouseY) === code;
+}
+
 // liste verticale d'options, calée à gauche : index mono + libellé grotesque.
 // L'élément surligné (manette) reçoit une barre d'accent et passe en gras.
 // Les chaînes gardent le format "N  —  Libellé" (l'index est extrait/mis en mono).
@@ -306,10 +329,13 @@ function drawOptionList(items, y0, spacing, font) {
   ctx.textAlign = "left";
   items.forEach(([txt, col], i) => {
     const y = y0 + i * spacing;
-    const sel = padConnected && navIdx === i;
     const parts = txt.split("—");
     const idx = parts[0].trim();
     const label = parts.length > 1 ? parts.slice(1).join("—").trim() : txt;
+    // code clavier associé : chiffre → DigitN, lettre seule (ex. "R") → KeyX
+    const code = /^[0-9]$/.test(idx) ? "Digit" + idx : "Key" + idx;
+    hit(W / 2, y - 6, W - mx * 2, spacing - 6, code);
+    const sel = (padConnected && navIdx === i) || isHover(code);
     if (sel) { ctx.fillStyle = uiAccent(); ctx.fillRect(mx - 20, y - 16, 6, 22); }
     // index en mono
     ctx.textAlign = "left";
@@ -388,6 +414,7 @@ function drawBombDuration() {
 }
 
 function drawRules() {
+  hit(W / 2, H / 2, W, H, "Escape"); // clic n'importe où = retour
   // fond sombre
   ctx.fillStyle = darkMode ? "#160303" : "#0e0f14";
   ctx.fillRect(0, 0, W, H);
@@ -543,8 +570,10 @@ function drawSelectAnimal() {
     const i = vis[slot];
     const cx = cw * slot + cw / 2;
     const a = ANIMALS[i];
-    if (padConnected && navIdx === slot) {
-      // carte surlignée à la manette
+    const code = "Digit" + (slot + 1);
+    hit(cx, 240, cw, 336, code);
+    if ((padConnected && navIdx === slot) || isHover(code)) {
+      // carte surlignée (manette ou survol souris)
       ctx.strokeStyle = "#ffcc00";
       ctx.lineWidth = 3;
       ctx.strokeRect(cw * slot + 8, 72, cw - 16, 336);
@@ -632,7 +661,9 @@ function drawSelectTerrain() {
     terrain = saved;
     ctx.restore();
 
-    const sel = padConnected && navIdx === slot;
+    const code = "Digit" + (slot + 1);
+    hit(px + pw / 2, py + ph / 2, pw, ph + 40, code);
+    const sel = (padConnected && navIdx === slot) || isHover(code);
     ctx.strokeStyle = sel ? (darkMode ? "#ff3b3b" : "#ffcc00") : "rgba(255,255,255,0.6)";
     ctx.lineWidth = sel ? 4 : 2;
     ctx.strokeRect(px, py, pw, ph);

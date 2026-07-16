@@ -13,6 +13,28 @@ window.addEventListener("keydown", e => {
 });
 window.addEventListener("keyup", e => { keys[e.code] = false; });
 
+// ---------- Souris (navigation des menus) ----------
+// Convertit une position écran (px CSS) en repère logique 900×500 : le canvas
+// est affiché à une taille CSS variable (voir resizeCanvas() dans 01-core.js),
+// donc on ne peut pas comparer directement clientX/Y aux coordonnées de jeu.
+let mouseX = -1, mouseY = -1, mouseActive = false;
+function toGameXY(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: (clientX - rect.left) / rect.width * W, y: (clientY - rect.top) / rect.height * H };
+}
+if (typeof canvas.addEventListener === "function") { // absent en environnement de test (voir tests/_load.js)
+  canvas.addEventListener("mousemove", e => {
+    const p = toGameXY(e.clientX, e.clientY);
+    mouseX = p.x; mouseY = p.y; mouseActive = true;
+  });
+  canvas.addEventListener("mouseleave", () => { mouseActive = false; });
+  canvas.addEventListener("click", e => {
+    const p = toGameXY(e.clientX, e.clientY);
+    const code = hitTestIn(menuHitboxesPrev, p.x, p.y);
+    if (code) handleMenuKeys(code, "");
+  });
+}
+
 // ---------- Manettes (Gamepad API) ----------
 // Manette 1 → joueur Rouge, manette 2 → joueur Vert. Le clavier reste actif
 // en parallèle. Stick gauche / croix : bouger · A, B, X, Y ou croix-haut : sauter.
@@ -75,7 +97,7 @@ function navOptions() {
     // local : 1v1 + bombe)
     case "gameModeSelect": return pendingMode && pendingMode.vsAI
       ? ["Digit1", "Digit2", "Digit3", "Digit4"] : ["Digit1", "Digit2"];
-    case "onlineMenu":    return ["Digit1", "Digit3", "Digit4", "Digit5", "Digit2"];
+    case "onlineMenu":    return ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5"];
     case "selectAnimal":  return ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6"].slice(0, visibleAnimalIdx().length);
     case "selectTerrain": return ["Digit1", "Digit2", "Digit3", "Digit4"].slice(0, visibleTerrainIdx().length);
     default: return null;

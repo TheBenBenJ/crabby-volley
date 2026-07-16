@@ -40,22 +40,25 @@
 <!-- Modules du jeu, chargés dans l’ordre de dépendance (voir README).
      Scripts classiques : ils partagent le même scope global, comme
      l’ancien fichier unique — le découpage est purement organisationnel. -->
-<script src="src/01-core.js"></script>
-<script src="src/02-audio.js"></script>
-<script src="src/03-input.js"></script>
-<script src="src/04-state.js"></script>
-<script src="src/05-animals.js"></script>
-<script src="src/06-physics.js"></script>
-<script src="src/07-scoring.js"></script>
-<script src="src/08-ai.js"></script>
-<script src="src/09-particles.js"></script>
-<script src="src/10-scenery.js"></script>
-<script src="src/11-terrains.js"></script>
-<script src="src/12-menus.js"></script>
-<script src="src/13-simulation.js"></script>
-<script src="src/14-snapshots.js"></script>
-<script src="src/15-net.js"></script>
-<script src="src/16-render.js"></script>
-<script src="src/17-main.js"></script>
+<!-- ?v=DEV : anti-cache — remplacé par le SHA du commit au déploiement (voir
+     .github/workflows/deploy.yml) pour que chaque push serve du frais, même
+     à un navigateur qui aurait mis les scripts en cache. -->
+<script src="src/01-core.js?v=DEV"></script>
+<script src="src/02-audio.js?v=DEV"></script>
+<script src="src/03-input.js?v=DEV"></script>
+<script src="src/04-state.js?v=DEV"></script>
+<script src="src/05-animals.js?v=DEV"></script>
+<script src="src/06-physics.js?v=DEV"></script>
+<script src="src/07-scoring.js?v=DEV"></script>
+<script src="src/08-ai.js?v=DEV"></script>
+<script src="src/09-particles.js?v=DEV"></script>
+<script src="src/10-scenery.js?v=DEV"></script>
+<script src="src/11-terrains.js?v=DEV"></script>
+<script src="src/12-menus.js?v=DEV"></script>
+<script src="src/13-simulation.js?v=DEV"></script>
+<script src="src/14-snapshots.js?v=DEV"></script>
+<script src="src/15-net.js?v=DEV"></script>
+<script src="src/16-render.js?v=DEV"></script>
+<script src="src/17-main.js?v=DEV"></script>
 </body>
 </html>

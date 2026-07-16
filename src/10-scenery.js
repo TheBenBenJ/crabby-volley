@@ -237,7 +237,8 @@ const CRAB_BANNERS = [
   "BALLE DE PLAGE, COEUR DE CHAMPION",
   "GG WP LES BLOBS",
   "404 : DÉFAITE NOT FOUND",
-  "ICI ÇA DORO"
+  "ICI ÇA DORO",
+  "TIÉ UN TIGRE !"
 ];
 const POM_COLORS = [
   ["#ffd93d", "#ffe680"], ["#ff6fae", "#ffa7cf"],

@@ -807,13 +807,14 @@ function netScreenBase(title, kicker, subtitle) {
 function drawOnlineMenu() {
   netScreenBase("Jouer en ligne", "En ligne · Créer ou rejoindre",
                 "Connexion directe entre navigateurs (WebRTC)");
-  // ordre calé sur navOptions("onlineMenu") : [1,3,4,5,2]
+  // ordre numérique visuel = ordre de navOptions("onlineMenu") : [1,2,3,4,5]
+  // (drawOptionList gère déjà le clic/survol souris, voir 12-menus.js)
   const opts = [
     ["1  —  Créer une partie 1v1", "#fff"],
+    ["2  —  Rejoindre avec un code", "#fff"],
     ["3  —  Créer une partie 2v2", "#ffb26b"],
     ["4  —  💣 Créer une partie Bombe 1v1", "#ff7043"],
-    ["5  —  💣 Créer une partie Bombe 2v2", "#ff7043"],
-    ["2  —  Rejoindre avec un code", "#fff"]
+    ["5  —  💣 Créer une partie Bombe 2v2", "#ff7043"]
   ];
   drawOptionList(opts, 224, 40);
   uiLabel("L'hôte partage son code · 2v2 : places libres tenues par l'IA", UI.mx, H - 70, 10, UI.muted, 1);
@@ -867,6 +868,7 @@ function drawHostLobby() {
 
   const n = guests.length;
   const dots = ".".repeat(1 + Math.floor(performance.now() / 400) % 3);
+  if (n >= 1) hit(W / 2, 372, W - UI.mx * 2, 32, "Enter"); // clic = lancer la partie (comme Entrée)
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink; ctx.font = "500 18px " + UI.sans;
   ctx.fillText(n === 0
     ? "En attente de joueurs — envoie le code (jusqu'à 3)" + dots
@@ -906,6 +908,7 @@ function drawNetScreen(title, sub) {
 }
 
 function drawNetError() {
+  hit(W / 2, H / 2, W, H, "Enter"); // clic n'importe où = retour au menu
   netScreenBase("Oups", "En ligne · Erreur");
   ctx.textAlign = "left"; ctx.fillStyle = "#ff8a8a"; ctx.font = "600 20px " + UI.sans;
   ctx.fillText(netErrorMsg, UI.mx, 236);
