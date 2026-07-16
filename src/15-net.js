@@ -26,6 +26,20 @@ const CODE_LEN = 5;
 const CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // sans I/O/0/1
 const PEER_PREFIX = "vda26-";  // espace de noms sur le cloud PeerJS
 
+// serveurs ICE : STUN (par défaut) + TURN de secours. Sans TURN, deux joueurs
+// derrière un NAT strict/pare-feu d'entreprise (fréquent en 4G ou au bureau)
+// ne peuvent tout simplement jamais établir de connexion directe — la partie
+// restait bloquée sur "Recherche…" (voir CONNECT_TIMEOUT) sans que rien ne
+// puisse la débloquer. Le TURN relaie le trafic quand le direct échoue.
+const ICE_CONFIG = {
+  iceServers: [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "turn:openrelay.metered.ca:80", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" },
+    { urls: "turn:openrelay.metered.ca:443?transport=tcp", username: "openrelayproject", credential: "openrelayproject" }
+  ]
+};
+
 let online = false;            // mode en ligne actif (dès le lobby)
 let netRole = null;            // "host" | "guest"
 let netConnected = false;      // les deux canaux WebRTC sont ouverts
@@ -36,6 +50,7 @@ let peerReady = false;         // l'hôte est enregistré (code utilisable)
 let netCode = "";              // code de la partie (hôte)
 let joinCode = "";             // saisie du code (invité)
 let netErrorMsg = "";
+let netErrorDetail = "";       // diagnostic technique (état ICE/canaux) affiché en petit sous l'erreur
 let matchId = 0;               // n° de manche : ignore les paquets périmés
 const CONNECT_TIMEOUT = 12000; // ms max pour établir les 2 canaux avant d'abandonner
 let connectTimer = null;       // garde-fou : évite de rester bloqué sur "Recherche…"
@@ -106,7 +121,7 @@ function initHostPeer() {
   online = true; netRole = "host";
   netConnected = false; peerReady = false;
   netCode = makeCode();
-  peer = new Peer(PEER_PREFIX + netCode);
+  peer = new Peer(PEER_PREFIX + netCode, { config: ICE_CONFIG });
   peer.on("open", () => { peerReady = true; });
   peer.on("connection", c => {
     // n'accepter que les 2 canaux d'un seul et même invité
@@ -125,7 +140,7 @@ function initHostPeer() {
 function initGuestPeer(code) {
   online = true; netRole = "guest";
   netConnected = false;
-  peer = new Peer(); // id aléatoire pour l'invité
+  peer = new Peer(undefined, { config: ICE_CONFIG }); // id aléatoire pour l'invité
   peer.on("open", () => {
     hookConn(peer.connect(PEER_PREFIX + code, { label: "rel",  reliable: true,  serialization: "json" }));
     hookConn(peer.connect(PEER_PREFIX + code, { label: "fast", reliable: false, serialization: "json" }));
@@ -138,7 +153,10 @@ function initGuestPeer(code) {
   // sur "Recherche de la partie…" indéfiniment, sans aucun message.
   clearTimeout(connectTimer);
   connectTimer = setTimeout(() => {
-    if (!netConnected) netFail("Connexion impossible — vérifie le code, ou la connexion réseau de ton ami.");
+    if (!netConnected) {
+      netFail("Connexion impossible — vérifie le code, ou la connexion réseau de ton ami.",
+              "code: connect-timeout · " + netDiag());
+    }
   }, CONNECT_TIMEOUT);
 }
 
@@ -150,8 +168,11 @@ function hookConn(c) {
   // un échec explicite du canal ne doit pas être avalé en silence : sans
   // connexion établie, on abandonne tout de suite (au lieu d'attendre le
   // garde-fou CONNECT_TIMEOUT) ; déjà connecté, "close" gère la déconnexion.
-  c.on("error", () => {
-    if (!netConnected) netFail("Connexion impossible — vérifie le code, ou la connexion réseau de ton ami.");
+  c.on("error", (err) => {
+    if (!netConnected) {
+      netFail("Connexion impossible — vérifie le code, ou la connexion réseau de ton ami.",
+              "code: " + (c.label || "?") + "-channel-error (" + ((err && err.type) || (err && err.message) || "?") + ") · " + netDiag());
+    }
   });
   if (c.open) checkBothOpen();
 }
@@ -171,6 +192,16 @@ function checkBothOpen() {
   // côté hôte : l'écran hostWait affiche "joueur connecté…" jusqu'au hello
 }
 
+// diagnostic technique (état des 2 canaux + de la négociation ICE sous-jacente)
+// affiché en petit sous le message d'erreur — utile pour nous remonter ce qui
+// bloque exactement (signalisation PeerJS OK mais WebRTC direct qui échoue,
+// TURN jamais atteint, etc.), à capturer AVANT teardownNet() (qui vide tout).
+function netDiag() {
+  const chan = c => !c ? "absent" : c.open ? "ouvert" : "en attente";
+  const ice = c => c && c.peerConnection ? c.peerConnection.iceConnectionState : "-";
+  return "rel:" + chan(connRel) + "/" + ice(connRel) + " · fast:" + chan(connFast) + "/" + ice(connFast);
+}
+
 function onPeerError(err) {
   const t = err && err.type;
   if (netRole === "host" && t === "unavailable-id" && state === "hostWait") {
@@ -185,17 +216,18 @@ function onPeerError(err) {
   if (t === "network" || t === "server-error" || t === "socket-error") {
     msg = "Impossible de joindre le serveur de mise en relation.";
   }
-  netFail(msg);
+  netFail(msg, "code: " + (t || "inconnu"));
 }
 
 function onConnClosed() {
   if (!online || state === "netError" || state === "menu") return;
-  netFail("Adversaire déconnecté.");
+  netFail("Adversaire déconnecté.", "code: connection-closed · " + netDiag());
 }
 
-function netFail(msg) {
+function netFail(msg, detail) {
   teardownNet();
   netErrorMsg = msg;
+  netErrorDetail = detail || "";
   state = "netError";
 }
 
@@ -213,6 +245,7 @@ function teardownNet() {
   rematchMe = rematchPeer = false;
   guests = []; lobbyStarted = false; mySlot = 1;
   paused = false;
+  netErrorDetail = "";
 }
 
 function quitOnline() {
@@ -338,7 +371,7 @@ function initHostPeer2v2() {
   setMode("2v2"); mySlot = 0;
   aiLevel = 1; vsAI = false;
   netCode = makeCode();
-  peer = new Peer(PEER_PREFIX + netCode);
+  peer = new Peer(PEER_PREFIX + netCode, { config: ICE_CONFIG });
   peer.on("open", () => { peerReady = true; });
   peer.on("connection", c => hostAcceptConn(c));
   peer.on("error", onPeerError);
@@ -900,6 +933,13 @@ function drawNetError() {
   ctx.fillStyle = "#ff8a8a";
   ctx.font = "bold 22px 'Inter', system-ui, sans-serif";
   ctx.fillText(netErrorMsg, W / 2, 230);
+  // diagnostic technique (état des canaux/ICE) : à nous remonter tel quel si
+  // le problème persiste, ça évite de deviner à l'aveugle où ça bloque.
+  if (netErrorDetail) {
+    ctx.fillStyle = "rgba(255,255,255,0.45)";
+    ctx.font = "13px 'Space Mono', ui-monospace, monospace";
+    ctx.fillText(netErrorDetail, W / 2, 260);
+  }
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   ctx.font = "18px 'Inter', system-ui, sans-serif";
   ctx.fillText("Entrée ou Échap : retour au menu", W / 2, 320);
