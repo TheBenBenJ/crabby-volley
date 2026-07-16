@@ -313,7 +313,11 @@ function menuScreenBase(o) {
     // seul CE lien est cliquable, jamais tout l'écran : un clic n'importe où
     // pour revenir en arrière est trop facile à déclencher par accident sur
     // des écrans qui ont du contenu à lire (règles, crédits…).
-    hit(mx + 45, H - 32, 130, 24, "Escape");
+    // Sur tactile, la zone réelle est bien plus grande que le texte affiché :
+    // viser une bande de 24px de haut au doigt, sur un canvas mis à l'échelle
+    // pour un petit écran, est quasi impossible — on élargit largement la cible.
+    if (hasTouch) hit(mx + 110, H - 24, 260, 52, "Escape");
+    else hit(mx + 45, H - 32, 130, 24, "Escape");
     uiLabel("Échap ← Retour", mx, H - 26, 10, UI.muted, 1.5);
   }
   uiLabel(darkMode ? "Pussy Volley" : "Crabby Volley", W - mx, H - 26, 10, UI.muted, 1.5, "right");

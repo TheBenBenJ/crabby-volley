@@ -994,6 +994,12 @@ function netScreenBase(title, kicker, subtitle) {
   uiRule(mx, W - mx, 150, UI.faint);
   if (subtitle) uiLabel(subtitle, mx, 174, 12, UI.muted, 1);
   uiRule(mx, W - mx, H - 42, UI.faint);
+  // manquait ici : contrairement à menuScreenBase, ce lien n'était pas
+  // cliquable — sur ces écrans (attente hôte, salon, saisie de code…) seul
+  // le clavier/la manette permettaient de revenir en arrière, impossible au
+  // tactile. Même zone agrandie sur tactile que menuScreenBase.
+  if (hasTouch) hit(mx + 110, H - 24, 260, 52, "Escape");
+  else hit(mx + 45, H - 32, 130, 24, "Escape");
   uiLabel("Échap ← Retour", mx, H - 26, 10, UI.muted, 1.5);
   uiLabel((darkMode ? "Pussy Volley" : "Crabby Volley") + " · En ligne", W - mx, H - 26, 10, UI.muted, 1.5, "right");
 }
