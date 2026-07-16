@@ -140,6 +140,17 @@ function padGameInput(i) {
            : { left: false, right: false, jump: false, super: false };
 }
 
+// une touche de saut/confirmation est-elle enfoncée ? Sert à faire avancer
+// manuellement l'écran "Point pour ..." (voir stepGame/netUpdate) — couvre
+// clavier (les deux jeux de touches de saut, + Espace/Entrée universels),
+// manette, et tactile (qui pilote déjà KeyW/ArrowUp via les mêmes touches,
+// voir touchKeySet plus haut).
+function pointAdvanceRequested() {
+  if (keys["Space"] || keys["Enter"] || keys["KeyW"] || keys["ArrowUp"]) return true;
+  for (const p of padsNow) if (p.jump) return true;
+  return false;
+}
+
 // options navigables à la manette, par état (mêmes codes que le clavier)
 function navOptions() {
   switch (state) {

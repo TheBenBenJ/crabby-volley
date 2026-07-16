@@ -21,6 +21,16 @@ const MAX_TOUCHES = 3;
 const STEP = 1000 / 60; // tick fixe 60 Hz (indispensable pour le futur mode en ligne)
 const TOUCH_COOLDOWN = 12;   // ticks mini entre deux touches comptées (anti double-comptage)
 
+// --- Écran "Point pour ..." ---
+// On reste dessus jusqu'à ce qu'un joueur appuie (saut/confirmation) — mieux
+// qu'un délai fixe qu'on peut rater. POINT_MIN_WAIT : affichage minimum avant
+// de considérer une pression (évite de sauter le message instantanément si
+// une touche de saut était encore enfoncée juste après avoir marqué le point).
+// POINT_MAX_WAIT : filet de sécurité si personne n'appuie (IA seule en solo,
+// AFK…) — la partie ne reste jamais bloquée indéfiniment.
+const POINT_MIN_WAIT = 20;  // ~0,33 s
+const POINT_MAX_WAIT = 240; // ~4 s
+
 // --- Smash Battle (duel au filet) ---
 const BATTLE_TICKS = 78;     // durée du duel (~1,3 s)
 const BATTLE_COOLDOWN = 240; // délai mini entre deux duels (4 s)

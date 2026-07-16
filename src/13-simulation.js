@@ -240,7 +240,8 @@ function update() {
 
   if (state === "point") {
     pointTimer--;
-    if (pointTimer <= 0) startRally();
+    const elapsed = POINT_MAX_WAIT - pointTimer;
+    if ((elapsed >= POINT_MIN_WAIT && pointAdvanceRequested()) || pointTimer <= 0) startRally();
     return;
   }
   if (state !== "play" && state !== "serve") return;

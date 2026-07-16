@@ -518,7 +518,13 @@ function hostUpdate2v2() {
 
   if (state === "point") {
     pointTimer--;
-    if (pointTimer <= 0) startRally();
+    // n'importe quel joueur connecté (hôte ou invité) peut faire avancer
+    // l'écran "Point pour ..." en appuyant sur saut/confirmation, comme
+    // hors-ligne (voir update() dans 13-simulation.js) — sinon, filet de
+    // sécurité au bout de POINT_MAX_WAIT.
+    const elapsed = POINT_MAX_WAIT - pointTimer;
+    const guestWants = guests.some(g => g.connected && g.in.jump);
+    if ((elapsed >= POINT_MIN_WAIT && (pointAdvanceRequested() || guestWants)) || pointTimer <= 0) startRally();
   } else if (state === "play" || state === "serve") {
     const bySlot = {}; for (const g of guests) if (g.connected) bySlot[g.slot] = g;
     const ins = activeBlobs.map((b, s) => {
@@ -554,7 +560,11 @@ function netUpdate() {
     if (!netFrozen) {
       if (state === "point") {
         pointTimer--;
-        if (pointTimer <= 0) startRally();
+        // hôte OU invité peut faire avancer l'écran "Point pour ..." en
+        // appuyant sur saut/confirmation (comme hors-ligne) — sinon, filet
+        // de sécurité au bout de POINT_MAX_WAIT.
+        const elapsed = POINT_MAX_WAIT - pointTimer;
+        if ((elapsed >= POINT_MIN_WAIT && (pointAdvanceRequested() || guestIn.jump)) || pointTimer <= 0) startRally();
       } else if (state === "play" || state === "serve") {
         // Ownership : si la balle est à droite et que l'invité envoie un
         // état frais → on pose SA balle, on simule les corps (+ mèche bombe),
@@ -939,11 +949,11 @@ function drawOnlineMenu() {
   // ordre numérique visuel = ordre de navOptions("onlineMenu") : [1,2,3,4,5]
   // (drawOptionList gère déjà le clic/survol souris, voir 12-menus.js)
   const opts = [
-    ["1  —  Créer une partie 1v1", "#fff"],
-    ["2  —  Rejoindre avec un code", "#fff"],
-    ["3  —  Créer une partie 2v2", "#fff"],
-    ["4  —  💣 Créer une partie Bombe 1v1", "#ff7043"],
-    ["5  —  💣 Créer une partie Bombe 2v2", "#ff7043"]
+    "1  —  Créer une partie 1v1",
+    "2  —  Rejoindre avec un code",
+    "3  —  Créer une partie 2v2",
+    "4  —  💣 Créer une partie Bombe 1v1",
+    "5  —  💣 Créer une partie Bombe 2v2"
   ];
   drawOptionList(opts, 224, 40);
   uiLabel("L'hôte partage son code · 2v2 : places libres tenues par l'IA", UI.mx, H - 70, 10, UI.muted, 1);

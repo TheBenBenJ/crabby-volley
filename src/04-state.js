@@ -39,7 +39,7 @@ const ANIMALS = [
     stats: { vitesse: 2, detente: 5, puissance: 3, controle: 1 },
     speed: 0.9, jump: 1.32, power: 1.0, control: 0.62,
     stick: true, crazy: true,
-    trait: "Détente énorme, mais langue collante : la balle repart de travers. Devient dingue au fil des coups.",
+    trait: "Détente énorme, langue collante, et devient dingue au fil des coups.",
     superName: "Langue-grappin", superDesc: "La langue va chercher une balle trop loin et la renvoie."
   },
   {

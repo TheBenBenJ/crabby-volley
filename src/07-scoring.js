@@ -65,7 +65,7 @@ function awardPoint(side, reason) {
     if (!noFx) { spawnConfetti(90); setEmote(side, "happy"); }
   } else {
     state = "point";
-    pointTimer = 75;
+    pointTimer = POINT_MAX_WAIT;
   }
 }
 

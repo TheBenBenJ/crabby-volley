@@ -291,7 +291,13 @@ function menuScreenBase(o) {
   // folio de pied de page : court rappel à gauche, signature à droite.
   // (les écrans qui ont plus d'infos les posent PLUS HAUT, cf. drawMenu.)
   uiRule(mx, W - mx, H - 42, UI.faint);
-  if (!o.noEscHint) uiLabel("Échap ← Retour", mx, H - 26, 10, UI.muted, 1.5);
+  if (!o.noEscHint) {
+    // seul CE lien est cliquable, jamais tout l'écran : un clic n'importe où
+    // pour revenir en arrière est trop facile à déclencher par accident sur
+    // des écrans qui ont du contenu à lire (règles, crédits…).
+    hit(mx + 45, H - 32, 130, 24, "Escape");
+    uiLabel("Échap ← Retour", mx, H - 26, 10, UI.muted, 1.5);
+  }
   uiLabel(darkMode ? "Pussy Volley" : "Crabby Volley", W - mx, H - 26, 10, UI.muted, 1.5, "right");
 }
 
@@ -338,18 +344,17 @@ function isHover(code) {
   return mouseActive && hitTestIn(menuHitboxesPrev, mouseX, mouseY) === code;
 }
 
-// liste verticale d'options, calée à gauche : index mono + libellé grotesque.
-// L'élément surligné (manette/souris) reçoit une CARTE encadrée — le même
-// langage visuel que les cartes de sélection perso/terrain — plutôt qu'une
-// simple barre d'accent. Les chaînes gardent le format "N — Libellé" (l'index
-// est extrait/mis en mono). Le 2e élément du tuple, s'il est fourni et ≠
-// "#fff", devient une PASTILLE de couleur (pas le texte, toujours blanc et
-// donc toujours lisible) : sert à indiquer une intensité/nuance (difficulté,
-// durée de mèche…) sans dépendre d'une couleur de texte parfois peu contrastée.
-function drawOptionList(items, y0, spacing, font) {
+// liste verticale d'options, calée à gauche : index mono + libellé grotesque,
+// toujours blanc (pas de pastille/couleur d'intensité : ça n'ajoutait aucune
+// info que le texte ne donne déjà, juste du désalignement — l'index est
+// toujours à mx, le libellé toujours à mx+42, sans exception). L'élément
+// surligné (manette/souris) reçoit une carte encadrée, comme la sélection
+// perso/terrain. Les chaînes gardent le format "N — Libellé" (l'index est
+// extrait/mis en mono).
+function drawOptionList(items, y0, spacing) {
   const mx = UI.mx;
   ctx.textAlign = "left";
-  items.forEach(([txt, col], i) => {
+  items.forEach((txt, i) => {
     const y = y0 + i * spacing;
     const parts = txt.split("—");
     const idx = parts[0].trim();
@@ -364,27 +369,21 @@ function drawOptionList(items, y0, spacing, font) {
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(rx, ry, rw, rh, 8); else ctx.rect(rx, ry, rw, rh);
       ctx.fill();
-      ctx.strokeStyle = uiAccent(); ctx.lineWidth = 2;
+      ctx.strokeStyle = UI.gold; ctx.lineWidth = 2;
       ctx.beginPath();
       if (ctx.roundRect) ctx.roundRect(rx, ry, rw, rh, 8); else ctx.rect(rx, ry, rw, rh);
       ctx.stroke();
     }
-    // index en mono
+    // index en mono — l'or est LA seule couleur de sélection/survol dans tout
+    // le jeu (sélection perso/terrain incluses) ; le rouge (uiAccent) reste
+    // réservé aux titres/kickers, jamais mélangé aux deux pour la même chose.
     ctx.textAlign = "left";
-    ctx.fillStyle = sel ? uiAccent() : UI.muted;
+    ctx.fillStyle = sel ? UI.gold : UI.muted;
     ctx.font = "700 16px " + UI.mono;
     ctx.fillText(idx, mx, y);
-    // pastille d'intensité (facultative)
-    const special = col && col !== "#fff";
-    if (special) {
-      ctx.fillStyle = col;
-      ctx.beginPath(); ctx.arc(mx + 28, y - 7, 4.5, 0, Math.PI * 2); ctx.fill();
-    }
-    // libellé grotesque — toujours blanc, jamais une teinte qui pourrait
-    // manquer de contraste selon le fond
     ctx.fillStyle = UI.ink;
     ctx.font = (sel ? "700 " : "500 ") + "22px " + UI.sans;
-    ctx.fillText(label, mx + (special ? 48 : 42), y);
+    ctx.fillText(label, mx + 42, y);
   });
 }
 
@@ -425,11 +424,11 @@ function drawMenu() {
   // écran d'accueil : 3 grandes catégories + les règles, chacune débouche
   // ensuite sur ses propres sous-choix (difficulté, mode de jeu…)
   const items = [
-    ["1  —  Solo contre l'IA", "#fff"],
-    ["2  —  Multijoueur local (même écran)", "#fff"],
-    ["3  —  Jouer en ligne (avec un ami)", "#fff"],
-    ["R  —  Règles du jeu & animaux", "#fff"],
-    ["C  —  Crédits", "#fff"]
+    "1  —  Solo",
+    "2  —  Local (même écran)",
+    "3  —  En ligne",
+    "R  —  Règles du jeu & animaux", // texte fixe, comme le titre de l'écran des règles
+    "C  —  Crédits"
   ];
   drawOptionList(items, 226, 44);
 
@@ -471,28 +470,28 @@ function drawAiDifficulty() {
   menuScreenBase({ title: "Solo contre l'IA", kicker: wizardStep(1, "Difficulté"),
                    subtitle: "Choisis la difficulté de l'adversaire" });
   const items = [
-    ["1  —  Facile", "#7ed957"],
-    ["2  —  Normale", UI.gold],
-    ["3  —  Difficile", UI.accent],
-    ["4  —  Impitoyable  ☠", "#c48cff"]
+    "1  —  Facile",
+    "2  —  Normale",
+    "3  —  Difficile",
+    "4  —  Impitoyable"
   ];
   drawOptionList(items, 238, 50);
 }
 
 function drawGameModeSelect() {
   const subtitle = pendingMode.vsAI
-    ? "Solo — " + AI_LEVELS[pendingMode.aiLevel].name + "  —  choisis le mode de jeu"
-    : "Multijoueur local  —  choisis le mode de jeu";
+    ? "Solo — " + AI_LEVELS[pendingMode.aiLevel].name + " — choisis le mode de jeu"
+    : "Multijoueur local — choisis le mode de jeu";
   menuScreenBase({ title: "Mode de jeu", kicker: wizardStep(pendingMode.vsAI ? 2 : 1, "Format"), subtitle: subtitle });
 
   const items = pendingMode.vsAI ? [
-    ["1  —  1v1 classique", "#fff"],
-    ["2  —  2v2 : toi + IA  vs  2 IA", "#fff"],
-    ["3  —  💣 Bombe 1v1", "#ff7043"],
-    ["4  —  💣 Bombe 2v2", "#ff7043"]
+    "1  —  1v1 classique",
+    "2  —  2v2 : toi + IA vs 2 IA",
+    "3  —  💣 Bombe 1v1",
+    "4  —  💣 Bombe 2v2"
   ] : [
-    ["1  —  1v1 classique", "#fff"],
-    ["2  —  💣 Bombe 1v1", "#ff7043"]
+    "1  —  1v1 classique",
+    "2  —  💣 Bombe 1v1"
   ];
   drawOptionList(items, 236, 48);
 }
@@ -501,23 +500,22 @@ function drawBombDuration() {
   menuScreenBase({ title: "Mode Bombe", kicker: wizardStep(wizardTotal() - 2, "💣 Durée de mèche"),
                    subtitle: "Renvoie la bombe avant la fin de la mèche" });
   const items = [
-    ["1  —  5 secondes   ·   nerveux", UI.accent],
-    ["2  —  7 secondes   ·   équilibré", UI.gold],
-    ["3  —  10 secondes   ·   posé", "#7ed957"]
+    "1  —  5 secondes   ·   nerveux",
+    "2  —  7 secondes   ·   équilibré",
+    "3  —  10 secondes   ·   posé"
   ];
   drawOptionList(items, 240, 52);
 }
 
 function drawRules() {
-  hit(W / 2, H / 2, W, H, "Escape"); // clic n'importe où = retour
   // fond sombre
   ctx.fillStyle = darkMode ? "#160303" : "#0e0f14";
   ctx.fillRect(0, 0, W, H);
   if (darkMode) drawHellVignette();
-  uiLabel(darkMode ? "Belzébuth · Manuel" : "Manuel du joueur", UI.mx, 30, 10, uiAccent(), 2);
+  uiLabel("Manuel du joueur", UI.mx, 30, 10, uiAccent(), 2);
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
   ctx.font = "800 24px " + UI.sans;
-  ctx.fillText(darkMode ? "Règles des Enfers" : "Règles du jeu", UI.mx, 54);
+  ctx.fillText("Règles du jeu", UI.mx, 54);
   uiRule(UI.mx, W - UI.mx, 66, UI.faint);
 
   // colonne gauche : règles générales (bornée pour ne jamais mordre sur la droite)
@@ -558,7 +556,7 @@ function drawRules() {
   p("3 points d'affilée chargent ta jauge de SUPER.");
   p("Une fois prête, déclenche la technique de ton animal (fiche à droite).");
   y += 4;
-  h(darkMode ? "Météo & Duel infernal" : "Météo & Smash Battle", darkMode ? "#ff9a4d" : "#4db3ff");
+  h("Météo & Smash Battle", "#4db3ff"); // nom de la mécanique : ne change pas selon le mode
   p("Intempérie : sol glissant, balle plus lourde.");
   p("Deux au filet, balle proche : duel de martelage → smash !");
 
@@ -567,7 +565,7 @@ function drawRules() {
   ctx.textAlign = "left";
   ctx.fillStyle = hCol;
   ctx.font = "bold 17px 'Inter', system-ui, sans-serif";
-  ctx.fillText(darkMode ? "Les damnés" : "Les animaux", rx, 78);
+  ctx.fillText(darkMode ? "Les génitaux" : "Les animaux", rx, 78);
   ctx.font = "11px 'Inter', system-ui, sans-serif";
   ctx.fillStyle = "rgba(255,255,255,0.6)";
   ctx.fillText("V=Vitesse  D=Détente  P=Puissance  C=Contrôle", rx, 96);
@@ -615,12 +613,14 @@ function drawRules() {
     wrapText2(a.trait, ax, ay + (compact ? 106 : 116), cellW - 4, 13);
   }
 
+  // seul le lien "Échap ← Retour" est cliquable (pas tout l'écran) : il y a
+  // trop de contenu à lire ici pour qu'un clic accidentel renvoie au menu.
+  hit(UI.mx + 80, H - 20, 200, 24, "Escape");
   uiLabel("Échap ← Retour au menu", UI.mx, H - 14, 10, UI.muted, 1.5);
 }
 
 function drawCredits() {
-  hit(W / 2, H / 2, W, H, "Escape"); // clic n'importe où = retour, comme les règles
-  menuScreenBase({ title: "Crédits", kicker: "À propos", subtitle: "Volley des animaux" });
+  menuScreenBase({ title: "Crédits", kicker: "À propos", subtitle: darkMode ? "Volley des génitaux" : "Volley des animaux" });
 
   const lx = UI.mx;
   let y = 210;
@@ -629,7 +629,18 @@ function drawCredits() {
   const m = (txt) => { ctx.textAlign = "left"; ctx.fillStyle = UI.muted; ctx.font = "13px " + UI.mono; ctx.fillText(txt, lx, y); y += 20; };
 
   h("Créé par");
-  p("Benjamin Mille & Romain Leray (sié un tigre !)");
+  if (darkMode) {
+    p("Benjamin Mille & son gros souci mental");
+  } else {
+    // "(sié un tigre !)" en plus petit : c'est une private joke, pas le nom
+    const main = "Benjamin Mille & Romain Leray ";
+    ctx.textAlign = "left"; ctx.font = "500 15px " + UI.sans; ctx.fillStyle = UI.ink;
+    const mainW = ctx.measureText(main).width;
+    ctx.fillText(main, lx, y);
+    ctx.font = "500 11px " + UI.sans; ctx.fillStyle = UI.muted;
+    ctx.fillText("(sié un tigre !)", lx + mainW, y);
+    y += 24;
+  }
   y += 10;
 
   h("Technique");
@@ -680,11 +691,18 @@ function drawSelectAnimal() {
   // ligne ne choisit que son personnage (l'hôte gère le terrain) : un compteur
   // d'étape n'a pas de sens pour lui, un simple libellé suffit.
   const guestPicking = pendingMode.online && netRole === "guest";
-  uiLabel(guestPicking ? "En ligne · Ton personnage" : wizardStep(wizardTotal() - 1, "Personnage"),
+  uiLabel(guestPicking ? "En ligne · Ton personnage" : wizardStep(wizardTotal() - 1, darkMode ? "Génital" : "Animal"),
           UI.mx, 34, 11, uiAccent(), 2);
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
   ctx.font = "800 26px " + UI.sans;
-  ctx.fillText("Joueur " + sideName(selPlayer) + (darkMode ? " — choisis ton génital" : " — choisis ton animal"), UI.mx, 60);
+  // "Joueur X" ne veut dire quelque chose que quand DEUX humains choisissent
+  // chacun leur tour (multi local) — inutile en solo IA ou en ligne, où il
+  // n'y a qu'un seul choix à faire ici.
+  const twoLocalHumans = !pendingMode.vsAI && !pendingMode.online;
+  const pick = darkMode ? "choisis ton génital" : "choisis ton animal";
+  ctx.fillText(twoLocalHumans ? "Joueur " + sideName(selPlayer) + " — " + pick
+                              : pick.charAt(0).toUpperCase() + pick.slice(1),
+               UI.mx, 60);
 
   const vis = visibleAnimalIdx();
   const cw = W / vis.length; // largeur de carte adaptative (4, 5 ou 6 animaux…)
@@ -695,8 +713,9 @@ function drawSelectAnimal() {
     const code = "Digit" + (slot + 1);
     hit(cx, 240, cw, 336, code);
     if ((padConnected && navIdx === slot) || isHover(code)) {
-      // carte surlignée (manette ou survol souris)
-      ctx.strokeStyle = "#ffcc00";
+      // carte surlignée (manette ou survol souris) — or : seule couleur de
+      // sélection dans tout le jeu (voir drawOptionList/drawSelectTerrain)
+      ctx.strokeStyle = UI.gold;
       ctx.lineWidth = 3;
       ctx.strokeRect(cw * slot + 8, 72, cw - 16, 336);
     }
@@ -755,7 +774,7 @@ function drawSelectTerrain() {
   ctx.fillStyle = darkMode ? "#160303" : "#0e0f14";
   ctx.fillRect(0, 0, W, H);
   if (darkMode) drawHellVignette();
-  uiLabel(wizardStep(wizardTotal(), "Terrain"), UI.mx, 40, 11, uiAccent(), 2);
+  uiLabel(wizardStep(wizardTotal(), darkMode ? "Bourbier" : "Terrain"), UI.mx, 40, 11, uiAccent(), 2);
   ctx.textAlign = "left"; ctx.fillStyle = UI.ink;
   ctx.font = "800 30px " + UI.sans;
   ctx.fillText(darkMode ? "Choisis ton bourbier" : "Choisis le terrain", UI.mx, 74);
@@ -786,7 +805,7 @@ function drawSelectTerrain() {
     const code = "Digit" + (slot + 1);
     hit(px + pw / 2, py + ph / 2, pw, ph + 40, code);
     const sel = (padConnected && navIdx === slot) || isHover(code);
-    ctx.strokeStyle = sel ? (darkMode ? "#ff3b3b" : "#ffcc00") : "rgba(255,255,255,0.6)";
+    ctx.strokeStyle = sel ? UI.gold : "rgba(255,255,255,0.6)"; // or : seule couleur de sélection, partout
     ctx.lineWidth = sel ? 4 : 2;
     ctx.strokeRect(px, py, pw, ph);
 
