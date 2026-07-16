@@ -4,15 +4,13 @@
 // ---------- Terrains et animaux ----------
 // chaque terrain appartient à un animal (voir ANIMALS plus bas) : son public
 // des tribunes est composé de cet animal, et le nom du terrain lui rend hommage.
-// dark : fond sombre (ciel nocturne/infernal) — sert à choisir un texte HUD
-// clair plutôt que sombre (voir drawHUD), au lieu de tester un index en dur.
 const TERRAINS = [
   { key: "plage",   name: "La Zone de Piou-Piou",     animal: 0 },
   { key: "neige",   name: "Le QG du Général Frigo",   animal: 2 },
-  { key: "nuit",    name: "La Mare à Slurp",          animal: 1, dark: true },
+  { key: "nuit",    name: "La Mare à Slurp",          animal: 1 },
   { key: "prairie", name: "Le Ter-Ter de Jeannot",    animal: 3 },
-  { key: "enfer",   name: "La Fournaise à Chibre",    animal: 4, hidden: true, dark: true },
-  { key: "styx",    name: "Le Marigot de Schneck",    animal: 5, hidden: true, dark: true }
+  { key: "enfer",   name: "La Fournaise à Chibre",    animal: 4, hidden: true },
+  { key: "styx",    name: "Le Marigot de Schneck",    animal: 5, hidden: true }
 ];
 let terrain = 0;
 
@@ -132,6 +130,16 @@ function clampVisibleAnimal(v) {
 // naturelle. Un camp est désormais identifié par sa position (Gauche/Droite)
 // et affiché avec la couleur de l'animal qui y joue.
 function sideName(side) { return side === 0 ? "Gauche" : "Droite"; }
+// nom affiché PENDANT le jeu (HUD, service, points…) : le nom de l'animal en
+// 1v1 — bien plus parlant qu'un générique "Gauche"/"Droite" quand un
+// personnage précis représente ce camp — ou le nom d'équipe en 2v2 (pas un
+// seul personnage). sideName() reste "Gauche"/"Droite" pour l'écran de
+// sélection, où l'animal n'est justement pas encore choisi pour ce joueur.
+function sideLabel(side) {
+  if (mode === "2v2") return side === 0 ? "Équipe 1" : "Équipe 2";
+  const b = side === 0 ? blobL : blobR;
+  return ANIMALS[b.animal].name;
+}
 function sideColor(side) {
   const b = side === 0 ? blobL : blobR;
   const a = ANIMALS[b.animal];

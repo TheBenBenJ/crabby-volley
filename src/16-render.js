@@ -102,6 +102,7 @@ function render() {
   if (state === "gameModeSelect") { drawGameModeSelect(); return; }
   if (state === "bombDuration") { drawBombDuration(); return; }
   if (state === "rules") { drawRules(); return; }
+  if (state === "credits") { drawCredits(); return; }
   if (state === "selectAnimal") { drawSelectAnimal(); return; }
   if (state === "selectTerrain") { drawSelectTerrain(); return; }
   if (state === "onlineMenu") { drawOnlineMenu(); return; }

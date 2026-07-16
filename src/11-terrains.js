@@ -949,24 +949,27 @@ function drawHUD() {
   }
   if (bombMode && (state === "play" || state === "serve")) drawBombHUD();
 
-  // ---- tableau de score : puce sombre + label mono + gros chiffre ----
+  // ---- tableau de score : UN panneau plein par camp (label, chiffre,
+  // touches, jauge de combo) — plutôt que des éléments séparés dont certains
+  // flottaient nus sur le décor (illisibles dès que le fond était clair).
   const MONO = "'Space Mono', ui-monospace, monospace";
   const SANS = "'Inter', system-ui, sans-serif";
-  const sideLbl = s => mode === "2v2" ? (s === 0 ? "ÉQUIPE 1" : "ÉQUIPE 2")
-                                      : (s === 0 ? "GAUCHE" : "DROITE");
+  const sideLbl = s => (mode === "2v2" ? (s === 0 ? "ÉQUIPE 1" : "ÉQUIPE 2") : sideLabel(s)).toUpperCase();
   for (const s of [0, 1]) {
     const cx = s === 0 ? W * 0.25 : W * 0.75;
     const col = sideColor(s);
-    // puce translucide
-    ctx.fillStyle = "rgba(10,12,18,0.40)";
+    // panneau plein (assez opaque pour rester lisible sur n'importe quel
+    // terrain/ciel derrière, clair ou sombre)
+    ctx.fillStyle = "rgba(10,12,18,0.6)";
     ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(cx - 62, 16, 124, 50, 10);
-    else ctx.rect(cx - 62, 16, 124, 50);
+    if (ctx.roundRect) ctx.roundRect(cx - 68, 14, 136, 112, 12);
+    else ctx.rect(cx - 68, 14, 136, 112);
     ctx.fill();
-    ctx.strokeStyle = "rgba(255,255,255,0.10)"; ctx.lineWidth = 1; ctx.stroke();
-    // label mono
+    ctx.strokeStyle = "rgba(255,255,255,0.12)"; ctx.lineWidth = 1; ctx.stroke();
+    // label mono (toujours blanc plein, jamais une teinte qui pourrait se
+    // fondre dans le panneau sombre)
     ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(255,255,255,0.62)";
+    ctx.fillStyle = "rgba(255,255,255,0.85)";
     ctx.font = "700 10px " + MONO;
     ctx.save(); try { ctx.letterSpacing = "2px"; } catch (e) {}
     ctx.fillText(sideLbl(s), cx, 32);
@@ -974,7 +977,7 @@ function drawHUD() {
     // chiffre (Inter 900, grossit sur un point marqué)
     ctx.fillStyle = col;
     ctx.font = "900 " + (30 + scorePop[s] * 1.0) + "px " + SANS;
-    ctx.fillText(scores[s], cx, 60);
+    ctx.fillText(scores[s], cx, 62);
     if (scorePop[s] > 0) scorePop[s]--;
   }
   // séparateur central mono
@@ -983,26 +986,26 @@ function drawHUD() {
   ctx.font = "700 12px " + MONO;
   ctx.fillText("VS", NET_X, 46);
 
-  // indicateur de touches (petits points, sous la puce)
+  // indicateur de touches (petits points, dans le panneau)
   for (const side of [0, 1]) {
     const baseX = side === 0 ? W * 0.25 - 24 : W * 0.75 - 24;
     for (let i = 0; i < MAX_TOUCHES; i++) {
       ctx.beginPath();
-      ctx.arc(baseX + i * 24, 80, 5, 0, Math.PI * 2);
-      ctx.fillStyle = i < ball.touches[side] ? sideColor(side) : "rgba(255,255,255,0.40)";
+      ctx.arc(baseX + i * 24, 84, 5, 0, Math.PI * 2);
+      ctx.fillStyle = i < ball.touches[side] ? sideColor(side) : "rgba(255,255,255,0.35)";
       ctx.fill();
     }
   }
 
-  // jauges de SUPER (combo) sous chaque score
+  // jauges de SUPER (combo) dans le panneau, sous les touches
   for (const s of [0, 1]) {
     const cx = s === 0 ? W * 0.25 : W * 0.75;
     const col = sideColor(s);
-    const bw = 120, bx = cx - bw / 2, by = 92;
+    const bw = 108, bx = cx - bw / 2, by = 98;
     const ready = superCharge[s] === 1;
     const frac = ready ? 1 : (streak[s] % SUPER_NEED) / SUPER_NEED;
     // cadre
-    ctx.fillStyle = "rgba(0,0,0,0.28)";
+    ctx.fillStyle = "rgba(0,0,0,0.35)";
     ctx.fillRect(bx - 1, by - 1, bw + 2, 9);
     // remplissage
     if (ready) {
@@ -1010,14 +1013,15 @@ function drawHUD() {
       ctx.fillStyle = (Math.sin(t * 6) > 0) ? "#ffd93d" : "#fff2a0";
     } else ctx.fillStyle = col;
     ctx.fillRect(bx, by, bw * frac, 7);
-    // libellé mono
+    // libellé mono — toujours blanc plein (85%), jamais une teinte pâle qui
+    // pourrait se fondre dans le fond du panneau
     ctx.textAlign = "center";
     if (ready) {
       ctx.fillStyle = "#ffd93d";
       ctx.font = "700 10px " + MONO;
       ctx.fillText("SUPER — " + (s === 0 ? "S" : "↓"), cx, by + 22);
     } else {
-      ctx.fillStyle = "rgba(255,255,255,0.65)";
+      ctx.fillStyle = "rgba(255,255,255,0.85)";
       ctx.font = "700 10px " + MONO;
       ctx.fillText("COMBO " + (streak[s] % SUPER_NEED) + "/" + SUPER_NEED, cx, by + 22);
     }
@@ -1036,33 +1040,51 @@ function drawHUD() {
     ctx.globalAlpha = 1;
   }
 
-  // balle de match
+  // balle de match — liseré sombre systématique : sans lui, la couleur de
+  // l'animal (pas toujours claire) peut se fondre dans le décor.
   if (state === "play" || state === "serve") {
     for (const s of [0, 1]) {
       if (scores[s] >= WIN_SCORE - 1 && scores[s] - scores[1 - s] >= 1) {
-        ctx.fillStyle = sideColor(s);
-        ctx.font = "bold 16px 'Inter', system-ui, sans-serif";
+        const txt = "★ Balle de match — " + sideLabel(s) + " ★";
         ctx.textAlign = "center";
-        ctx.fillText("★ Balle de match — " + sideName(s) + " ★", NET_X, 128);
+        ctx.font = "bold 16px 'Inter', system-ui, sans-serif";
+        ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.lineWidth = 3; ctx.lineJoin = "round";
+        ctx.strokeText(txt, NET_X, 128);
+        ctx.fillStyle = sideColor(s);
+        ctx.fillText(txt, NET_X, 128);
       }
     }
   }
 
-  // décompte avant service, puis invite de service
+  // décompte avant service, puis invite de service — fond plein arrondi
+  // systématique : jamais de texte flottant nu directement sur le décor
+  // (illisible dès que le fond est clair ou que sa couleur varie).
   if (state === "serve" && serveCountdown > 0) {
     const n = Math.ceil((serveCountdown - 6) / 21); // 3 → 2 → 1 → (GO)
     const label = n <= 0 ? "GO !" : String(n);
     ctx.textAlign = "center";
-    ctx.fillStyle = "rgba(0,0,0,0.35)";
-    ctx.fillRect(NET_X - (n <= 0 ? 110 : 70), H / 2 - 70, (n <= 0 ? 220 : 140), 110);
+    const bw = n <= 0 ? 220 : 140, bh = 110, bx = NET_X - bw / 2, by = H / 2 - 70;
+    ctx.fillStyle = "rgba(10,12,18,0.6)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, 18); else ctx.rect(bx, by, bw, bh);
+    ctx.fill();
     ctx.fillStyle = "#ffcc00";
     ctx.font = "bold 88px 'Inter', system-ui, sans-serif";
     ctx.fillText(label, NET_X, H / 2 + 20);
   } else if (state === "serve") {
-    ctx.fillStyle = TERRAINS[terrain].dark ? "rgba(255,255,255,0.75)" : "rgba(0,0,0,0.55)";
-    ctx.font = "18px 'Inter', system-ui, sans-serif";
+    const txt = "Service : " + sideLabel(servingSide) + " — touchez la balle !";
     ctx.textAlign = "center";
-    ctx.fillText("Service : " + sideName(servingSide) + " — touchez la balle !", NET_X, 105);
+    ctx.font = "700 17px 'Inter', system-ui, sans-serif";
+    const tw = ctx.measureText(txt).width;
+    const pw = tw + 36, ph = 34, px = NET_X - pw / 2, py = 86;
+    // pastille pleine (au lieu de texte nu semi-transparent) : lisible sur
+    // n'importe quel terrain/ciel, clair ou sombre, sans distinction à gérer.
+    ctx.fillStyle = "rgba(10,12,18,0.68)";
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(px, py, pw, ph, 10); else ctx.rect(px, py, pw, ph);
+    ctx.fill();
+    ctx.fillStyle = "#ffcc00";
+    ctx.fillText(txt, NET_X, py + 23);
   }
 
   if (paused) {

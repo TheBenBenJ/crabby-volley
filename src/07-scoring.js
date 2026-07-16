@@ -46,9 +46,9 @@ function awardPoint(side, reason) {
     superCharge[side] = 1;
     beep(700, 0.12, "square", 0.16, 0, 1050);
     beep(1050, 0.16, "square", 0.14, 0.1, 1500);
-    superFlash = "SUPER PRÊT — " + sideName(side) + " !"; superFlashT = 70;
+    superFlash = "SUPER PRÊT — " + sideLabel(side) + " !"; superFlashT = 70;
   }
-  const name = sideName(side);
+  const name = sideLabel(side);
   pointMsg = reason ? reason + "  —  Point " + name : "Point pour " + name + " !";
   // réactions : public en délire, confettis, émotions des joueurs
   crowdHype = 60;

@@ -42,7 +42,7 @@ function handleMenuKeys(code, key) {
   if (state === "menu") {
     // Écran d'accueil : 3 grandes catégories, chacune débouche sur ses propres
     // sous-choix (difficulté, mode de jeu…) au lieu d'un mur de 8 options.
-    if (code === "Digit1") { state = "aiDifficulty"; }                        // Solo vs IA
+    if (code === "Digit1") { pendingMode = { vsAI: true }; state = "aiDifficulty"; } // Solo vs IA — pendingMode neuf : évite qu'un ancien "bomb" traîne dans le compteur d'étapes
     if (code === "Digit2") { pendingMode = { vsAI: false }; state = "gameModeSelect"; } // Multijoueur local
     if (code === "Digit3") {                                                  // Jouer en ligne
       if (typeof Peer === "undefined") {
@@ -53,6 +53,10 @@ function handleMenuKeys(code, key) {
       }
     }
     if (code === "KeyR") state = "rules";
+    if (code === "KeyC") state = "credits";
+
+  } else if (state === "credits") {
+    if (code === "Escape" || code === "Enter" || code === "Space") state = "menu";
 
   } else if (state === "aiDifficulty") {
     // Étape 2 (Solo vs IA) : la difficulté choisie amorce pendingMode, complété
@@ -335,8 +339,13 @@ function isHover(code) {
 }
 
 // liste verticale d'options, calée à gauche : index mono + libellé grotesque.
-// L'élément surligné (manette) reçoit une barre d'accent et passe en gras.
-// Les chaînes gardent le format "N  —  Libellé" (l'index est extrait/mis en mono).
+// L'élément surligné (manette/souris) reçoit une CARTE encadrée — le même
+// langage visuel que les cartes de sélection perso/terrain — plutôt qu'une
+// simple barre d'accent. Les chaînes gardent le format "N — Libellé" (l'index
+// est extrait/mis en mono). Le 2e élément du tuple, s'il est fourni et ≠
+// "#fff", devient une PASTILLE de couleur (pas le texte, toujours blanc et
+// donc toujours lisible) : sert à indiquer une intensité/nuance (difficulté,
+// durée de mèche…) sans dépendre d'une couleur de texte parfois peu contrastée.
 function drawOptionList(items, y0, spacing, font) {
   const mx = UI.mx;
   ctx.textAlign = "left";
@@ -349,17 +358,33 @@ function drawOptionList(items, y0, spacing, font) {
     const code = /^[0-9]$/.test(idx) ? "Digit" + idx : "Key" + idx;
     hit(W / 2, y - 6, W - mx * 2, spacing - 6, code);
     const sel = (padConnected && navIdx === i) || isHover(code);
-    if (sel) { ctx.fillStyle = uiAccent(); ctx.fillRect(mx - 20, y - 16, 6, 22); }
+    if (sel) {
+      const rx = mx - 20, ry = y - spacing * 0.62, rw = W - mx * 2, rh = spacing * 0.86;
+      ctx.fillStyle = "rgba(255,204,0,0.09)";
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(rx, ry, rw, rh, 8); else ctx.rect(rx, ry, rw, rh);
+      ctx.fill();
+      ctx.strokeStyle = uiAccent(); ctx.lineWidth = 2;
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(rx, ry, rw, rh, 8); else ctx.rect(rx, ry, rw, rh);
+      ctx.stroke();
+    }
     // index en mono
     ctx.textAlign = "left";
     ctx.fillStyle = sel ? uiAccent() : UI.muted;
     ctx.font = "700 16px " + UI.mono;
     ctx.fillText(idx, mx, y);
-    // libellé grotesque ; on garde une teinte pour les items « spéciaux »
+    // pastille d'intensité (facultative)
     const special = col && col !== "#fff";
-    ctx.fillStyle = sel ? UI.ink : (special ? col : UI.ink);
+    if (special) {
+      ctx.fillStyle = col;
+      ctx.beginPath(); ctx.arc(mx + 28, y - 7, 4.5, 0, Math.PI * 2); ctx.fill();
+    }
+    // libellé grotesque — toujours blanc, jamais une teinte qui pourrait
+    // manquer de contraste selon le fond
+    ctx.fillStyle = UI.ink;
     ctx.font = (sel ? "700 " : "500 ") + "22px " + UI.sans;
-    ctx.fillText(label, mx + 42, y);
+    ctx.fillText(label, mx + (special ? 48 : 42), y);
   });
 }
 
@@ -403,7 +428,8 @@ function drawMenu() {
     ["1  —  Solo contre l'IA", "#fff"],
     ["2  —  Multijoueur local (même écran)", "#fff"],
     ["3  —  Jouer en ligne (avec un ami)", "#fff"],
-    ["R  —  Règles du jeu & animaux", "#fff"]
+    ["R  —  Règles du jeu & animaux", "#fff"],
+    ["C  —  Crédits", "#fff"]
   ];
   drawOptionList(items, 226, 44);
 
@@ -429,20 +455,20 @@ function controlsHintColor() { return (padConnected || hasTouch) ? "#7ed957" : U
 
 // ---------- Assistant de configuration : position dans le parcours ----------
 // Le nombre total d'étapes DÉPEND DU CHEMIN (IA ou non, Bombe ou non) — jamais
-// fixe. Tant que le choix Bombe n'est pas encore fait (Difficulté/Format), ce
-// total n'est pas connu à l'avance : on affiche alors SEULEMENT le numéro
-// d'étape (jamais un "/total" qui serait faux un coup sur deux). Dès que le
-// chemin est fixé (Durée de mèche puis Personnage/Terrain), le total exact
-// s'affiche — et coïncide alors avec l'étape courante pour la toute dernière.
+// fixe — TOUJOURS affiché "X/Y" (jamais un numéro seul). Tant que le choix
+// Bombe n'est pas encore fait (Difficulté/Format), pendingMode.bomb est encore
+// absent : le total affiché suppose alors "pas de Bombe" (le cas le plus
+// courant) — pendingMode est réinitialisé à chaque entrée dans l'assistant
+// (voir "Digit1"/"Digit2" du menu et onlineMenu) pour ne jamais laisser un
+// vieux total (d'une config précédente) s'afficher par erreur.
 function wizardTotal() {
   return (pendingMode.vsAI ? 1 : 0) + 1 /* Format (ou l'écran "Jouer en ligne") */
        + (pendingMode.bomb ? 1 : 0) + 2 /* Personnage + Terrain */;
 }
-function wizardStepOnly(idx, label) { return "Étape " + idx + " · " + label; }
 function wizardStep(idx, label) { return "Étape " + idx + "/" + wizardTotal() + " · " + label; }
 
 function drawAiDifficulty() {
-  menuScreenBase({ title: "Solo contre l'IA", kicker: wizardStepOnly(1, "Difficulté"),
+  menuScreenBase({ title: "Solo contre l'IA", kicker: wizardStep(1, "Difficulté"),
                    subtitle: "Choisis la difficulté de l'adversaire" });
   const items = [
     ["1  —  Facile", "#7ed957"],
@@ -457,7 +483,7 @@ function drawGameModeSelect() {
   const subtitle = pendingMode.vsAI
     ? "Solo — " + AI_LEVELS[pendingMode.aiLevel].name + "  —  choisis le mode de jeu"
     : "Multijoueur local  —  choisis le mode de jeu";
-  menuScreenBase({ title: "Mode de jeu", kicker: wizardStepOnly(pendingMode.vsAI ? 2 : 1, "Format"), subtitle: subtitle });
+  menuScreenBase({ title: "Mode de jeu", kicker: wizardStep(pendingMode.vsAI ? 2 : 1, "Format"), subtitle: subtitle });
 
   const items = pendingMode.vsAI ? [
     ["1  —  1v1 classique", "#fff"],
@@ -590,6 +616,29 @@ function drawRules() {
   }
 
   uiLabel("Échap ← Retour au menu", UI.mx, H - 14, 10, UI.muted, 1.5);
+}
+
+function drawCredits() {
+  hit(W / 2, H / 2, W, H, "Escape"); // clic n'importe où = retour, comme les règles
+  menuScreenBase({ title: "Crédits", kicker: "À propos", subtitle: "Volley des animaux" });
+
+  const lx = UI.mx;
+  let y = 210;
+  const h = (txt) => { ctx.textAlign = "left"; ctx.fillStyle = uiAccent(); ctx.font = "700 15px " + UI.sans; ctx.fillText(txt, lx, y); y += 24; };
+  const p = (txt) => { ctx.textAlign = "left"; ctx.fillStyle = UI.ink; ctx.font = "500 15px " + UI.sans; ctx.fillText(txt, lx, y); y += 24; };
+  const m = (txt) => { ctx.textAlign = "left"; ctx.fillStyle = UI.muted; ctx.font = "13px " + UI.mono; ctx.fillText(txt, lx, y); y += 20; };
+
+  h("Créé par");
+  p("Benjamin Mille & Romain Leray (sié un tigre !)");
+  y += 10;
+
+  h("Technique");
+  m("PeerJS — signalisation WebRTC (peerjs.com)");
+  m("Polices Inter & Space Mono — Google Fonts");
+  y += 10;
+
+  h("Licence");
+  p("MIT — voir le fichier LICENSE du dépôt");
 }
 
 // texte multi-lignes aligné à gauche

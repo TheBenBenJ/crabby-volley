@@ -143,7 +143,7 @@ function padGameInput(i) {
 // options navigables à la manette, par état (mêmes codes que le clavier)
 function navOptions() {
   switch (state) {
-    case "menu":          return ["Digit1", "Digit2", "Digit3", "KeyR"];
+    case "menu":          return ["Digit1", "Digit2", "Digit3", "KeyR", "KeyC"];
     case "aiDifficulty":  return ["Digit1", "Digit2", "Digit3", "Digit4"];
     case "bombDuration":  return ["Digit1", "Digit2", "Digit3"];
     // le nombre d'options dépend du contexte (Solo IA : 1v1/2v2/bombe1v1/bombe2v2 ;
@@ -166,7 +166,7 @@ function handlePadMenu() {
     if (padEdge(horiz ? "left" : "up"))    { navIdx = (navIdx - 1 + opts.length) % opts.length; beep(500, 0.03, "square", 0.05); }
     if (padEdge("confirm")) { const c = opts[navIdx]; navIdx = 0; handleMenuKeys(c, ""); return; }
     if (padEdge("back")) { navIdx = 0; handleMenuKeys("Escape", ""); }
-  } else if (state === "rules" || state === "netError") {
+  } else if (state === "rules" || state === "netError" || state === "credits") {
     if (padEdge("confirm") || padEdge("back")) handleMenuKeys("Escape", "");
   } else if (state === "gameover") {
     if (padEdge("confirm")) handleMenuKeys(online ? "KeyR" : "Space", "");
