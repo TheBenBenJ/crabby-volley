@@ -22,8 +22,12 @@ function handleMenuKeys(code, key) {
     darkSeq = "";
   }
 
-  // M coupe le son — sauf pendant la saisie d'un code (M peut en faire partie)
-  if (code === "KeyM" && state !== "joinEntry") { muted = !muted; return; }
+  // M coupe le son — sauf pendant la saisie d'un code (M peut en faire partie).
+  // code (position physique, norme QWERTY) ≠ lettre imprimée sur un clavier
+  // AZERTY : la touche M y est déplacée à l'emplacement "Semicolon" (celle du
+  // point-virgule QWERTY), et "KeyM" y correspond à la virgule. On accepte les
+  // deux pour que "M" fonctionne, qu'on soit en QWERTY ou en AZERTY.
+  if ((code === "KeyM" || code === "Semicolon") && state !== "joinEntry") { muted = !muted; return; }
   if (code === "KeyN" && state !== "joinEntry") { musicOn = !musicOn; return; }
 
   if (state === "menu") {
