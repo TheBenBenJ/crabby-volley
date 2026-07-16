@@ -85,6 +85,15 @@ const ANIMALS = [
     slip: true, tired: true,
     trait: "Lâche et goofy : dérape à l'arrêt, mais panique très vite.",
     superName: "Scooby Snack", superDesc: "Peur bleue : vitesse décuplée et sauts illimités un instant."
+  },
+  {
+    key: "samy", name: "Sammy",
+    color: "#6b8f3c", darkColor: "#4a6a28",   // vert t-shirt Sammy
+    stats: { vitesse: 5, detente: 3, puissance: 2, controle: 2 },
+    speed: 1.25, jump: 1.05, power: 0.85, control: 0.7,
+    slip: true, tired: true,
+    trait: "Grand échalas nerveux : rapide, glisse, et panique encore plus vite.",
+    superName: "Zoinks !", superDesc: "Peur bleue : vitesse décuplée et sauts illimités un instant."
   }
 ];
 function animOf(b) { return ANIMALS[b.animal]; }
@@ -226,10 +235,11 @@ const battle = {
 //   Monsieur Chibre → "Coup de boutoir" : la frappe suivante part en boulet rasant
 //   Madame Schneck → "Retombée de chat" : sauts illimités + vol plané (gravité réduite)
 //   Scooby → "Scooby Snack" : panique turbo (comme le lapin) pendant ~1,5 s
+//   Sammy → "Zoinks !" : panique turbo (comme Scooby) pendant ~1,5 s
 const SUPER_NEED = 3;
 const streak = [0, 0];        // points d'affilée par camp
 const superCharge = [0, 0];   // 0 = vide, 1 = super prête
-const SUPER_DUR = { oiseau: 40, grenouille: 24, manchot: 60, lapin: 100, chibre: 55, chneck: 110, scooby: 90 };
+const SUPER_DUR = { oiseau: 40, grenouille: 24, manchot: 60, lapin: 100, chibre: 55, chneck: 110, scooby: 90, samy: 90 };
 let superFlash = "";          // libellé "SUPER !" affiché brièvement
 let superFlashT = 0;
 
@@ -283,7 +293,7 @@ class Blob {
     if (this.hasBall) { this.vx = 0; if (!this.onGround) this.vy += GRAV_BLOB; this.y += this.vy; if (this.y >= GROUND_Y) { this.y = GROUND_Y; this.vy = 0; this.onGround = true; } return; }
 
     const grip = groundGrip(); // 1 par temps sec, <1 sur sol détrempé
-    const turbo = (a.key === "lapin" || a.key === "scooby") && this.superT > 0; // Turbo-bond / Scooby Snack
+    const turbo = (a.key === "lapin" || a.key === "scooby" || a.key === "samy") && this.superT > 0;
     const cat = a.key === "chneck" && this.superT > 0;  // Retombée de chat : vol plané
     this.vx = 0;
     const sp = BLOB_SPEED * this.speedMul * a.speed * grip * (turbo ? 1.7 : 1);
@@ -305,13 +315,13 @@ class Blob {
       // le lapin pédale frénétiquement en permanence dès qu'il court (pas
       // seulement quand la vitesse réelle est en retard sur la consigne) :
       // c'est sa signature, Turbo-Jeannot ne trottine jamais tranquillement.
-      // Scooby : encore plus paniqué (galop cartoon + poussière).
+      // Scooby / Sammy : encore plus paniqués (galop cartoon + poussière).
       const scrambling = a.slip;
-      const scoobyPanic = a.key === "scooby";
+      const gangPanic = a.key === "scooby" || a.key === "samy";
       this.scramble = scrambling ? 1 : 0;
-      this.walkPhase += scrambling ? (scoobyPanic ? 1.15 : 0.9) : 0.3;
-      if (Math.random() < (scrambling ? (scoobyPanic ? 0.48 : 0.35) : 0.1)) {
-        spawnSand(this.x - Math.sign(this.vx || moveVx) * 12, GROUND_Y, scoobyPanic ? 2 : 1);
+      this.walkPhase += scrambling ? (gangPanic ? 1.15 : 0.9) : 0.3;
+      if (Math.random() < (scrambling ? (gangPanic ? 0.48 : 0.35) : 0.1)) {
+        spawnSand(this.x - Math.sign(this.vx || moveVx) * 12, GROUND_Y, gangPanic ? 2 : 1);
       }
     } else {
       this.scramble = 0;

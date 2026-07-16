@@ -132,6 +132,11 @@ function animalHitSound(a) {
       beep(320, 0.12, "sawtooth", 0.14, 0.08, 520);
       beep(140, 0.1, "triangle", 0.1, 0.16, 100);
       break;
+    case "samy":       // "Zoinks !" : cri aigu qui dévisse
+      beep(420, 0.08, "sawtooth", 0.14, 0, 680);
+      beep(680, 0.12, "sawtooth", 0.12, 0.07, 320);
+      beep(240, 0.08, "triangle", 0.1, 0.14, 160);
+      break;
     default:           // lapin : gros "BOI-OING" élastique (monte puis redescend)
       beep(240, 0.14, "sine", 0.24, 0, 760);
       beep(760, 0.18, "sine", 0.2, 0.09, 240);

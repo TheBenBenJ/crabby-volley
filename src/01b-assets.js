@@ -7,6 +7,12 @@ const SPRITES = {
   scoobyRun: null,       // pose marche héro (fallback)
   scoobyPounce: null,    // saut / turbo
   scoobyWalk: [],        // cycle de marche 8 frames
+  samyIdle: null,
+  samyIdleSide: null,
+  samyRun: null,
+  samyPounce: null,
+  samyPanic: null,
+  samyWalk: [],
   mysteryVan: null,
   manoirBg: null,        // fond plat Le Manoir Hanté
 };
@@ -37,6 +43,16 @@ function initSprites() {
   SPRITES.scoobyWalk = [];
   for (let i = 0; i < 8; i++) {
     SPRITES.scoobyWalk.push(loadSprite(base + "walk" + i + ".png"));
+  }
+  const samy = "assets/samy/";
+  SPRITES.samyIdle = loadSprite(samy + "idle.png");
+  SPRITES.samyIdleSide = loadSprite(samy + "idle_side.png");
+  SPRITES.samyRun = loadSprite(samy + "run.png");
+  SPRITES.samyPounce = loadSprite(samy + "pounce.png");
+  SPRITES.samyPanic = loadSprite(samy + "panic.png");
+  SPRITES.samyWalk = [];
+  for (let i = 0; i < 8; i++) {
+    SPRITES.samyWalk.push(loadSprite(samy + "walk" + i + ".png"));
   }
 }
 
@@ -200,6 +216,126 @@ function drawScoobyTurboGhosts(b) {
     drawAnchoredSprite(spr, b.x - moveVx * i * 2.2, b.y, dir, 74 - i * 2, {
       alpha: 0.18 * (4 - i) / 3,
       lean: moveVx * 0.02
+    });
+  }
+  return true;
+}
+
+function samyWalkReady() {
+  const w = SPRITES.samyWalk;
+  return w.length > 0 && w.every(spriteReady);
+}
+
+function samyWalkFrame(b) {
+  const frames = SPRITES.samyWalk;
+  if (!samyWalkReady()) {
+    return spriteReady(SPRITES.samyRun) ? SPRITES.samyRun : null;
+  }
+  const idx = Math.floor(Math.abs(b.walkPhase || 0) * 0.18) % frames.length;
+  return frames[idx];
+}
+
+function samySpriteFor(b) {
+  const turbo = b.superT > 0 && b.superKind === "samy";
+  const moveVx = (b.dispVx != null && Math.abs(b.dispVx) > 0.01) ? b.dispVx : (b.vx || 0);
+  const moving = Math.abs(moveVx) > 0.35 || !!b.scramble;
+
+  if (turbo && spriteReady(SPRITES.samyPanic)) return SPRITES.samyPanic;
+  if (!b.onGround) {
+    return spriteReady(SPRITES.samyPounce) ? SPRITES.samyPounce : samyWalkFrame(b);
+  }
+  if (typeof state === "string" && state.indexOf("select") === 0 && !moving) {
+    return spriteReady(SPRITES.samyIdle) ? SPRITES.samyIdle : SPRITES.samyIdleSide;
+  }
+  if (moving) {
+    if (Math.abs(moveVx) > 2.2 && spriteReady(SPRITES.samyRun)) return SPRITES.samyRun;
+    return samyWalkFrame(b);
+  }
+  if (spriteReady(SPRITES.samyIdleSide)) return SPRITES.samyIdleSide;
+  return samyWalkFrame(b) || SPRITES.samyRun;
+}
+
+function isSamyWalkSprite(img) {
+  const w = SPRITES.samyWalk;
+  for (let i = 0; i < w.length; i++) if (w[i] === img) return true;
+  return false;
+}
+
+function drawSamySpriteMaster(b) {
+  const spr = samySpriteFor(b);
+  if (!spriteReady(spr)) return false;
+
+  const s = Math.max(0, b.squash || 0);
+  const bx = b.x, by = b.y;
+  const dir = b.side === 0 ? 1 : -1;
+  const fatigueT = (b.fatigue || 0) / FATIGUE_MAX;
+  const turbo = b.superT > 0 && b.superKind === "samy";
+  const moveVx = (b.dispVx != null && Math.abs(b.dispVx) > 0.01) ? b.dispVx : (b.vx || 0);
+  const moving = Math.abs(moveVx) > 0.35 || !!b.scramble;
+  const now = performance.now() / 1000;
+
+  let bobY = 0, lean = 0, squashX = 1, squashY = 1;
+  const walkSpr = isSamyWalkSprite(spr);
+  let baseH = 88; // Sammy est plus grand / filiforme
+  if (walkSpr) baseH = 90;
+  else if (spr === SPRITES.samyIdleSide || spr === SPRITES.samyRun) baseH = 86;
+  else if (spr === SPRITES.samyPounce || spr === SPRITES.samyPanic) baseH = 92;
+  else if (spr === SPRITES.samyIdle) baseH = 84;
+  baseH -= fatigueT * 5;
+
+  if (!b.onGround || turbo) {
+    const stretch = 1 + Math.max(-0.06, Math.min(0.12, -(b.vy || 0) * 0.01));
+    squashY = stretch;
+    squashX = 1 / Math.sqrt(stretch);
+    lean = Math.max(-0.28, Math.min(0.28, moveVx * 0.03));
+    if (turbo) bobY = Math.sin(now * 20) * 1.8;
+  } else if (moving) {
+    const phase = Math.abs(b.walkPhase || 0) * 0.18;
+    bobY = Math.sin(phase * Math.PI) * 1.4;
+    lean = moveVx * 0.018;
+  } else {
+    bobY = Math.sin(now * 2.6) * 1.0;
+    squashY = 1 + Math.sin(now * 2.6) * 0.012;
+    squashX = 1 / squashY;
+  }
+  if (s > 0) {
+    squashY *= 1 - Math.min(0.22, s * 0.035);
+    squashX *= 1 + Math.min(0.25, s * 0.04);
+  }
+
+  ctx.save();
+  drawShadow(b);
+  drawAnchoredSprite(spr, bx, by, dir, baseH, { bobY, lean, squashX, squashY });
+  if (fatigueT > 0.1) {
+    const nDrops = Math.min(6, Math.ceil(fatigueT * 7));
+    const headY = by - baseH * 0.78 + bobY;
+    for (let d = 0; d < nDrops; d++) {
+      const dropSize = 3.2 + fatigueT * 2.2;
+      const dx = bx + dir * (10 + (d % 3) * 3) * (d % 2 === 0 ? 1 : -0.8);
+      const dy = headY + Math.floor(d / 2) * 7 + Math.sin(now * 9 + d) * 1.5;
+      ctx.fillStyle = "rgba(140,205,255," + (0.6 + fatigueT * 0.25).toFixed(2) + ")";
+      ctx.beginPath();
+      ctx.moveTo(dx, dy - dropSize);
+      ctx.quadraticCurveTo(dx + dropSize * 0.6, dy, dx, dy + dropSize);
+      ctx.quadraticCurveTo(dx - dropSize * 0.6, dy, dx, dy - dropSize);
+      ctx.fill();
+    }
+  }
+  ctx.restore();
+  return true;
+}
+
+function drawSamyTurboGhosts(b) {
+  const spr = spriteReady(SPRITES.samyPanic) ? SPRITES.samyPanic
+    : (spriteReady(SPRITES.samyRun) ? SPRITES.samyRun
+      : (samyWalkReady() ? SPRITES.samyWalk[0] : null));
+  if (!spriteReady(spr)) return false;
+  const dir = b.side === 0 ? 1 : -1;
+  const moveVx = b.dispVx != null ? b.dispVx : (b.vx || 0);
+  for (let i = 1; i <= 3; i++) {
+    drawAnchoredSprite(spr, b.x - moveVx * i * 2.4, b.y, dir, 80 - i * 2, {
+      alpha: 0.18 * (4 - i) / 3,
+      lean: moveVx * 0.025
     });
   }
   return true;

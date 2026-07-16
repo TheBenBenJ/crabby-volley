@@ -329,6 +329,18 @@ test("terrain Manoir Hanté lié à Scooby", () => {
   assert.ok(typeof g.drawBgManoir === "function", "drawBgManoir défini");
 });
 
+test("Sammy : animal visible avec sprites et super turbo", () => {
+  const g = loadGame();
+  const samy = g.ANIMALS.find(a => a.key === "samy");
+  assert.ok(samy, "entrée ANIMALS samy");
+  assert.strictEqual(samy.hidden, undefined);
+  assert.ok(samy.slip && samy.tired, "traits slip + tired");
+  assert.ok(typeof g.drawSamy === "function", "drawSamy défini");
+  assert.ok(g.SPRITES.samyRun, "sprite run");
+  assert.ok(Array.isArray(g.SPRITES.samyWalk) && g.SPRITES.samyWalk.length === 8, "cycle walk 8");
+  assert.ok(g.SUPER_DUR.samy > 0, "durée super");
+});
+
 test("soft ownership : pack/applyBallState round-trip", () => {
   const g = loadGame();
   g.newGame(2);

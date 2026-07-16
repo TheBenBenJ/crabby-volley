@@ -14,13 +14,14 @@ function drawAnimal(b) {
   const key = A.key;
   drawSuperAura(b);                         // halo derrière l'animal
   // pendant Turbo-bond / Scooby Snack : traînée d'images fantômes
-  if (b.superT > 0 && (key === "lapin" || key === "scooby")) drawTurboGhosts(b, key);
+  if (b.superT > 0 && (key === "lapin" || key === "scooby" || key === "samy")) drawTurboGhosts(b, key);
   if (key === "oiseau") drawOiseau(b);
   else if (key === "grenouille") drawGrenouille(b);
   else if (key === "manchot") drawManchot(b);
   else if (key === "chibre") drawChibre(b);
   else if (key === "chneck") drawChneck(b);
   else if (key === "scooby") drawScooby(b);
+  else if (key === "samy") drawSamy(b);
   else drawLapin(b);
   drawSuperOverlay(b, key);                 // langue-grappin, charge de smash…
   drawEmote(b);                             // bulle d'émotion
@@ -43,6 +44,7 @@ function faceMood(b) {
   const key = animOf(b).key;
   if (key === "lapin") return "sad";
   if (key === "scooby") return "shock"; // perpétuellement inquiet (Ruh-roh !)
+  if (key === "samy") return "shock"; // Zoinks !
   if (key === "manchot") return "fierce";
   if (key === "oiseau") return "shock";
   if (key === "grenouille") return "happy";
@@ -179,6 +181,9 @@ function drawSuperAura(b) {
 
 function drawTurboGhosts(b, key) {
   if (key === "scooby" && typeof drawScoobyTurboGhosts === "function" && drawScoobyTurboGhosts(b)) {
+    return;
+  }
+  if (key === "samy" && typeof drawSamyTurboGhosts === "function" && drawSamyTurboGhosts(b)) {
     return;
   }
   ctx.save();
@@ -1361,6 +1366,52 @@ function drawLapin(b) {
 function drawScooby(b) {
   if (typeof drawScoobySpriteMaster === "function" && drawScoobySpriteMaster(b)) return;
   drawScoobyCanvas(b);
+}
+
+// Sammy : sprites PNG — sinon silhouette canvas filiforme
+function drawSamy(b) {
+  if (typeof drawSamySpriteMaster === "function" && drawSamySpriteMaster(b)) return;
+  drawSamyCanvas(b);
+}
+
+function drawSamyCanvas(b) {
+  const s = Math.max(0, b.squash);
+  const bx = b.x, by = b.y;
+  const dir = b.side === 0 ? 1 : -1;
+  const moveVx = (b.dispVx != null) ? b.dispVx : (b.vx || 0);
+  const gait = Math.sin((b.walkPhase || 0) * 1.3);
+  const bob = b.onGround && Math.abs(moveVx) > 0.3 ? gait * 3 : Math.sin(performance.now() / 240) * 1.2;
+  ctx.save();
+  drawShadow(b);
+  ctx.translate(bx, by + bob);
+  ctx.rotate(Math.max(-0.35, Math.min(0.35, moveVx * 0.04)) * dir);
+  // jambes
+  ctx.strokeStyle = "#3a2a1a"; ctx.lineWidth = 5; ctx.lineCap = "round";
+  const leg = b.onGround && Math.abs(moveVx) > 0.3 ? gait * 10 : 0;
+  ctx.beginPath(); ctx.moveTo(-6, -18 + s); ctx.lineTo(-8 - leg, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(6, -18 + s); ctx.lineTo(8 + leg, 0); ctx.stroke();
+  // short brun
+  ctx.fillStyle = "#7a4a2a";
+  ctx.fillRect(-14, -40 + s, 28, 22);
+  // t-shirt vert
+  ctx.fillStyle = b.color || "#6b8f3c";
+  ctx.beginPath();
+  ctx.moveTo(-16, -78 + s); ctx.lineTo(-18, -40 + s); ctx.lineTo(18, -40 + s); ctx.lineTo(16, -78 + s);
+  ctx.closePath(); ctx.fill();
+  // bras
+  ctx.strokeStyle = "#e7c4a0"; ctx.lineWidth = 4;
+  const arm = b.onGround && Math.abs(moveVx) > 0.3 ? -gait * 12 : 4;
+  ctx.beginPath(); ctx.moveTo(-14, -70 + s); ctx.lineTo(-22, -50 + s + arm); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(14, -70 + s); ctx.lineTo(22, -50 + s - arm); ctx.stroke();
+  // tête
+  ctx.fillStyle = "#e7c4a0";
+  ctx.beginPath(); ctx.ellipse(0, -92 + s, 12, 14, 0, 0, Math.PI * 2); ctx.fill();
+  // cheveux
+  ctx.fillStyle = "#6b4a2a";
+  ctx.beginPath(); ctx.ellipse(0, -100 + s, 14, 10, 0, Math.PI, 0); ctx.fill();
+  ctx.fillStyle = "#2a2a2a";
+  ctx.beginPath(); ctx.arc(dir * 4, -94 + s, 2, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
 }
 
 function drawScoobyCanvas(b) {

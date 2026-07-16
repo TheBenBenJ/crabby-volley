@@ -29,7 +29,7 @@ function awardPoint(side, reason) {
     if (key === "oiseau" && b.molt < MOLT_MAX) {
       b.molt = MOLT_MAX;
       if (!noFx) spawnFeathers(b.x, b.y - 55, b.color, 22);
-    } else if (key === "lapin" || key === "scooby") {
+    } else if (key === "lapin" || key === "scooby" || key === "samy") {
       b.fatigue = FATIGUE_MAX;
     } else if (key === "manchot") {
       b.anger = ANGER_MAX;

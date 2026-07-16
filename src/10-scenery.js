@@ -157,6 +157,19 @@ function drawCrowdCritter(species, x, hy, col, excited, glow) {
       ctx.fillStyle = "#f6c945";
       ctx.beginPath(); ctx.arc(x, hy + 5, 1.4, 0, Math.PI * 2); ctx.fill();
     }
+  } else if (species === "samy") {
+    // petit Sammy : t-shirt vert + cheveux en bataille
+    ctx.fillStyle = col;
+    ctx.fillRect(x - 3.5, hy - 1, 7, 9);
+    ctx.fillStyle = "#e7c4a0";
+    ctx.beginPath(); ctx.arc(x, hy - 4, 3.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#6b4a2a";
+    ctx.beginPath(); ctx.ellipse(x, hy - 7, 4, 2.8, 0, Math.PI, 0); ctx.fill();
+    if (excited) {
+      ctx.fillStyle = "#fff";
+      ctx.beginPath(); ctx.arc(x - 1, hy - 4, 0.8, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(x + 1.5, hy - 4, 0.8, 0, Math.PI * 2); ctx.fill();
+    }
   } else if (species === "demon") {
     // petit diablotin : corps teinté, cornes, yeux qui brillent dans le noir
     ctx.fillStyle = col;
