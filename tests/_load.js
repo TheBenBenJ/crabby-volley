@@ -46,13 +46,8 @@ const EPILOGUE = `
   setBombMode: v => { bombMode = v; }, getBombMode: () => bombMode,
   getBombTimer: () => bombTimer, setBombTimer: v => { bombTimer = v; },
   setBombTime: v => { bombTime = v; }, getBombTime: () => bombTime,
-  resolveBallOwner, packBallState, applyBallState, awardPoint,
-  getBallOwner: () => ballOwner, setBallOwner: v => { ballOwner = v; },
-  setNetDeferScore: v => { netDeferScore = v; },
-  getPendingNetPoint: () => pendingNetPoint,
-  setPendingNetPoint: v => { pendingNetPoint = v; },
-  getBallScoreLock: () => ballScoreLock,
-  consts: { W, H, NET_X, NET_W, NET_TOP, GROUND_Y, BALL_R, MAX_BALL_SPEED, BALL_OWN_MARGIN }
+  updateBall,
+  consts: { W, H, NET_X, NET_W, NET_TOP, GROUND_Y, BALL_R, MAX_BALL_SPEED }
 };`;
 
 function srcConcat() {

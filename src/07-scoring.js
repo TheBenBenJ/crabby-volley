@@ -4,18 +4,6 @@
 // ---------- Points / score ----------
 function awardPoint(side, reason) {
   if (state !== "play" && state !== "serve") return;
-  // Invité propriétaire de la balle : on ne touche PAS au score local — l'hôte
-  // validera le point à partir du paquet balle (anti-divergence). On verrouille
-  // la physique pour ne pas renvoyer le même point à chaque tick.
-  if (netDeferScore) {
-    // seq monotone : l'hôte ne consommera ce point qu'UNE fois, même si le
-    // paquet est répété (renvoi anti-perte) ou traîne dans le réseau.
-    if (!pendingNetPoint) pendingNetPoint = { side, reason: reason || "", seq: ++netPtSeq };
-    ballScoreLock = true;
-    ball.vx = 0; ball.vy = 0;
-    return;
-  }
-  ballScoreLock = false;
   scores[side]++;
   scorePop[side] = 20;
   shake = 8;
@@ -80,9 +68,6 @@ function startRally() {
   battle.prevJump = [false, false];
   battle.cooldown = 0;
   bombTimer = bombTime; // la mèche ne se consume qu'une fois la balle en jeu
-  ballOwner = servingSide; // le camp qui sert possède la balle au départ
-  pendingNetPoint = null;
-  ballScoreLock = false;
   state = "serve";
   serveCountdown = 69; // 3·2·1 (63, ~0.35s chacun) + "GO !" (6)
 }

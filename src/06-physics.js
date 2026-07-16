@@ -180,8 +180,6 @@ function ballBlobCollision(blob) {
 }
 
 function updateBall() {
-  // Point déjà armé côté invité (ownership) : on fige en attendant la validation hôte.
-  if (ballScoreLock) return;
   // balle crevée : elle reste plantée sur le bec de celui qui l'a crevée,
   // puis le point est accordé à l'adversaire après un court instant.
   if (ball.popped) {
@@ -220,8 +218,10 @@ function updateBall() {
   // (jusqu'à 15 px/tick pour un poteau de 10 px) pouvait franchir le filet en
   // un seul tick sans jamais chevaucher sa position finale. On teste donc le
   // FRANCHISSEMENT du poteau entre l'ancienne et la nouvelle position.
+  // Au-dessus du filet (y + R ≤ NET_TOP) : passage libre, pas de collision.
   const nl = NET_X - NET_W / 2, nr = NET_X + NET_W / 2;
-  if (ball.y + BALL_R > NET_TOP + BALL_R) {
+  const aboveNet = ball.y + BALL_R <= NET_TOP;
+  if (!aboveNet && ball.y + BALL_R > NET_TOP + BALL_R) {
     const prevX = ball.x - ball.vx;            // position avant ce déplacement
     const leftC = nl - BALL_R, rightC = nr + BALL_R; // contacts gauche/droite
     if (ball.vx > 0 && prevX <= leftC && ball.x > leftC) {
@@ -229,24 +229,29 @@ function updateBall() {
     } else if (ball.vx < 0 && prevX >= rightC && ball.x < rightC) {
       ball.x = rightC; ball.vx = Math.abs(ball.vx) * 0.8; beep(200, 0.05);
     } else if (ball.x > leftC && ball.x < rightC) {
-      // chevauchement résiduel : repousse la balle du côté d'où elle vient
-      if (ball.x < NET_X) { ball.x = leftC; ball.vx = -Math.abs(ball.vx) * 0.8; }
-      else { ball.x = rightC; ball.vx = Math.abs(ball.vx) * 0.8; }
+      // chevauchement résiduel : repousse hors du poteau + vitesse mini pour
+      // éviter le coin « balle collée au filet » (vx≈0 qui oscille).
+      if (ball.x < NET_X) { ball.x = leftC; ball.vx = -Math.max(2.2, Math.abs(ball.vx) * 0.8); }
+      else { ball.x = rightC; ball.vx = Math.max(2.2, Math.abs(ball.vx) * 0.8); }
       beep(200, 0.05);
     }
   }
-  // filet : sommet (cercle)
-  const dxn = ball.x - NET_X, dyn = ball.y - NET_TOP;
-  const dn = Math.hypot(dxn, dyn);
-  const minN = BALL_R + NET_W / 2 + 3;
-  if (dn < minN && dn > 0) {
-    const nx = dxn / dn, ny = dyn / dn;
-    ball.x = NET_X + nx * minN;
-    ball.y = NET_TOP + ny * minN;
-    const dot = ball.vx * nx + ball.vy * ny;
-    ball.vx = (ball.vx - 2 * dot * nx) * 0.75;
-    ball.vy = (ball.vy - 2 * dot * ny) * 0.75;
-    beep(200, 0.05);
+  // filet : sommet (cercle) — uniquement si on n'est pas clairement au-dessus
+  if (!aboveNet) {
+    const dxn = ball.x - NET_X, dyn = ball.y - NET_TOP;
+    const dn = Math.hypot(dxn, dyn);
+    const minN = BALL_R + NET_W / 2 + 3;
+    if (dn < minN && dn > 0) {
+      const nx = dxn / dn, ny = dyn / dn;
+      ball.x = NET_X + nx * minN;
+      ball.y = NET_TOP + ny * minN;
+      const dot = ball.vx * nx + ball.vy * ny;
+      ball.vx = (ball.vx - 2 * dot * nx) * 0.75;
+      ball.vy = (ball.vy - 2 * dot * ny) * 0.75;
+      // si le rebond laisse une vitesse quasi nulle contre le poteau, on pousse
+      if (Math.abs(ball.vx) < 1.2) ball.vx = (ball.x < NET_X ? -1 : 1) * 2.2;
+      beep(200, 0.05);
+    }
   }
 
   // remise à zéro des touches quand la balle change de camp

@@ -207,49 +207,35 @@ test("bombe : durée choisie appliquée (startRally) et présente dans le snapsh
   assert.strictEqual(snap.bombTimer, 300, "bombTimer sérialisé pour le compte à rebours invité");
 });
 
-test("ownership : hystérésis autour du filet (pas de flip-flop)", () => {
-  const g = loadGame();
-  g.newGame(1);
-  g.setBallOwner(0);
-  g.ball.frozen = false;
-  g.ball.x = g.consts.NET_X; // pile sur le filet → on garde le propriétaire courant
-  assert.strictEqual(g.resolveBallOwner(0), 0, "dans la marge, owner 0 reste 0");
-  assert.strictEqual(g.resolveBallOwner(1), 1, "dans la marge, owner 1 reste 1");
-  g.ball.x = g.consts.NET_X + g.consts.BALL_OWN_MARGIN + 5;
-  assert.strictEqual(g.resolveBallOwner(0), 1, "clairement à droite → owner 1");
-  g.ball.x = g.consts.NET_X - g.consts.BALL_OWN_MARGIN - 5;
-  assert.strictEqual(g.resolveBallOwner(1), 0, "clairement à gauche → owner 0");
-});
-
-test("ownership : awardPoint différé n'altère pas le score (invité)", () => {
+test("filet : une balle qui passe AU-DESSUS n'est pas bloquée", () => {
   const g = loadGame();
   g.setVsAI(true); g.setAiLevel(1);
-  g.newGame(2);
+  g.newGame(5);
   g.setState("play"); g.setServeCountdown(0);
-  g.setNetDeferScore(true);
-  g.setPendingNetPoint(null);
-  g.awardPoint(0, "test");
-  assert.deepStrictEqual(g.scores, [0, 0], "score inchangé sous defer");
-  assert.ok(g.getPendingNetPoint(), "point empilé pour l'hôte");
-  assert.strictEqual(g.getBallScoreLock(), true, "physique balle verrouillée");
-  g.setNetDeferScore(false);
-  g.awardPoint(1, "validé");
-  assert.strictEqual(g.scores[1], 1, "sans defer, le score avance");
+  // balle clairement au-dessus du filet, en traversée gauche → droite
+  g.ball.frozen = false;
+  g.ball.x = g.consts.NET_X - 40;
+  g.ball.y = g.consts.NET_TOP - 40;
+  g.ball.vx = 10; g.ball.vy = -1;
+  const startX = g.ball.x;
+  for (let i = 0; i < 20; i++) g.updateBall();
+  assert.ok(g.ball.x > g.consts.NET_X + 20, "la balle doit passer de l'autre côté (x=" + g.ball.x + ", start=" + startX + ")");
+  assert.ok(g.ball.vx > 0, "la vitesse horizontale reste vers la droite");
 });
 
-test("ownership : pack/apply ball state round-trip + ballOwner dans snapshot", () => {
+test("filet : balle coincée dans le poteau est éjectée (anti-stick)", () => {
   const g = loadGame();
-  g.newGame(4);
+  g.setVsAI(true); g.setAiLevel(1);
+  g.newGame(6);
   g.setState("play"); g.setServeCountdown(0);
-  g.ball.frozen = false; g.ball.x = 700; g.ball.y = 200; g.ball.vx = -3; g.ball.vy = 2;
-  g.setBallOwner(1);
-  const packed = g.packBallState();
-  g.ball.x = 0; g.ball.y = 0; g.setBallOwner(0);
-  g.applyBallState(packed);
-  assert.strictEqual(g.ball.x, 700);
-  assert.strictEqual(g.getBallOwner(), 1);
-  const snap = g.getSnapshot();
-  assert.strictEqual(snap.ballOwner, 1, "ballOwner sérialisé pour l'invité");
+  g.ball.frozen = false;
+  g.ball.x = g.consts.NET_X; // pile dans le poteau
+  g.ball.y = g.consts.NET_TOP + 40;
+  g.ball.vx = 0.3; g.ball.vy = 1;
+  for (let i = 0; i < 8; i++) g.updateBall();
+  const clear = Math.abs(g.ball.x - g.consts.NET_X) > g.consts.NET_W / 2 + g.consts.BALL_R - 1;
+  assert.ok(clear, "la balle doit sortir du poteau (x=" + g.ball.x + ")");
+  assert.ok(Math.abs(g.ball.vx) >= 2, "vitesse d'éjection minimale");
 });
 
 console.log("\n" + pass + " réussis, " + fail + " échoués");

@@ -166,26 +166,17 @@ function tickBomb() {
   }
 }
 
-// stepGame(inL, inR)                    → 1v1 / online (chemin d'origine)
-// stepGame(null, null, ins)             → 2v2 : `ins` alignées sur activeBlobs
-// stepGame(inL, inR, null, {skipBall})  → online 1v1 : corps seuls (balle chez l'autre)
-function stepGame(inL, inR, ins, opts) {
-  opts = opts || {};
-  const skipBall = !!opts.skipBall;
+// stepGame(inL, inR)        → 1v1 / online (chemin d'origine)
+// stepGame(null, null, ins) → 2v2 : `ins` alignées sur activeBlobs
+function stepGame(inL, inR, ins) {
   tick++;
   stepWeather();
   if (superFlashT > 0) superFlashT--;
   if (battle.cooldown > 0) battle.cooldown--;
   if (battle.active && !ins) {
     stepBattle(inL, inR);
-    ballOwner = 0; // duel : l'hôte reste autoritaire
     return; // le monde est figé pendant le duel (1v1 uniquement)
   }
-  // IMPORTANT : condition sur l'ÉTAT et pas seulement le compteur. En ligne,
-  // quand l'autre camp possède la balle (skipBall), notre compteur local ne
-  // décrémente pas ; sans le test d'état on resterait bloqué dans cette
-  // branche pendant tout le rally une fois passé en "play" (impossible de
-  // sauter, plus de collisions) — c'était LE bug qui gelait l'hôte.
   if (state === "serve" && serveCountdown > 0) {
     // pendant le décompte : on peut se déplacer mais pas sauter ni servir
     if (ins) {
@@ -194,17 +185,13 @@ function stepGame(inL, inR, ins, opts) {
       blobL.update({ left: inL.left, right: inL.right, jump: false });
       blobR.update({ left: inR.left, right: inR.right, jump: false });
     }
-    // skipBall : le propriétaire distant gère décompte + flottement balle
-    // (sinon le service irait 2× trop vite en ownership partagée)
-    if (!skipBall) {
-      serveCountdown--;
-      ball.y += Math.sin(tick / 18) * 0.3;
-    }
+    serveCountdown--;
+    ball.y += Math.sin(tick / 18) * 0.3;
   } else if (ins) {
     // 2v2 : pas de Smash Battle (duel à 2), on met à jour les 4 joueurs
     activeBlobs.forEach((b, i) => maybeActivateSuper(b, ins[i]));
     activeBlobs.forEach((b, i) => b.update(ins[i]));
-    if (!skipBall) updateBall();
+    updateBall();
     activeBlobs.forEach(b => tickSuper(b));
   } else {
     // déclenchement des techniques signature avant le mouvement
@@ -213,14 +200,13 @@ function stepGame(inL, inR, ins, opts) {
     blobL.update(inL);
     blobR.update(inR);
     // déclenchement du duel : les deux en l'air au filet, balle proche
-    if (!skipBall && canStartBattle()) startBattle(inL, inR);
-    else if (!skipBall) updateBall();
+    if (canStartBattle()) startBattle(inL, inR);
+    else updateBall();
     tickSuper(blobL);
     tickSuper(blobR);
   }
   if (bombMode) tickBomb();
   if (state === "serve" && !ball.frozen) state = "play";
-  if (!skipBall) ballOwner = resolveBallOwner(ballOwner);
 }
 
 function localInputs(side) {

@@ -19,28 +19,29 @@ Client A ◀──état──── │ (Node)  │ ────état──▶ C
 - **Plus** : anti-triche naturel, pas de problème NAT, reconnexion simple.
 - **Moins** : il faut héberger et payer un serveur, latence = 2 × (client↔serveur).
 
-### B. Pair-à-pair WebRTC, ownership balle par camp (retenu)
+### B. Pair-à-pair WebRTC, hôte autoritaire (retenu)
 
 ```
         signalisation (uniquement pour se trouver)
 Hôte ◀─────────── serveur de signalisation ───────────▶ Invité
   │                                                        │
   └──────────── DataChannel WebRTC (direct) ───────────────┘
-       Invité ──▶ inputs 60 Hz (+ état balle si camp droit)
-       Hôte  ──▶ snapshots ~30 Hz (monde + ballOwner)
+       Invité ──▶ inputs (60 Hz)
+       Hôte  ──▶ snapshots (~30 Hz, 60 Hz près du filet)
 ```
 
-- **Ownership balle** : le joueur du camp où se trouve la balle en simule la
-  physique (hits locaux instantanés). Au franchissement du filet (hystérésis
-  `BALL_OWN_MARGIN`), la prio passe à l'autre. L'hôte **valide toujours les
-  points** (l'invité différé `awardPoint` → champ `pt` du paquet balle).
-- **Corps** : chacun prédit son perso ; l'hôte intègre les inputs invité et
-  diffuse le monde distant.
-- **Exceptions** (hôte pleinement autoritaire) : Smash Battle, 2v2, secours si
-  l'invité n'envoie plus la balle (`BALL_STALE_MS`).
+- L'**hôte** fait tourner la vraie simulation (balle, collisions, score).
+- L'**invité** envoie ses entrées, affiche les snapshots (interpolation +
+  dead reckoning), et prédit localement son propre personnage.
+- Près du filet, cadence de snapshots portée à 60 Hz pour un passage fluide.
 - Signalisation via **PeerJS** ; TURN de secours pour les NAT stricts.
-- **Plus** : défenses « collantes » des deux côtés, pas de serveur de jeu.
-- **Moins** : handoff filet sensible ; triche possible (acceptable entre amis).
+- **Plus** : robuste (pas de handoff), latence directe, pas de serveur de jeu.
+- **Moins** : hits côté invité ressentent le RTT/2 ; triche possible côté hôte
+  (acceptable entre amis).
+
+> **Note** : une variante « ownership balle par camp » a été essayée puis
+> abandonnée — les handoffs au filet provoquaient des balles bloquées /
+> deadlocks. L'hôte autoritaire est le modèle stable.
 
 ### Variante écartée : lockstep déterministe pur
 
@@ -53,10 +54,10 @@ et servira de filet de sécurité.
 
 ## 2. Modèle de synchronisation retenu
 
-| Rôle   | Simule ?                                      | Envoie                         | Reçoit        |
-|--------|-----------------------------------------------|--------------------------------|---------------|
-| Hôte   | Corps + balle si `ballOwner===0` (ou secours) | snapshot ~30 Hz                | inputs (+balle)|
-| Invité | Son perso + balle si `ballOwner===1`          | inputs 60 Hz (+balle si owner) | snapshots     |
+| Rôle   | Simule ?                  | Envoie              | Reçoit    |
+|--------|---------------------------|---------------------|-----------|
+| Hôte   | Oui (autorité complète)   | snapshot 30–60 Hz   | inputs    |
+| Invité | Prédiction de son perso   | inputs 60 Hz        | snapshots |
 
 - **Tick fixe 60 Hz** : la simulation avance par pas constants, jamais liés au
   framerate ni à l'horloge murale.
