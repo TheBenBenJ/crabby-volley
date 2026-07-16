@@ -72,6 +72,13 @@ function scoobySpriteFor(b) {
   return scoobyWalkFrame(b) || SPRITES.scoobyRun;
 }
 
+/** True si l'image fait partie du cycle de marche. */
+function isScoobyWalkSprite(img) {
+  const w = SPRITES.scoobyWalk;
+  for (let i = 0; i < w.length; i++) if (w[i] === img) return true;
+  return false;
+}
+
 /**
  * Dessine un sprite ancré aux pieds. Sources face à droite ; dir=-1 miroite.
  * opts: bobY, lean (rad), squashX/Y, alpha
@@ -89,6 +96,9 @@ function drawAnchoredSprite(img, bx, by, dir, drawH, opts) {
 
   ctx.save();
   ctx.globalAlpha = alpha;
+  // évite le halo flou au rescale (surtout sur les outlines)
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.translate(bx, by + bobY);
   if (lean) ctx.rotate(lean * (dir < 0 ? -1 : 1));
   ctx.scale((dir < 0 ? -1 : 1) * squashX, squashY);
@@ -118,7 +128,10 @@ function drawScoobySpriteMaster(b) {
   let lean = 0;
   let squashX = 1;
   let squashY = 1;
-  const baseH = 78 - fatigueT * 5;
+  // Même hauteur de base pour idle / marche / saut (PNG normalisés).
+  // Les frames walk sont un peu plus « accroupies » : +8 % pour matcher l'idle.
+  const walkSpr = isScoobyWalkSprite(spr);
+  const baseH = (walkSpr ? 84 : 78) - fatigueT * 5;
 
   if (!b.onGround || turbo) {
     // léger stretch air / turbo (discret)
@@ -130,12 +143,12 @@ function drawScoobySpriteMaster(b) {
   } else if (moving) {
     // Micro-bob synchro avec la frame (lisibilité, pas de déformation)
     const phase = Math.abs(b.walkPhase || 0) * 0.18;
-    bobY = Math.sin(phase * Math.PI) * 1.5;
-    lean = moveVx * 0.02;
+    bobY = Math.sin(phase * Math.PI) * 1.2;
+    lean = moveVx * 0.015;
   } else {
     // Respiration idle très douce
-    bobY = Math.sin(now * 2.8) * 1.1;
-    squashY = 1 + Math.sin(now * 2.8) * 0.02;
+    bobY = Math.sin(now * 2.8) * 0.9;
+    squashY = 1 + Math.sin(now * 2.8) * 0.015;
     squashX = 1 / squashY;
   }
 
