@@ -561,8 +561,9 @@ function drawBgManoir() {
   const rainy = weather === "rain" || weather === "storm";
   const stormy = weather === "storm";
 
-  // Fond PNG plat (manoir + tribunes + van) si chargé ; sinon fallback canvas
-  if (typeof spriteReady === "function" && spriteReady(SPRITES.manoirBg)) {
+  // Fond PNG plat (intérieur manoir) si chargé ; sinon fallback canvas extérieur
+  const manoirPng = typeof spriteReady === "function" && spriteReady(SPRITES.manoirBg);
+  if (manoirPng) {
     const img = SPRITES.manoirBg;
     // Aligne le bas du décor sur la ligne de sol du jeu
     const drawH = GROUND_Y;
@@ -603,16 +604,21 @@ function drawBgManoir() {
     drawMysteryMachine(W * 0.78, GROUND_Y - 8, t);
   }
 
-  // Sol jeu (bande sous les pieds) — toujours canvas pour coller à GROUND_Y
+  // Sol jeu (bande sous les pieds) — tons bois poussiéreux si fond intérieur PNG
   const ground = ctx.createLinearGradient(0, GROUND_Y - 38, 0, H);
-  ground.addColorStop(0, rainy ? "#3a3830" : "#4a4638");
-  ground.addColorStop(1, "#2a2820");
+  if (manoirPng) {
+    ground.addColorStop(0, rainy ? "#6a5a48" : "#8a7358");
+    ground.addColorStop(1, "#4a3c30");
+  } else {
+    ground.addColorStop(0, rainy ? "#3a3830" : "#4a4638");
+    ground.addColorStop(1, "#2a2820");
+  }
   ctx.fillStyle = ground;
   ctx.fillRect(0, GROUND_Y - 37, W, H - GROUND_Y + 37);
   ctx.fillStyle = "rgba(0,0,0,0.2)";
   ctx.fillRect(0, GROUND_Y, W, 2);
 
-  ctx.strokeStyle = "rgba(80,70,40,0.45)";
+  ctx.strokeStyle = manoirPng ? "rgba(60,45,30,0.35)" : "rgba(80,70,40,0.45)";
   ctx.lineWidth = 1.4;
   for (let i = 0; i < 36; i++) {
     const gx = (i * 181.3) % W;
