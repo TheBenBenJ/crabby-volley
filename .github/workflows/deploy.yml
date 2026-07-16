@@ -1,7 +1,7 @@
 name: Deploy
 
 # Déploiement continu : à chaque push sur main, on lance les tests puis, s'ils
-# passent, on synchronise index.html + src/ vers la racine web du serveur.
+# passent, on synchronise index.html + src/ + assets/ vers la racine web du serveur.
 # Le déploiement peut aussi être déclenché à la main (workflow_dispatch).
 #
 # Versionnage (SemVer x.y.z, voir package.json + src/00-version.js) : le job
@@ -95,7 +95,7 @@ jobs:
         run: |
           rsync -az --delete \
             -e "ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no" \
-            index.html src \
+            index.html src assets \
             "$DEPLOY_USER@$DEPLOY_HOST:/home/$DEPLOY_USER/crabby-deploy/"
 
       - name: Publier dans la racine web
@@ -103,10 +103,11 @@ jobs:
           ssh -i ~/.ssh/deploy_key -o StrictHostKeyChecking=no \
             "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -e; \
-             sudo mkdir -p '$WEB_ROOT/src'; \
+             sudo mkdir -p '$WEB_ROOT/src' '$WEB_ROOT/assets'; \
              sudo cp /home/$DEPLOY_USER/crabby-deploy/index.html '$WEB_ROOT/index.html'; \
              sudo rsync -a --delete /home/$DEPLOY_USER/crabby-deploy/src/ '$WEB_ROOT/src/'; \
-             sudo chown -R www-data:www-data '$WEB_ROOT/index.html' '$WEB_ROOT/src'"
+             sudo rsync -a --delete /home/$DEPLOY_USER/crabby-deploy/assets/ '$WEB_ROOT/assets/'; \
+             sudo chown -R www-data:www-data '$WEB_ROOT/index.html' '$WEB_ROOT/src' '$WEB_ROOT/assets'"
 
       - name: Vérifier que le site répond
         run: |

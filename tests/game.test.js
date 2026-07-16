@@ -309,6 +309,15 @@ test("Scooby : animal visible avec dessin et super turbo", () => {
   assert.strictEqual(g.blobL.animal, idx);
 });
 
+test("sprites Scooby / Mystery Machine déclarés", () => {
+  const g = loadGame();
+  assert.ok(g.SPRITES, "SPRITES exposé");
+  assert.ok(g.SPRITES.scoobyRun, "sprite run");
+  assert.ok(g.SPRITES.mysteryVan, "sprite van");
+  assert.strictEqual(g.spriteReady(null), false);
+  assert.strictEqual(g.spriteReady(g.SPRITES.scoobyRun), false, "stub Image → fallback canvas");
+});
+
 test("terrain Manoir Hanté lié à Scooby", () => {
   const g = loadGame();
   const manoir = g.TERRAINS.find(t => t.key === "manoir");

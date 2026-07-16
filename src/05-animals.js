@@ -1354,8 +1354,47 @@ function drawLapin(b) {
   ctx.restore();
 }
 
-// Scooby : grand chien brun goofy (oreilles molles, collier, museau long)
+// Scooby : sprites PNG si chargés, sinon rendu canvas (oreilles, collier…)
 function drawScooby(b) {
+  const s = Math.max(0, b.squash);
+  const bx = b.x, by = b.y;
+  const dir = b.side === 0 ? 1 : -1;
+  const fatigueT = (b.fatigue || 0) / FATIGUE_MAX;
+  const spr = scoobySpriteFor(b);
+  if (spriteReady(spr)) {
+    ctx.save();
+    drawShadow(b);
+    // hauteur ~ silhouette des autres blobs ; squash + fatigue tassent un peu
+    const drawH = 78 - s * 1.2 - fatigueT * 6;
+    const bob = (b.onGround && b.vx !== 0)
+      ? Math.sin(b.walkPhase || 0) * 1.5 : 0;
+    drawAnchoredSprite(spr, bx, by, dir, drawH, bob);
+    // sueur de panique par-dessus le sprite (lisibilité fatigue)
+    if (fatigueT > 0.08) {
+      const nDrops = Math.min(8, Math.ceil(fatigueT * 8));
+      const headY = by - drawH * 0.72;
+      ctx.strokeStyle = "rgba(60,120,180,0.55)";
+      ctx.lineWidth = 0.8;
+      for (let d = 0; d < nDrops; d++) {
+        const dropSize = 4 + fatigueT * 3;
+        const dx = bx + dir * (18 + (d % 3) * 3) * (d % 2 === 0 ? 1 : -1);
+        const dy = headY - 8 + Math.floor(d / 2) * 9 + Math.sin(performance.now() / 180 + d) * 1.5;
+        ctx.fillStyle = "rgba(140,205,255," + (0.7 + fatigueT * 0.25).toFixed(2) + ")";
+        ctx.beginPath();
+        ctx.moveTo(dx, dy - dropSize);
+        ctx.quadraticCurveTo(dx + dropSize * 0.7, dy + dropSize * 0.2, dx, dy + dropSize);
+        ctx.quadraticCurveTo(dx - dropSize * 0.7, dy + dropSize * 0.2, dx, dy - dropSize);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+    return;
+  }
+  drawScoobyCanvas(b);
+}
+
+function drawScoobyCanvas(b) {
   const s = Math.max(0, b.squash);
   const bx = b.x, by = b.y;
   const dir = b.side === 0 ? 1 : -1;

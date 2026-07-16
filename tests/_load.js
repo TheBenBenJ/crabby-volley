@@ -31,6 +31,16 @@ define("setInterval", () => 0);
 define("clearInterval", () => {});
 if (typeof performance === "undefined") define("performance", require("perf_hooks").performance);
 if (typeof Peer === "undefined") define("Peer", function () { return {}; }); // stub PeerJS
+// Stub Image : les sprites chargent en async dans le navigateur ; en test
+// headless on garde le fallback canvas (naturalWidth = 0 → spriteReady false).
+if (typeof Image === "undefined") {
+  define("Image", function () {
+    this.complete = false;
+    this.naturalWidth = 0;
+    this.naturalHeight = 0;
+    this.src = "";
+  });
+}
 
 // épilogue : ce que les tests peuvent inspecter/piloter
 const EPILOGUE = `
@@ -49,6 +59,8 @@ const EPILOGUE = `
   updateBall,
   ballInGuestOwnZone, packBallState, applyBallState,
   ANIMALS, TERRAINS,
+  SPRITES: typeof SPRITES !== "undefined" ? SPRITES : null,
+  spriteReady: typeof spriteReady === "function" ? spriteReady : () => false,
   drawScooby: typeof drawScooby === "function" ? drawScooby : null,
   drawBgManoir: typeof drawBgManoir === "function" ? drawBgManoir : null,
   consts: { W, H, NET_X, NET_W, NET_TOP, GROUND_Y, BALL_R, MAX_BALL_SPEED, GUEST_BALL_MARGIN }

@@ -747,14 +747,22 @@ function drawGravestones() {
   }
 }
 
-// Mystery Machine : van bleu/vert fleuri (clin d'œil Scooby-Doo)
+// Mystery Machine : sprite PNG si chargé, sinon van canvas
 function drawMysteryMachine(px, py, t) {
   const bob = Math.sin(t * 1.5) * 0.6;
   const y = py + bob;
   ctx.save();
-  // ombre
   ctx.fillStyle = "rgba(0,0,0,0.25)";
   ctx.beginPath(); ctx.ellipse(px, GROUND_Y - 34, 52, 6, 0, 0, Math.PI * 2); ctx.fill();
+
+  if (spriteReady(SPRITES.mysteryVan)) {
+    const img = SPRITES.mysteryVan;
+    const drawH = 72;
+    const drawW = drawH * (img.naturalWidth / img.naturalHeight);
+    ctx.drawImage(img, px - drawW / 2, y - drawH + 4, drawW, drawH);
+    ctx.restore();
+    return;
+  }
 
   // caisse principale (turquoise)
   ctx.fillStyle = "#3d9e9a";
