@@ -1076,7 +1076,10 @@ function drawHUD() {
     ctx.textAlign = "center";
     ctx.font = "700 17px 'Inter', system-ui, sans-serif";
     const tw = ctx.measureText(txt).width;
-    const pw = tw + 36, ph = 34, px = NET_X - pw / 2, py = 86;
+    // sous les panneaux de score (qui vont jusqu'à y=126) : avec le nom de
+    // l'animal (souvent plus long que "Gauche"/"Droite"), la pastille est
+    // parfois plus large qu'eux — la garder plus haut la faisait chevaucher.
+    const pw = tw + 36, ph = 34, px = NET_X - pw / 2, py = 134;
     // pastille pleine (au lieu de texte nu semi-transparent) : lisible sur
     // n'importe quel terrain/ciel, clair ou sombre, sans distinction à gérer.
     ctx.fillStyle = "rgba(10,12,18,0.68)";
