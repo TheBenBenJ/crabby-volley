@@ -8,6 +8,7 @@ const SPRITES = {
   scoobyPounce: null,    // saut / turbo
   scoobyWalk: [],        // cycle de marche 8 frames
   mysteryVan: null,
+  manoirBg: null,        // fond plat Le Manoir Hanté
 };
 
 function loadSprite(path) {
@@ -32,6 +33,7 @@ function initSprites() {
   SPRITES.scoobyRun = loadSprite(base + "run.png");
   SPRITES.scoobyPounce = loadSprite(base + "pounce.png");
   SPRITES.mysteryVan = loadSprite(base + "van.png");
+  SPRITES.manoirBg = loadSprite("assets/manoir/bg.png");
   SPRITES.scoobyWalk = [];
   for (let i = 0; i < 8; i++) {
     SPRITES.scoobyWalk.push(loadSprite(base + "walk" + i + ".png"));

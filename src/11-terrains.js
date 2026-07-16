@@ -561,48 +561,49 @@ function drawBgManoir() {
   const rainy = weather === "rain" || weather === "storm";
   const stormy = weather === "storm";
 
-  // ciel violet-nuit
-  const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
-  if (stormy) { sky.addColorStop(0, "#0a0614"); sky.addColorStop(1, "#1a1230"); }
-  else { sky.addColorStop(0, "#1a0f2e"); sky.addColorStop(1, "#3a2a55"); }
-  ctx.fillStyle = sky;
-  ctx.fillRect(0, 0, W, GROUND_Y);
-
-  // étoiles timides
-  const starA = rainy ? 0.2 : 0.7;
-  for (let i = 0; i < 40; i++) {
-    const sxx = (i * 139.1) % W;
-    const syy = (i * 71.3) % (GROUND_Y - 160);
-    ctx.globalAlpha = (0.3 + Math.abs(Math.sin(t * 1.2 + i)) * 0.5) * starA;
-    ctx.fillStyle = "#e8e0ff";
-    ctx.beginPath();
-    ctx.arc(sxx, syy, i % 6 === 0 ? 1.6 : 1, 0, Math.PI * 2);
-    ctx.fill();
+  // Fond PNG plat (manoir + tribunes + van) si chargé ; sinon fallback canvas
+  if (typeof spriteReady === "function" && spriteReady(SPRITES.manoirBg)) {
+    const img = SPRITES.manoirBg;
+    // Aligne le bas du décor sur la ligne de sol du jeu
+    const drawH = GROUND_Y;
+    const drawW = W;
+    ctx.drawImage(img, 0, 0, img.naturalWidth, img.naturalHeight, 0, 0, drawW, drawH);
+  } else {
+    // Fallback vectoriel (ancien rendu)
+    const sky = ctx.createLinearGradient(0, 0, 0, GROUND_Y);
+    if (stormy) { sky.addColorStop(0, "#0a0614"); sky.addColorStop(1, "#1a1230"); }
+    else { sky.addColorStop(0, "#1a0f2e"); sky.addColorStop(1, "#3a2a55"); }
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, W, GROUND_Y);
+    const starA = rainy ? 0.2 : 0.7;
+    for (let i = 0; i < 40; i++) {
+      const sxx = (i * 139.1) % W;
+      const syy = (i * 71.3) % (GROUND_Y - 160);
+      ctx.globalAlpha = (0.3 + Math.abs(Math.sin(t * 1.2 + i)) * 0.5) * starA;
+      ctx.fillStyle = "#e8e0ff";
+      ctx.beginPath();
+      ctx.arc(sxx, syy, i % 6 === 0 ? 1.6 : 1, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    const moon = celestialPos();
+    ctx.fillStyle = "rgba(255,230,160,0.15)";
+    ctx.beginPath(); ctx.arc(moon.x, moon.y, 42, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = rainy ? "rgba(230,210,150,0.55)" : "#f5e6b8";
+    ctx.beginPath(); ctx.arc(moon.x, moon.y, 28, 0, Math.PI * 2); ctx.fill();
+    if (rainy) drawClouds(stormy ? "rgba(30,25,45,0.95)" : "rgba(55,45,75,0.88)");
+    drawHillLayer(GROUND_Y - 100, "#1a1528", 0.1,
+      [[80, GROUND_Y - 140], [280, GROUND_Y - 110], [500, GROUND_Y - 150], [720, GROUND_Y - 115], [880, GROUND_Y - 135]]);
+    drawHillLayer(GROUND_Y - 85, "#221c35", 0.28,
+      [[160, GROUND_Y - 115], [400, GROUND_Y - 95], [620, GROUND_Y - 125], [820, GROUND_Y - 100]]);
+    drawHauntedManor(W * 0.28, GROUND_Y - 38, t, stormy);
+    drawDeadTrees();
+    drawGravestones();
+    drawCrowd();
+    drawMysteryMachine(W * 0.78, GROUND_Y - 8, t);
   }
-  ctx.globalAlpha = 1;
 
-  // lune jaunâtre voilée
-  const moon = celestialPos();
-  ctx.fillStyle = "rgba(255,230,160,0.15)";
-  ctx.beginPath(); ctx.arc(moon.x, moon.y, 42, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = rainy ? "rgba(230,210,150,0.55)" : "#f5e6b8";
-  ctx.beginPath(); ctx.arc(moon.x, moon.y, 28, 0, Math.PI * 2); ctx.fill();
-
-  if (rainy) drawClouds(stormy ? "rgba(30,25,45,0.95)" : "rgba(55,45,75,0.88)");
-
-  // collines sombres
-  drawHillLayer(GROUND_Y - 100, "#1a1528", 0.1,
-    [[80, GROUND_Y - 140], [280, GROUND_Y - 110], [500, GROUND_Y - 150], [720, GROUND_Y - 115], [880, GROUND_Y - 135]]);
-  drawHillLayer(GROUND_Y - 85, "#221c35", 0.28,
-    [[160, GROUND_Y - 115], [400, GROUND_Y - 95], [620, GROUND_Y - 125], [820, GROUND_Y - 100]]);
-
-  drawHauntedManor(W * 0.28, GROUND_Y - 38, t, stormy);
-  drawDeadTrees();
-  drawGravestones();
-  drawCrowd();
-  drawMysteryMachine(W * 0.78, GROUND_Y - 8, t);
-
-  // sol : terre sombre / herbe morte
+  // Sol jeu (bande sous les pieds) — toujours canvas pour coller à GROUND_Y
   const ground = ctx.createLinearGradient(0, GROUND_Y - 38, 0, H);
   ground.addColorStop(0, rainy ? "#3a3830" : "#4a4638");
   ground.addColorStop(1, "#2a2820");
@@ -611,7 +612,6 @@ function drawBgManoir() {
   ctx.fillStyle = "rgba(0,0,0,0.2)";
   ctx.fillRect(0, GROUND_Y, W, 2);
 
-  // brins d'herbes mortes
   ctx.strokeStyle = "rgba(80,70,40,0.45)";
   ctx.lineWidth = 1.4;
   for (let i = 0; i < 36; i++) {
@@ -621,11 +621,10 @@ function drawBgManoir() {
     ctx.beginPath(); ctx.moveTo(gx, gy + 4); ctx.lineTo(gx + lean, gy - 4); ctx.stroke();
   }
 
-  // lucioles vertes « fantômes » par temps clair
   if (!rainy) {
     for (let i = 0; i < 6; i++) {
-      let fx = W / 2 + Math.sin(t * (0.25 + i * 0.06) + i * 2) * (W * 0.4);
-      let fy = GROUND_Y - 50 - Math.abs(Math.sin(t * (0.4 + i * 0.08) + i)) * 100;
+      const fx = W / 2 + Math.sin(t * (0.25 + i * 0.06) + i * 2) * (W * 0.4);
+      const fy = GROUND_Y - 50 - Math.abs(Math.sin(t * (0.4 + i * 0.08) + i)) * 100;
       const a = 0.25 + Math.abs(Math.sin(t * 2.2 + i)) * 0.55;
       ctx.fillStyle = "rgba(120,255,160," + (a * 0.2).toFixed(2) + ")";
       ctx.beginPath(); ctx.arc(fx, fy, 5, 0, Math.PI * 2); ctx.fill();

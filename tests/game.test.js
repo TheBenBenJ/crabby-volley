@@ -314,6 +314,7 @@ test("sprites Scooby / Mystery Machine déclarés", () => {
   assert.ok(g.SPRITES, "SPRITES exposé");
   assert.ok(g.SPRITES.scoobyRun, "sprite run");
   assert.ok(g.SPRITES.mysteryVan, "sprite van");
+  assert.ok(g.SPRITES.manoirBg, "fond manoir");
   assert.ok(Array.isArray(g.SPRITES.scoobyWalk) && g.SPRITES.scoobyWalk.length === 8, "cycle walk 8 frames");
   assert.strictEqual(g.spriteReady(null), false);
   assert.strictEqual(g.spriteReady(g.SPRITES.scoobyRun), false, "stub Image → fallback canvas");
