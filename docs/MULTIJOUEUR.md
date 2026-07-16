@@ -19,29 +19,28 @@ Client A ◀──état──── │ (Node)  │ ────état──▶ C
 - **Plus** : anti-triche naturel, pas de problème NAT, reconnexion simple.
 - **Moins** : il faut héberger et payer un serveur, latence = 2 × (client↔serveur).
 
-### B. Pair-à-pair WebRTC, hôte autoritaire (recommandé)
+### B. Pair-à-pair WebRTC, ownership balle par camp (retenu)
 
 ```
         signalisation (uniquement pour se trouver)
 Hôte ◀─────────── serveur de signalisation ───────────▶ Invité
   │                                                        │
   └──────────── DataChannel WebRTC (direct) ───────────────┘
-       Invité ──▶ inputs (60 Hz)
-       Hôte  ──▶ snapshots (20 Hz) + événements (points, sons)
+       Invité ──▶ inputs 60 Hz (+ état balle si camp droit)
+       Hôte  ──▶ snapshots ~30 Hz (monde + ballOwner)
 ```
 
-- L'**hôte** fait tourner la vraie simulation (comme aujourd'hui en local).
-- L'**invité** envoie ses entrées, affiche les snapshots reçus, et prédit
-  localement son propre personnage pour masquer la latence.
-- La signalisation (échange initial d'offres SDP) peut passer par **PeerJS**
-  (serveur cloud gratuit) : zéro infrastructure à héberger pour un jeu à 2.
-- **Plus** : latence minimale (direct), pas de serveur de jeu.
-- **Moins** : ~10 % des réseaux exigent un TURN (relais) ; triche possible côté hôte
-  (acceptable entre amis).
-
-**Recommandation : B avec PeerJS**, car le jeu est 1v1 entre amis et
-l'infrastructure requise est nulle. L'option A reste la meilleure si un jour
-il y a un matchmaking public.
+- **Ownership balle** : le joueur du camp où se trouve la balle en simule la
+  physique (hits locaux instantanés). Au franchissement du filet (hystérésis
+  `BALL_OWN_MARGIN`), la prio passe à l'autre. L'hôte **valide toujours les
+  points** (l'invité différé `awardPoint` → champ `pt` du paquet balle).
+- **Corps** : chacun prédit son perso ; l'hôte intègre les inputs invité et
+  diffuse le monde distant.
+- **Exceptions** (hôte pleinement autoritaire) : Smash Battle, 2v2, secours si
+  l'invité n'envoie plus la balle (`BALL_STALE_MS`).
+- Signalisation via **PeerJS** ; TURN de secours pour les NAT stricts.
+- **Plus** : défenses « collantes » des deux côtés, pas de serveur de jeu.
+- **Moins** : handoff filet sensible ; triche possible (acceptable entre amis).
 
 ### Variante écartée : lockstep déterministe pur
 
@@ -54,10 +53,10 @@ et servira de filet de sécurité.
 
 ## 2. Modèle de synchronisation retenu
 
-| Rôle   | Simule ?             | Envoie                        | Reçoit          |
-|--------|----------------------|-------------------------------|-----------------|
-| Hôte   | Oui (autorité)       | snapshot ~20 Hz + événements  | inputs invité   |
-| Invité | Prédiction locale    | inputs à chaque tick (60 Hz)  | snapshots       |
+| Rôle   | Simule ?                                      | Envoie                         | Reçoit        |
+|--------|-----------------------------------------------|--------------------------------|---------------|
+| Hôte   | Corps + balle si `ballOwner===0` (ou secours) | snapshot ~30 Hz                | inputs (+balle)|
+| Invité | Son perso + balle si `ballOwner===1`          | inputs 60 Hz (+balle si owner) | snapshots     |
 
 - **Tick fixe 60 Hz** : la simulation avance par pas constants, jamais liés au
   framerate ni à l'horloge murale.

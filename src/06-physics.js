@@ -176,6 +176,8 @@ function ballBlobCollision(blob) {
 }
 
 function updateBall() {
+  // Point déjà armé côté invité (ownership) : on fige en attendant la validation hôte.
+  if (ballScoreLock) return;
   // balle crevée : elle reste plantée sur le bec de celui qui l'a crevée,
   // puis le point est accordé à l'adversaire après un court instant.
   if (ball.popped) {

@@ -4,11 +4,46 @@
 // ---------- Instantanés (préparation du mode en ligne) ----------
 // L'hôte enverra périodiquement getSnapshot() ; l'invité l'applique via
 // applySnapshot() pour se resynchroniser. Voir MULTIJOUEUR.md.
+
+// Propriétaire de la balle (1v1) : camp où elle se trouve, avec hystérésis
+// autour du filet + cas spéciaux (service figé, Smash Battle → hôte).
+function resolveBallOwner(prev) {
+  if (battle.active) return 0;
+  if (ball.frozen && !ball.popped) return servingSide;
+  if (ball.x < NET_X - BALL_OWN_MARGIN) return 0;
+  if (ball.x > NET_X + BALL_OWN_MARGIN) return 1;
+  return prev === 0 || prev === 1 ? prev : (ball.x < NET_X ? 0 : 1);
+}
+
+function packBallState() {
+  return {
+    x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, a: ball.angle,
+    f: ball.frozen ? 1 : 0, p: ball.popped ? 1 : 0, sm: ball.smash | 0,
+    lts: ball.lastTouchSide, ltt: ball.lastTouchTick,
+    t0: ball.touches[0], t1: ball.touches[1],
+    own: ballOwner, rs: rngSeed,
+    pt: pendingNetPoint ? [pendingNetPoint.side, pendingNetPoint.reason] : null
+  };
+}
+
+function applyBallState(b) {
+  if (!b) return;
+  ball.x = b.x; ball.y = b.y; ball.vx = b.vx; ball.vy = b.vy;
+  ball.angle = b.a !== undefined ? b.a : ball.angle;
+  ball.frozen = !!b.f; ball.popped = !!b.p;
+  ball.smash = b.sm || 0;
+  ball.lastTouchSide = b.lts;
+  ball.lastTouchTick = b.ltt !== undefined ? b.ltt : -999;
+  ball.touches = [b.t0 | 0, b.t1 | 0];
+  if (b.own === 0 || b.own === 1) ballOwner = b.own;
+  if (b.rs !== undefined) rngSeed = b.rs;
+}
+
 function getSnapshot() {
   return {
     state, servingSide, pointTimer, pointMsg, tick, serveCountdown,
     scores: [scores[0], scores[1]],
-    rngSeed, weather, weatherTimer, bombMode, bombTimer,
+    rngSeed, weather, weatherTimer, bombMode, bombTimer, ballOwner,
     streak: [streak[0], streak[1]], superCharge: [superCharge[0], superCharge[1]],
     battle: { active: battle.active, t: battle.t,
               count: [battle.count[0], battle.count[1]],
@@ -35,6 +70,7 @@ function applySnapshot(s) {
   pointTimer = s.pointTimer; pointMsg = s.pointMsg; tick = s.tick; serveCountdown = s.serveCountdown || 0;
   scores[0] = s.scores[0]; scores[1] = s.scores[1];
   rngSeed = s.rngSeed;
+  if (s.ballOwner === 0 || s.ballOwner === 1) ballOwner = s.ballOwner;
   if (s.streak) { streak[0] = s.streak[0]; streak[1] = s.streak[1]; }
   if (s.superCharge) { superCharge[0] = s.superCharge[0]; superCharge[1] = s.superCharge[1]; }
   if (s.weather !== undefined) { weather = s.weather; weatherTimer = s.weatherTimer; }

@@ -349,6 +349,16 @@ let activeBlobs = [blobL, blobR];
 let bombMode = false;             // règle « patate chaude » activée ?
 let bombTimer = 0;                // ticks restants avant explosion
 let bombFlash = 0;                // éclair d'explosion plein écran (visuel, 1→0)
+
+// ---------- Ownership balle (1v1 en ligne) ----------
+// 0 = camp gauche (hôte) simule la balle ; 1 = camp droit (invité).
+// En offline / 2v2, ignoré (l'hôte ou le solo simule tout).
+let ballOwner = 0;
+// Quand l'invité simule la balle, awardPoint est différé : on empile le point
+// pour que l'hôte le valide (évite les scores qui divergent).
+let netDeferScore = false;
+let pendingNetPoint = null;       // { side, reason } | null
+let ballScoreLock = false;        // invité : point déjà armé, on arrête la physique balle
 let bombTime = BOMB_TIME;         // durée de mèche choisie (ticks) : 5/7/10 s
 // options du menu « Durée de la bombe » (300/420/600 ticks à 60 Hz)
 const BOMB_DURATIONS = [

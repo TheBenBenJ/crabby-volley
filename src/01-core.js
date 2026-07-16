@@ -31,6 +31,11 @@ const SMASH_VX = 14, SMASH_VY = 12; // vitesse du smash destructeur
 // --- Mode Bombe ---
 const BOMB_TIME = 600;      // 10 s à 60 Hz : durée de la mèche avant explosion
 
+// --- Ownership balle (1v1 en ligne) ---
+// Zone morte autour du filet : on ne change pas de propriétaire tant que la
+// balle rebondit sur le poteau (évite le flip-flop owner 0↔1).
+const BALL_OWN_MARGIN = 14;
+
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
