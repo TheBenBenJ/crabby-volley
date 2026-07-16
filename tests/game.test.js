@@ -288,7 +288,9 @@ test("soft ownership : pack/applyBallState round-trip", () => {
   g.ball.frozen = false;
   g.ball.x = 620; g.ball.y = 150; g.ball.vx = -3; g.ball.vy = 4;
   g.ball.angle = 1.2; g.ball.touches = [1, 2];
-  const packed = g.packBallState();
+  const packed = g.packBallState(true);
+  assert.strictEqual(packed.own, 1, "own:1 quand l'invité simule");
+  assert.strictEqual(g.packBallState(false).own, 0, "own:0 hors possession");
   g.ball.x = 0; g.ball.y = 0; g.ball.vx = 0; g.ball.vy = 0;
   g.applyBallState(packed);
   assert.strictEqual(g.ball.x, 620);

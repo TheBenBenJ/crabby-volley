@@ -72,6 +72,7 @@ let guestBall = null;          // dernier état balle reçu de l'invité
 let lastGuestBallAt = 0;       // horodatage de ce paquet
 let lastGuestPtSeq = 0;        // dernier point différé consommé (idempotence)
 let guestBallHold = 0;         // invité : renvoi balle après sortie de zone
+let guestOwningBall = false;   // invité : front montant → seed depuis le dernier snap
 
 // --- 2v2 en ligne ---
 // L'hôte accepte jusqu'à 3 invités. Chaque joueur occupe un « slot » = son
@@ -324,7 +325,21 @@ function onNetData(m) {
         guestIn = { left: !!m.l, right: !!m.r, jump: !!m.j, super: !!m.sp };
         setX(blobR, !!m.x);
       }
-      if (m.b) { guestBall = m.b; lastGuestBallAt = performance.now(); }
+      if (m.b) {
+        if (m.b.own === 1) {
+          guestBall = m.b;
+          lastGuestBallAt = performance.now();
+        } else {
+          // own:0 = sortie de zone / hold : une dernière pose puis on invalide
+          // pour ne pas réappliquer ce fantôme au prochain croisement
+          if (guestBall && guestBall.own === 1) {
+            guestBall = m.b; // conserve pt éventuel une frame
+            lastGuestBallAt = performance.now();
+          } else {
+            hostInvalidateGuestBall();
+          }
+        }
+      }
       break;
     case "snap": // invité : instantané de l'hôte
       if (netRole !== "guest" || m.m !== matchId) break;
@@ -369,6 +384,7 @@ function guestResetMatch() {
   pendingNetPoint = null;
   netPtSeq = 0;
   guestBallHold = 0;
+  guestOwningBall = false;
   ballScoreLock = false;
 }
 
@@ -379,14 +395,38 @@ function guestOwnsBall() {
          !ball.popped && ballInGuestOwnZone(ball.x);
 }
 
-// Hôte : appliquer la balle invité si paquet frais et encore à droite du
-// poteau. Seuil plus bas que GUEST_BALL_MARGIN pour consommer les paquets
-// de sortie de zone (hold) sans jamais laisser l'invité simuler au filet.
+// Hôte : n'applique la balle invité QUE si l'invité revendique explicitement
+// la possession (own:1) ET que l'hôte a déjà la balle à droite. Sinon un
+// paquet périmé du rally / de la sortie précédente téléportait la balle
+// vers le sol → « tombe toute seule à l'arrivée dans le camp adverse ».
 function hostUsesGuestBall() {
-  const HOST_ACCEPT = NET_X + 24; // juste à droite du volume poteau+balle
+  const HOST_ACCEPT = NET_X + 24;
   return mode === "1v1" && !battle.active &&
-         guestBall && (performance.now() - lastGuestBallAt) < BALL_STALE_MS &&
-         guestBall.x > HOST_ACCEPT;
+         guestBall && guestBall.own === 1 &&
+         (performance.now() - lastGuestBallAt) < BALL_STALE_MS &&
+         guestBall.x > HOST_ACCEPT &&
+         ball.x > NET_X;
+}
+
+function hostInvalidateGuestBall() {
+  guestBall = null;
+  lastGuestBallAt = 0;
+}
+
+// Au moment où l'invité prend la balle : partir du DERNIER snap hôte
+// (présent), pas de l'interpolation retardée (sinon la balle « chute » d'un coup).
+function guestSeedBallFromSnap() {
+  const n = snapBuf.length;
+  if (!n) return;
+  const b = snapBuf[n - 1].ball;
+  if (!b) return;
+  ball.x = b.x; ball.y = b.y; ball.vx = b.vx; ball.vy = b.vy;
+  ball.angle = b.angle;
+  ball.frozen = b.frozen; ball.popped = !!b.popped;
+  ball.smash = b.smash || 0;
+  ball.lastTouchSide = b.lastTouchSide;
+  ball.touches = [b.touches[0], b.touches[1]];
+  ballScoreLock = false;
 }
 
 // Point différé invité — idempotent par séquence (anti multi-score).
@@ -601,14 +641,17 @@ function netUpdate() {
         const elapsed = POINT_MAX_WAIT - pointTimer;
         if ((elapsed >= POINT_MIN_WAIT && (pointAdvanceRequested() || guestIn.jump)) || pointTimer <= 0) startRally();
       } else if (state === "play" || state === "serve") {
-        // Soft ownership : balle clairement à droite + paquet frais →
-        // on pose la balle invité et on ne simule que les corps.
+        // Soft ownership : invité revendique (own:1) + balle déjà à droite →
+        // on pose SA balle et on ne simule que les corps.
         if (hostUsesGuestBall()) {
           applyBallState(guestBall);
           stepGame(onlineLocalInput(), guestIn, null, { skipBall: true });
           hostTakeGuestBallPoint();
         } else {
+          // reprise hôte : jeter tout paquet balle fantôme (sortie / ancien rally)
+          if (ball.x <= NET_X + GUEST_BALL_MARGIN) hostInvalidateGuestBall();
           stepGame(onlineLocalInput(), guestIn);
+          if (ball.x <= NET_X + 24) hostInvalidateGuestBall();
         }
       }
     }
@@ -645,6 +688,10 @@ function netUpdate() {
       let ballPkt = null;
       if (guestOwnsBall()) {
         // Soft ownership : hits locaux instantanés dans le camp droit
+        if (!guestOwningBall) {
+          guestOwningBall = true;
+          guestSeedBallFromSnap(); // anti-chute : sync sur le présent hôte
+        }
         guestSyncRemoteBlobs();
         netDeferScore = true;
         const me = activeBlobs[mySlot];
@@ -660,13 +707,17 @@ function netUpdate() {
         }
         if (state === "serve" && !ball.frozen) state = "play";
         netDeferScore = false;
-        ballPkt = packBallState();
-        if (!guestOwnsBall()) guestBallHold = GUEST_BALL_HOLD; // sortie de zone
+        ballPkt = packBallState(true);
+        if (!guestOwnsBall()) {
+          guestOwningBall = false;
+          guestBallHold = GUEST_BALL_HOLD; // sortie de zone
+        }
       } else if (!battle.active) {
+        guestOwningBall = false;
         activeBlobs[mySlot].update(input);
         if (guestBallHold > 0) {
           guestBallHold--;
-          ballPkt = packBallState(); // dernière trajectoire pour l'hôte
+          ballPkt = packBallState(false); // own:0 — hôte n'applique plus
         }
       }
 
@@ -721,6 +772,7 @@ function applyDiscrete(d) {
     pendingNetPoint = null;
     ballScoreLock = false;
     guestBallHold = 0;
+    guestOwningBall = false;
     ball.x = d.ball.x; ball.y = d.ball.y;
     ball.vx = d.ball.vx; ball.vy = d.ball.vy;
     ball.angle = d.ball.angle;

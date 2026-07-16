@@ -11,7 +11,7 @@ function ballInGuestOwnZone(x) {
   return x > NET_X + GUEST_BALL_MARGIN;
 }
 
-function packBallState() {
+function packBallState(owning) {
   return {
     x: ball.x, y: ball.y, vx: ball.vx, vy: ball.vy, a: ball.angle,
     f: ball.frozen ? 1 : 0, p: ball.popped ? 1 : 0, sm: ball.smash | 0,
@@ -19,6 +19,9 @@ function packBallState() {
     t0: ball.touches[0], t1: ball.touches[1],
     rs: rngSeed,
     sc: serveCountdown,
+    // own:1 = invité simule vraiment (l'hôte n'accepte QUE ça — évite qu'un
+    // paquet de sortie / rally précédent fasse « tomber » la balle à l'arrivée)
+    own: owning ? 1 : 0,
     // point différé renvoyé jusqu'à validation hôte (canal non fiable)
     pt: pendingNetPoint ? [pendingNetPoint.side, pendingNetPoint.reason, pendingNetPoint.seq | 0] : null
   };

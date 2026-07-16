@@ -78,6 +78,8 @@ function startRally() {
   bombTimer = bombTime; // la mèche ne se consume qu'une fois la balle en jeu
   pendingNetPoint = null;
   ballScoreLock = false;
+  // soft ownership : pas de balle fantôme au nouveau service
+  if (typeof hostInvalidateGuestBall === "function") hostInvalidateGuestBall();
   state = "serve";
   serveCountdown = 69; // 3·2·1 (63, ~0.35s chacun) + "GO !" (6)
 }
