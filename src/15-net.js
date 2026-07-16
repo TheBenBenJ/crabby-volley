@@ -727,16 +727,16 @@ function guestApplyView() {
   if (!n) return;
   const last = snapBuf[n - 1];
 
-  // --- extrapolation (dead reckoning) ---
-  // Si la tête de lecture a dépassé le dernier snapshot (paquet en retard),
-  // on prolonge la balle et l'adversaire avec leur vitesse au lieu de figer
-  // l'image : le jeu reste fluide malgré la gigue réseau.
+  // --- extrapolation (dead reckoning AVEC filet) ---
+  // Sans collision filet ici, la balle traversait le poteau entre deux snaps
+  // puis le suivant la ramenait → « coincée au filet à chaque échange » en
+  // ligne (jamais hors-ligne, où updateBall gère le filet chaque tick).
   if (renderTick > last.tick + 0.001 && last.state === "play" &&
       !last.ball.frozen && !last.ball.popped && !(last.battle && last.battle.active)) {
     const dt = Math.min(renderTick - last.tick, EXTRAP_MAX);
-    ball.x = Math.max(BALL_R, Math.min(W - BALL_R, last.ball.x + last.ball.vx * dt));
-    ball.y = last.ball.y + last.ball.vy * dt + 0.5 * GRAV_BALL * dt * dt;
-    ball.angle = last.ball.angle + last.ball.vx * 0.03 * dt;
+    const pb = predictBallMotion(last.ball.x, last.ball.y, last.ball.vx, last.ball.vy, dt);
+    ball.x = pb.x; ball.y = pb.y;
+    ball.angle = last.ball.angle + ((pb.vx + last.ball.vx) * 0.5) * 0.03 * dt;
     activeBlobs.forEach((b, i) => {
       if (i === mySlot) return;
       const b1 = last.blobs[i]; if (!b1) return;
@@ -759,9 +759,41 @@ function guestApplyView() {
   if (s0.state !== s1.state) a = 1; // reset de manche : pas de glissade
 
   const L = (u, v) => u + (v - u) * a;
-  ball.x = L(s0.ball.x, s1.ball.x);
-  ball.y = L(s0.ball.y, s1.ball.y);
-  ball.angle = L(s0.ball.angle, s1.ball.angle);
+  // Passage de filet côté invité :
+  //  - lob / clear (y au NET_X ≤ sommet) → lerp pur (fluide, pas de « handoff »)
+  //  - vraie collision poteau entre 2 snaps → dead-reckoning physique depuis s0
+  //    (pas de freeze puis téléport à a=0.55, qui donnait l'impression d'un
+  //    rebond / passage de responsabilité)
+  const x0 = s0.ball.x, y0 = s0.ball.y, x1 = s1.ball.x, y1 = s1.ball.y;
+  let yAtNet = null;
+  if ((x0 - NET_X) * (x1 - NET_X) < 0 && Math.abs(x1 - x0) > 1e-6) {
+    yAtNet = y0 + ((NET_X - x0) / (x1 - x0)) * (y1 - y0);
+  }
+  const clearsOver = yAtNet !== null && yAtNet <= NET_TOP + 1;
+  const throughPost = yAtNet !== null && yAtNet > NET_TOP + 1;
+  if (throughPost && s0.tick !== s1.tick &&
+      s0.state === "play" && !s0.ball.frozen && !s0.ball.popped) {
+    const dt = Math.max(0, renderTick - s0.tick);
+    const pb = predictBallMotion(x0, y0, s0.ball.vx, s0.ball.vy, dt);
+    // légère correction vers s1 pour rester collé à l'hôte
+    const k = a * 0.4;
+    ball.x = pb.x + (x1 - pb.x) * k;
+    ball.y = pb.y + (y1 - pb.y) * k;
+    ball.angle = L(s0.ball.angle, s1.ball.angle);
+  } else {
+    ball.x = L(x0, x1);
+    ball.y = L(y0, y1);
+    ball.angle = L(s0.ball.angle, s1.ball.angle);
+    // clear : on n'agrafe PAS la balle au poteau (le clamp gauche→droite
+    // faisait exactement le « rebond de handoff » au passage)
+    if (!clearsOver && ball.y > NET_TOP + 2) {
+      const leftC = NET_X - NET_W / 2 - BALL_R;
+      const rightC = NET_X + NET_W / 2 + BALL_R;
+      if (ball.x > leftC && ball.x < rightC) {
+        ball.x = ball.x < NET_X ? leftC : rightC;
+      }
+    }
+  }
   // tous les joueurs sauf le sien (prédit localement) : position interpolée
   activeBlobs.forEach((b, i) => {
     if (i === mySlot) return;

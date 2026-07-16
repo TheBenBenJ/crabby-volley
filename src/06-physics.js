@@ -26,6 +26,81 @@ const ball = {
   }
 };
 
+// ---------- Filet (partagé simu + vue invité) ----------
+// Résout prev→curr contre le filet. Pure (pas de sons). Utilisée par updateBall
+// ET par la prédiction visuelle de l'invité (sinon dead-reckoning traverse le
+// poteau puis le snap ramène = « balle coincée à chaque échange » en ligne).
+function resolveNetBall(prevX, prevY, x, y, vx, vy) {
+  const nl = NET_X - NET_W / 2, nr = NET_X + NET_W / 2;
+  const leftC = nl - BALL_R, rightC = nr + BALL_R;
+  const TOP_SLACK = 5;
+  let hit = false;
+  const yAlong = (atX) => {
+    if (Math.abs(x - prevX) < 1e-6) return y;
+    return prevY + ((atX - prevX) / (x - prevX)) * (y - prevY);
+  };
+  let clearsOver = false;
+  if ((prevX - NET_X) * (x - NET_X) < 0 && Math.abs(vx) > 1e-6) {
+    clearsOver = yAlong(NET_X) <= NET_TOP;
+  }
+  if (clearsOver) return { x, y, vx, vy, hit: false };
+
+  const tryFace = (dir) => {
+    const face = dir > 0 ? leftC : rightC;
+    const crossing = dir > 0
+      ? (vx > 0 && prevX <= face && x > face)
+      : (vx < 0 && prevX >= face && x < face);
+    if (!crossing) return false;
+    const yHit = yAlong(face);
+    // Au-dessus du sommet : la face latérale n'existe pas — on laisse
+    // passer (évite un faux « rebond de sommet » avant le vrai clearsOver).
+    if (yHit <= NET_TOP) return false;
+    // Frôle le bord supérieur du filet → petit rebond vers le haut.
+    if (yHit <= NET_TOP + TOP_SLACK) {
+      if (y > NET_TOP) y = NET_TOP;
+      if (vy > -1.5) vy = -Math.max(2.5, Math.abs(vy) * 0.5 + 1.2);
+      hit = true;
+      return true;
+    }
+    x = face;
+    vx = (dir > 0 ? -1 : 1) * Math.abs(vx) * 0.8;
+    hit = true;
+    return true;
+  };
+  if (!tryFace(+1)) tryFace(-1);
+
+  if (x > leftC && x < rightC && y > NET_TOP + TOP_SLACK) {
+    if (x < NET_X) { x = leftC; vx = -Math.max(2.5, Math.abs(vx) * 0.85); }
+    else { x = rightC; vx = Math.max(2.5, Math.abs(vx) * 0.85); }
+    hit = true;
+  } else if (x > leftC && x < rightC && y > NET_TOP && y <= NET_TOP + TOP_SLACK) {
+    y = NET_TOP;
+    if (vy > -1.5) vy = -2.5;
+    hit = true;
+  }
+  return { x, y, vx, vy, hit };
+}
+
+// Dead-reckoning balle avec filet/gravité (vue invité uniquement).
+function predictBallMotion(bx, by, bvx, bvy, dt) {
+  let x = bx, y = by, vx = bvx, vy = bvy;
+  let rem = Math.max(0, Math.min(dt, EXTRAP_MAX || 8));
+  const lift = (typeof ballLift === "function") ? ballLift() : 1;
+  while (rem > 1e-6) {
+    const step = Math.min(1, rem);
+    const ox = x, oy = y;
+    vy += GRAV_BALL * lift * step;
+    x += vx * step;
+    y += vy * step;
+    const r = resolveNetBall(ox, oy, x, y, vx, vy);
+    x = r.x; y = r.y; vx = r.vx; vy = r.vy;
+    if (x - BALL_R < 0) { x = BALL_R; vx = Math.abs(vx) * 0.9; }
+    if (x + BALL_R > W) { x = W - BALL_R; vx = -Math.abs(vx) * 0.9; }
+    rem -= step;
+  }
+  return { x, y, vx, vy };
+}
+
 // ---------- Physique balle ----------
 function clampBallSpeed() {
   const sp = Math.hypot(ball.vx, ball.vy);
@@ -214,61 +289,10 @@ function updateBall() {
   if (ball.x - BALL_R < 0)   { ball.x = BALL_R;     ball.vx = Math.abs(ball.vx) * 0.9;  beep(300, 0.04); }
   if (ball.x + BALL_R > W)   { ball.x = W - BALL_R; ball.vx = -Math.abs(ball.vx) * 0.9; beep(300, 0.04); }
 
-  // filet — physique type volley :
-  //  1) Trajectoire qui traverse l'axe AU-DESSUS du sommet → passage libre.
-  //  2) Contact du « bandeau » (y au contact ≈ NET_TOP) → on soulève, on
-  //     GARDE vx (sinon un lob qui frôle est rejeté = balle « coincée »).
-  //  3) Sinon poteau vertical anti-tunnel + éjection si volume chevauché.
-  const nl = NET_X - NET_W / 2, nr = NET_X + NET_W / 2;
-  const prevX = ball.x - ball.vx;
-  const prevY = ball.y - ball.vy;
-  const yAlong = (atX) => {
-    if (Math.abs(ball.x - prevX) < 1e-6) return ball.y;
-    const t = (atX - prevX) / (ball.x - prevX);
-    return prevY + t * (ball.y - prevY);
-  };
-  let clearsOver = false;
-  if ((prevX - NET_X) * (ball.x - NET_X) < 0 && Math.abs(ball.vx) > 1e-6) {
-    clearsOver = yAlong(NET_X) <= NET_TOP;
-  }
-
-  if (!clearsOver) {
-    const leftC = nl - BALL_R, rightC = nr + BALL_R;
-    const TOP_SLACK = 5; // px sous le sommet encore considérés « par-dessus »
-
-    const hitSide = (dir) => {
-      // dir = +1 (vient de la gauche), -1 (vient de la droite)
-      const face = dir > 0 ? leftC : rightC;
-      const crossing = dir > 0
-        ? (ball.vx > 0 && prevX <= face && ball.x > face)
-        : (ball.vx < 0 && prevX >= face && ball.x < face);
-      if (!crossing) return false;
-      const yHit = yAlong(face);
-      if (yHit <= NET_TOP + TOP_SLACK) {
-        // frôle le sommet → laisse passer, pousse un peu vers le haut
-        if (ball.y > NET_TOP) ball.y = NET_TOP;
-        if (ball.vy > -1.5) ball.vy = -Math.max(2.5, Math.abs(ball.vy) * 0.5 + 1.2);
-        return true;
-      }
-      ball.x = face;
-      // dir>+1 (touche face gauche en allant à droite) → rebond vers la gauche
-      ball.vx = (dir > 0 ? -1 : 1) * Math.abs(ball.vx) * 0.8;
-      beep(200, 0.05);
-      return true;
-    };
-
-    if (!hitSide(+1)) hitSide(-1);
-
-    // volume du poteau (sans franchissement détecté) : éjection, sauf frôle sommet
-    if (ball.x > leftC && ball.x < rightC && ball.y > NET_TOP + TOP_SLACK) {
-      if (ball.x < NET_X) { ball.x = leftC; ball.vx = -Math.max(2.5, Math.abs(ball.vx) * 0.85); }
-      else { ball.x = rightC; ball.vx = Math.max(2.5, Math.abs(ball.vx) * 0.85); }
-      beep(200, 0.05);
-    } else if (ball.x > leftC && ball.x < rightC && ball.y > NET_TOP && ball.y <= NET_TOP + TOP_SLACK) {
-      ball.y = NET_TOP;
-      if (ball.vy > -1.5) ball.vy = -2.5;
-    }
-  }
+  // filet (logique partagée avec la prédiction visuelle invité)
+  const nr0 = resolveNetBall(ball.x - ball.vx, ball.y - ball.vy, ball.x, ball.y, ball.vx, ball.vy);
+  if (nr0.hit && !noFx) beep(200, 0.05);
+  ball.x = nr0.x; ball.y = nr0.y; ball.vx = nr0.vx; ball.vy = nr0.vy;
 
   // remise à zéro des touches quand la balle change de camp
   const sideNow = ball.x < NET_X ? 0 : 1;
