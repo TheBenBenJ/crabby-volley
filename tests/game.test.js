@@ -179,5 +179,33 @@ test("IA : le niveau Impitoyable bat un adversaire scripté moyen", () => {
     "l'IA Impitoyable (" + g.scores[1] + ") doit battre le bot (" + g.scores[0] + ")");
 });
 
+test("bombe : fonctionne en 2v2 (mèche à zéro → point à l'autre équipe)", () => {
+  const g = loadGame();
+  g.setVsAI(true); g.setAiLevel(1);
+  g.setMode("2v2");
+  g.setBombMode(true);
+  g.newGame(11);
+  g.setState("play"); g.setServeCountdown(0);
+  // bombe immobile côté GAUCHE, mèche presque finie
+  g.ball.frozen = false; g.ball.x = 180; g.ball.y = 150; g.ball.vx = 0; g.ball.vy = 0;
+  g.setBombTimer(4);
+  const N = { left:false, right:false, jump:false, super:false };
+  const ins = g.getActiveBlobs().map(() => N);
+  for (let i = 0; i < 12; i++) g.stepGame(null, null, ins);
+  assert.strictEqual(g.scores[0] + g.scores[1], 1, "un point doit tomber à l'explosion en 2v2");
+  assert.strictEqual(g.scores[1], 1, "bombe à gauche → l'équipe de droite marque");
+});
+
+test("bombe : durée choisie appliquée (startRally) et présente dans le snapshot", () => {
+  const g = loadGame();
+  g.setVsAI(true); g.setAiLevel(1);
+  g.setBombMode(true); g.setBombTime(300); // 5 secondes
+  g.newGame(3); // startRally doit initialiser bombTimer = bombTime
+  assert.strictEqual(g.getBombTimer(), 300, "la mèche démarre à la durée choisie (5 s)");
+  const snap = g.getSnapshot();
+  assert.strictEqual(snap.bombMode, true, "bombMode sérialisé pour l'invité");
+  assert.strictEqual(snap.bombTimer, 300, "bombTimer sérialisé pour le compte à rebours invité");
+});
+
 console.log("\n" + pass + " réussis, " + fail + " échoués");
 process.exit(fail ? 1 : 0);

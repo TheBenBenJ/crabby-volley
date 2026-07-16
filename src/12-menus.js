@@ -51,15 +51,24 @@ function handleMenuKeys(code, key) {
     // Étape finale avant le choix d'animal : type de partie. La 2v2 (toi + IA
     // coéquipière vs 2 IA) n'a de sens que côté Solo — hors-ligne, seul le
     // slot 0 est humain (voir update()/aiInput2v2 dans 08-ai.js/13-simulation.js).
+    // La Bombe est désormais un MODIFICATEUR : dispo en 1v1 comme en 2v2.
+    // Choisir une option Bombe amène à l'écran de durée (5/7/10 s).
     if (pendingMode.vsAI) {
       if (code === "Digit1") { startAnimalSelect(); }                              // 1v1 classique
       if (code === "Digit2") { pendingMode.mode2v2 = true; startAnimalSelect(); }   // 2v2 (toi + IA vs 2 IA)
-      if (code === "Digit3") { pendingMode.bomb = true; startAnimalSelect(); }      // 💣 Bombe
+      if (code === "Digit3") { pendingMode.bomb = true; state = "bombDuration"; }   // 💣 Bombe 1v1
+      if (code === "Digit4") { pendingMode.bomb = true; pendingMode.mode2v2 = true; state = "bombDuration"; } // 💣 Bombe 2v2
     } else {
       if (code === "Digit1") { startAnimalSelect(); }                              // 1v1 classique
-      if (code === "Digit2") { pendingMode.bomb = true; startAnimalSelect(); }      // 💣 Bombe (2 joueurs)
+      if (code === "Digit2") { pendingMode.bomb = true; state = "bombDuration"; }   // 💣 Bombe (2 joueurs)
     }
     if (code === "Escape") state = pendingMode.vsAI ? "aiDifficulty" : "menu";
+
+  } else if (state === "bombDuration") {
+    // durée de la mèche, commune à tous les modes (offline & hôte online)
+    const d = { Digit1: 0, Digit2: 1, Digit3: 2 }[code];
+    if (d !== undefined) { pendingMode.bombTime = BOMB_DURATIONS[d].ticks; startAnimalSelect(); }
+    if (code === "Escape") state = pendingMode.online ? "onlineMenu" : "gameModeSelect";
 
   } else if (state === "rules") {
     if (code === "Escape" || code === "Enter" || code === "Space" || code === "KeyR") state = "menu";
@@ -67,6 +76,8 @@ function handleMenuKeys(code, key) {
   } else if (state === "onlineMenu") {
     if (code === "Digit1") { pendingMode = { online: true }; startAnimalSelect(); }
     if (code === "Digit3") { pendingMode = { online: true, o2v2: true }; startAnimalSelect(); }
+    if (code === "Digit4") { pendingMode = { online: true, bomb: true }; state = "bombDuration"; }             // 💣 Bombe 1v1 en ligne
+    if (code === "Digit5") { pendingMode = { online: true, o2v2: true, bomb: true }; state = "bombDuration"; }  // 💣 Bombe 2v2 en ligne
     if (code === "Digit2") { joinCode = ""; state = "joinEntry"; }
     if (code === "Escape") state = "menu";
 
@@ -124,20 +135,7 @@ function handleMenuKeys(code, key) {
     const slotT = { Digit1: 0, Digit2: 1, Digit3: 2, Digit4: 3 }[code];
     const visT = visibleTerrainIdx();
     const n = slotT !== undefined && slotT < visT.length ? visT[slotT] : undefined;
-    if (n !== undefined) {
-      terrain = n;
-      if (pendingMode.online) {
-        bombMode = false; // le mode bombe reste hors-ligne pour l'instant
-        if (pendingMode.o2v2) { state = "hostLobby"; initHostPeer2v2(); }
-        else { state = "hostWait"; initHostPeer(); }
-      } else {
-        vsAI = pendingMode.vsAI;
-        if (pendingMode.vsAI) aiLevel = pendingMode.aiLevel;
-        bombMode = !!pendingMode.bomb;
-        setMode(pendingMode.mode2v2 ? "2v2" : "1v1");
-        newGame();
-      }
-    }
+    if (n !== undefined) { terrain = n; commitSetup(); }
     if (code === "Escape") { selPlayer = 0; state = "selectAnimal"; }
 
   } else if (state === "gameover") {
@@ -167,6 +165,24 @@ function handleMenuKeys(code, key) {
 function startAnimalSelect() {
   selPlayer = 0;
   state = "selectAnimal";
+}
+
+// Valide la configuration choisie (fin de selectTerrain) et lance la partie
+// ou l'hébergement en ligne. Point unique : applique bombMode + bombTime
+// (5/7/10 s) pour TOUS les modes — 1v1, 2v2 et en ligne.
+function commitSetup() {
+  bombMode = !!pendingMode.bomb;
+  bombTime = pendingMode.bombTime || BOMB_TIME;
+  if (pendingMode.online) {
+    // l'hôte diffusera bombMode/bombTime dans son message "start" (voir 15-net.js)
+    if (pendingMode.o2v2) { state = "hostLobby"; initHostPeer2v2(); }
+    else { state = "hostWait"; initHostPeer(); }
+  } else {
+    vsAI = pendingMode.vsAI;
+    if (pendingMode.vsAI) aiLevel = pendingMode.aiLevel;
+    setMode(pendingMode.mode2v2 ? "2v2" : "1v1");
+    newGame();
+  }
 }
 
 function newGame(seed) {
@@ -306,14 +322,29 @@ function drawGameModeSelect() {
   const items = pendingMode.vsAI ? [
     ["1  —  1v1 classique", "#fff"],
     ["2  —  2v2 : toi + IA  vs  2 IA", "#ffb26b"],
-    ["3  —  💣 Bombe : renvoie-la avant qu'elle explose !", "#ff7043"]
+    ["3  —  💣 Bombe 1v1", "#ff7043"],
+    ["4  —  💣 Bombe 2v2", "#ff7043"]
   ] : [
     ["1  —  1v1 classique", "#fff"],
-    ["2  —  💣 Bombe : renvoie-la avant qu'elle explose !", "#ff7043"]
+    ["2  —  💣 Bombe 1v1", "#ff7043"]
   ];
-  drawOptionList(items, 220, 52);
+  drawOptionList(items, 205, 46);
   ctx.fillStyle = "rgba(255,255,255,0.7)";
   ctx.font = "17px 'Trebuchet MS', sans-serif";
+  ctx.fillText("Échap : retour", W / 2, 432);
+}
+
+function drawBombDuration() {
+  menuScreenBase("💣 Mode Bombe", "Combien de temps avant l'explosion ?");
+  const items = [
+    ["1  —  5 secondes   (nerveux)", "#ff6b6b"],
+    ["2  —  7 secondes   (équilibré)", "#ffd93d"],
+    ["3  —  10 secondes   (posé)", "#7ed957"]
+  ];
+  drawOptionList(items, 215, 52);
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.font = "17px 'Trebuchet MS', sans-serif";
+  ctx.fillText("La balle est une bombe : renvoie-la avant la fin de la mèche !", W / 2, 400);
   ctx.fillText("Échap : retour", W / 2, 430);
 }
 

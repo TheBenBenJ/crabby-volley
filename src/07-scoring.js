@@ -67,7 +67,7 @@ function startRally() {
   battle.count = [0, 0];
   battle.prevJump = [false, false];
   battle.cooldown = 0;
-  bombTimer = BOMB_TIME; // la mèche ne se consume qu'une fois la balle en jeu
+  bombTimer = bombTime; // la mèche ne se consume qu'une fois la balle en jeu
   state = "serve";
   serveCountdown = 69; // 3·2·1 (63, ~0.35s chacun) + "GO !" (6)
 }

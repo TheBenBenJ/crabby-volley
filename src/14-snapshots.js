@@ -8,7 +8,7 @@ function getSnapshot() {
   return {
     state, servingSide, pointTimer, pointMsg, tick, serveCountdown,
     scores: [scores[0], scores[1]],
-    rngSeed, weather, weatherTimer,
+    rngSeed, weather, weatherTimer, bombMode, bombTimer,
     streak: [streak[0], streak[1]], superCharge: [superCharge[0], superCharge[1]],
     battle: { active: battle.active, t: battle.t,
               count: [battle.count[0], battle.count[1]],
@@ -38,6 +38,7 @@ function applySnapshot(s) {
   if (s.streak) { streak[0] = s.streak[0]; streak[1] = s.streak[1]; }
   if (s.superCharge) { superCharge[0] = s.superCharge[0]; superCharge[1] = s.superCharge[1]; }
   if (s.weather !== undefined) { weather = s.weather; weatherTimer = s.weatherTimer; }
+  if (s.bombMode !== undefined) { bombMode = s.bombMode; bombTimer = s.bombTimer || 0; }
   ball.x = s.ball.x; ball.y = s.ball.y;
   ball.vx = s.ball.vx; ball.vy = s.ball.vy;
   ball.angle = s.ball.angle;

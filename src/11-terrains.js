@@ -747,7 +747,7 @@ function drawNet() {
 
 // ---------- Mode Bombe : dessin de la bombe ----------
 function drawBomb() {
-  const frac = Math.max(0, bombTimer) / BOMB_TIME; // 1 (pleine) → 0 (explosion)
+  const frac = Math.max(0, bombTimer) / (bombTime || BOMB_TIME); // 1 (pleine) → 0 (explosion)
   const danger = 1 - frac;
   const now = performance.now();
 
@@ -918,7 +918,7 @@ function drawBombHUD() {
     ctx.fillRect(gx, GROUND_Y - 160, NET_X, 160);
   }
   const secs = Math.max(0, Math.ceil(bombTimer / 60));
-  const frac = Math.max(0, bombTimer) / BOMB_TIME;
+  const frac = Math.max(0, bombTimer) / (bombTime || BOMB_TIME);
   const low = bombTimer <= 180;
   const col = frac > 0.5 ? "#7ed957" : frac > 0.25 ? "#ffcc00" : "#ff4030";
   const blink = low && Math.floor(performance.now() / 140) % 2 === 0;

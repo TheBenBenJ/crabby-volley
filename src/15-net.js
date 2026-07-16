@@ -239,6 +239,8 @@ function onNetData(m) {
       if (netRole !== "guest") break;
       matchId = m.m;
       terrain = Math.max(0, Math.min(TERRAINS.length - 1, m.terrain | 0));
+      bombMode = !!m.bomb;                          // l'hôte décide de la règle Bombe…
+      bombTime = m.bt || BOMB_TIME;                 // …et de la durée de mèche
       guestResetMatch();
       vsAI = false;
       const clampA = v => Math.max(0, Math.min(ANIMALS.length - 1, v | 0));
@@ -283,7 +285,8 @@ function hostStartMatch() {
   guestIn = { left: false, right: false, jump: false };
   netFrame = 0;
   const seed = (Math.random() * 2 ** 31) | 0;
-  sendRel({ t: "start", m: matchId, seed, terrain, a: [blobL.animal, blobR.animal] });
+  sendRel({ t: "start", m: matchId, seed, terrain, a: [blobL.animal, blobR.animal],
+            bomb: bombMode ? 1 : 0, bt: bombTime });
   vsAI = false;
   setMode("1v1"); mySlot = 0; // hôte 1v1 = Rouge (slot 0)
   newGame(seed);
@@ -418,7 +421,8 @@ function hostStartMatch2v2() {
   });
   for (const g of guests) {
     if (g.rel && g.rel.open) {
-      g.rel.send({ t: "start", m: matchId, mode: "2v2", slot: g.slot, seed, terrain, a: anims });
+      g.rel.send({ t: "start", m: matchId, mode: "2v2", slot: g.slot, seed, terrain, a: anims,
+                   bomb: bombMode ? 1 : 0, bt: bombTime });
     }
   }
 }
@@ -548,6 +552,7 @@ function applyDiscrete(d) {
   if (d.streak) { streak[0] = d.streak[0]; streak[1] = d.streak[1]; }
   if (d.superCharge) { superCharge[0] = d.superCharge[0]; superCharge[1] = d.superCharge[1]; }
   if (d.weather !== undefined) { weather = d.weather; weatherTimer = d.weatherTimer; }
+  if (d.bombMode !== undefined) { bombMode = d.bombMode; bombTimer = d.bombTimer || 0; }
   ball.frozen = d.ball.frozen; ball.popped = !!d.ball.popped;
   ball.smash = d.ball.smash || 0;
   ball.lastTouchSide = d.ball.lastTouchSide;
@@ -574,6 +579,11 @@ function guestDetectEvents(prev, d) {
   if (d.battle && prev.battle) {
     if (d.battle.active && !prev.battle.active) { shake = 6; beep(880, 0.12, "square", 0.18); }
     if (!d.battle.active && prev.battle.active) { shake = 14; beep(180, 0.4, "sawtooth", 0.25); }
+  }
+  // explosion de la bombe : la mèche vient de passer à zéro → éclair + boum
+  if (d.bombMode && prev.bombTimer > 0 && (d.bombTimer || 0) <= 0) {
+    bombFlash = 1; shake = Math.max(shake, 18);
+    beep(70, 0.5, "sawtooth", 0.3, 0, 30); beep(130, 0.4, "square", 0.22, 0.02, 40);
   }
   // déclenchement d'un SUPER (superT passe de 0 à >0)
   for (let i = 0; i < activeBlobs.length; i++) {
@@ -736,20 +746,25 @@ function netScreenBase(title) {
 
 function drawOnlineMenu() {
   netScreenBase("Jouer en ligne");
-  const opts = ["1  —  Créer une partie (1v1)", "3  —  Créer une partie 2v2", "2  —  Rejoindre avec un code"];
-  const cols = ["#fff", "#ffb26b", "#fff"];
-  ctx.font = "bold 25px 'Trebuchet MS', sans-serif";
-  opts.forEach((txt, i) => {
+  // ordre calé sur navOptions("onlineMenu") : [1,3,4,5,2]
+  const opts = [
+    ["1  —  Créer une partie 1v1", "#fff"],
+    ["3  —  Créer une partie 2v2", "#ffb26b"],
+    ["4  —  💣 Créer une partie Bombe 1v1", "#ff7043"],
+    ["5  —  💣 Créer une partie Bombe 2v2", "#ff7043"],
+    ["2  —  Rejoindre avec un code", "#fff"]
+  ];
+  ctx.font = "bold 22px 'Trebuchet MS', sans-serif";
+  opts.forEach(([txt, col], i) => {
     const sel = padConnected && navIdx === i;
-    ctx.fillStyle = sel ? "#ffcc00" : cols[i];
-    ctx.fillText((sel ? "▶  " : "") + txt + (sel ? "  ◀" : ""), W / 2, 195 + i * 44);
+    ctx.fillStyle = sel ? "#ffcc00" : col;
+    ctx.fillText((sel ? "▶  " : "") + txt + (sel ? "  ◀" : ""), W / 2, 178 + i * 40);
   });
-  ctx.font = "17px 'Trebuchet MS', sans-serif";
-  ctx.fillStyle = "rgba(255,255,255,0.8)";
-  ctx.fillText("L'hôte crée la partie et partage son code. 2v2 : jusqu'à 4 joueurs,", W / 2, 350);
-  ctx.fillText("les places libres sont tenues par l'IA. Connexion directe entre navigateurs.", W / 2, 375);
+  ctx.font = "16px 'Trebuchet MS', sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.75)";
+  ctx.fillText("L'hôte crée la partie et partage son code. 2v2 : places libres tenues par l'IA.", W / 2, 400);
   ctx.fillStyle = "rgba(255,255,255,0.6)";
-  ctx.fillText("Échap : retour", W / 2, 435);
+  ctx.fillText("Échap : retour", W / 2, 430);
 }
 
 function drawHostWait() {

@@ -349,6 +349,13 @@ let activeBlobs = [blobL, blobR];
 let bombMode = false;             // règle « patate chaude » activée ?
 let bombTimer = 0;                // ticks restants avant explosion
 let bombFlash = 0;                // éclair d'explosion plein écran (visuel, 1→0)
+let bombTime = BOMB_TIME;         // durée de mèche choisie (ticks) : 5/7/10 s
+// options du menu « Durée de la bombe » (300/420/600 ticks à 60 Hz)
+const BOMB_DURATIONS = [
+  { secs: 5,  ticks: 300 },
+  { secs: 7,  ticks: 420 },
+  { secs: 10, ticks: 600 }
+];
 function setMode(m) {
   mode = m;
   if (m === "2v2") {

@@ -70,10 +70,12 @@ function navOptions() {
   switch (state) {
     case "menu":          return ["Digit1", "Digit2", "Digit3", "KeyR"];
     case "aiDifficulty":  return ["Digit1", "Digit2", "Digit3", "Digit4"];
-    // le nombre d'options dépend du contexte (Solo IA : 3 ; local : 2, pas de 2v2)
+    case "bombDuration":  return ["Digit1", "Digit2", "Digit3"];
+    // le nombre d'options dépend du contexte (Solo IA : 1v1/2v2/bombe1v1/bombe2v2 ;
+    // local : 1v1 + bombe)
     case "gameModeSelect": return pendingMode && pendingMode.vsAI
-      ? ["Digit1", "Digit2", "Digit3"] : ["Digit1", "Digit2"];
-    case "onlineMenu":    return ["Digit1", "Digit3", "Digit2"];
+      ? ["Digit1", "Digit2", "Digit3", "Digit4"] : ["Digit1", "Digit2"];
+    case "onlineMenu":    return ["Digit1", "Digit3", "Digit4", "Digit5", "Digit2"];
     case "selectAnimal":  return ["Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6"].slice(0, visibleAnimalIdx().length);
     case "selectTerrain": return ["Digit1", "Digit2", "Digit3", "Digit4"].slice(0, visibleTerrainIdx().length);
     default: return null;
