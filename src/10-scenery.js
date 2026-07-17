@@ -269,7 +269,7 @@ const CRAB_BANNERS = [
   "GG WP LES BLOBS",
   "404 : DÉFAITE NOT FOUND",
   "ICI ÇA DORO",
-  "TIÉ UN TIGRE !"
+  "TIÉ UN TCHIGRE !"
 ];
 const POM_COLORS = [
   ["#ffd93d", "#ffe680"], ["#ff6fae", "#ffa7cf"],

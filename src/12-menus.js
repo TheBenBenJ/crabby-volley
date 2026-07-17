@@ -679,13 +679,13 @@ function drawCredits() {
   if (darkMode) {
     p("Benjamin Mille & son gros souci mental");
   } else {
-    // "(sié un tigre !)" en plus petit : c'est une private joke, pas le nom
+    // "(sié un tchigre !)" en plus petit : c'est une private joke, pas le nom
     const main = "Benjamin Mille & Romain Leray ";
     ctx.textAlign = "left"; ctx.font = "500 15px " + UI.sans; ctx.fillStyle = UI.ink;
     const mainW = ctx.measureText(main).width;
     ctx.fillText(main, lx, y);
     ctx.font = "500 11px " + UI.sans; ctx.fillStyle = UI.muted;
-    ctx.fillText("(sié un tigre !)", lx + mainW, y);
+    ctx.fillText("(sié un tchigre !)", lx + mainW, y);
     y += 24;
   }
   y += 10;
