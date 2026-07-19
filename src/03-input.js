@@ -140,6 +140,32 @@ function padGameInput(i) {
            : { left: false, right: false, jump: false, super: false };
 }
 
+// ---------- Assignation manette en 1v1 local (clavier VS manette) ----------
+// Deux humains sur la même machine :
+//  · DEUX manettes branchées → une chacun (manette 1 → Gauche, 2 → Droite) ;
+//  · UNE seule manette → elle pilote le côté assigné ci-dessous. Défaut :
+//    Droite, pour que le clavier « principal » (Q/D/Z/S) reste au joueur
+//    Gauche — un joueur au clavier, l'autre à la manette, sans se marcher
+//    dessus. Basculable sur l'écran « Mode de jeu » local (touche G / clic),
+//    et mémorisé d'une session à l'autre.
+let padSideLocal = 1;
+try {
+  const v = localStorage.getItem("crabby-pad-side");
+  if (v === "0" || v === "1") padSideLocal = +v;
+} catch (e) { /* localStorage indisponible : défaut conservé */ }
+
+function setPadSideLocal(side) {
+  padSideLocal = side ? 1 : 0;
+  try { localStorage.setItem("crabby-pad-side", String(padSideLocal)); } catch (e) {}
+}
+
+// entrées manette pour un CÔTÉ donné en 1v1 local à deux humains
+function padForSide(side) {
+  if (padsNow.length >= 2) return padGameInput(side);            // une manette chacun
+  if (padsNow.length === 1 && side === padSideLocal) return padGameInput(0);
+  return { left: false, right: false, jump: false, super: false };
+}
+
 // une touche de saut/confirmation est-elle enfoncée ? Sert à faire avancer
 // manuellement l'écran "Point pour ..." (voir stepGame/netUpdate) — couvre
 // clavier (les deux jeux de touches de saut, + Espace/Entrée universels),

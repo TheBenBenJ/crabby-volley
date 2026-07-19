@@ -225,7 +225,11 @@ function stepGame(inL, inR, ins, opts) {
 }
 
 function localInputs(side) {
-  const pad = padGameInput(side); // manette 1 → Rouge, manette 2 → Vert
+  // 1v1 local à DEUX humains : la manette va au côté assigné (padForSide —
+  // clavier vs manette, ou une manette chacun). Sinon (solo vs IA, 2v2 local),
+  // comportement historique : manette n° i → joueur i (l'humain est en 0).
+  const twoHumans = !vsAI && !online && mode === "1v1";
+  const pad = twoHumans ? padForSide(side) : padGameInput(side);
   const raw = side === 0 ? {
     left:  !!keys["KeyA"] || pad.left,
     right: !!keys["KeyD"] || pad.right,

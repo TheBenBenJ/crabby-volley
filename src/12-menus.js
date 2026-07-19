@@ -83,6 +83,11 @@ function handleMenuKeys(code, key) {
     } else {
       if (code === "Digit1") { startAnimalSelect(); }                       // Classique (1v1)
       if (code === "Digit2") { pendingMode.bomb = true; state = "bombDuration"; } // Bombe (1v1 uniquement en local)
+      // clavier VS manette : bascule le côté piloté par la manette unique
+      if (code === "KeyG" && padConnected) {
+        setPadSideLocal(padSideLocal === 1 ? 0 : 1);
+        beep(padSideLocal === 1 ? 620 : 440, 0.06, "square", 0.08);
+      }
     }
     if (code === "Escape") {
       state = pendingMode.online ? "onlineMenu" : (pendingMode.vsAI ? "aiDifficulty" : "menu");
@@ -531,6 +536,21 @@ function drawGameModeSelect() {
     "2  —  Bombe"
   ];
   drawOptionList(items, 236, 48);
+
+  // clavier VS manette (1v1 local uniquement) : qui prend la manette ?
+  if (!teamChoice) {
+    if (padConnected) {
+      const twoP = padsNow.length >= 2;
+      const label = twoP
+        ? "🎮 Deux manettes : une chacun (1 → Gauche, 2 → Droite)"
+        : "🎮 G — Manette : joueur " + (padSideLocal === 1 ? "Droite" : "Gauche") +
+          "   ·   clavier : joueur " + (padSideLocal === 1 ? "Gauche (Q/D/Z/S)" : "Droite (flèches)");
+      if (!twoP) hit(W / 2, 372, 560, 26, "KeyG"); // clic = bascule, comme G
+      uiLabel(label, UI.mx, 376, 10, "#7ed957", 1);
+    } else {
+      uiLabel("Branche une manette pour jouer clavier vs manette", UI.mx, 376, 10, UI.muted, 1);
+    }
+  }
 }
 
 function drawBombFormat() {
